@@ -11,7 +11,7 @@ const tx: Transcript = {
     id: i + 1,
     startSec: i * 4,
     endSec: i * 4 + 4,
-    text: `第${i + 1}句`,
+    text: `frase ${i + 1}`,
     words: [],
   })),
 };
@@ -22,25 +22,25 @@ describe("adjustClipBoundary", () => {
   it("start -1 pulls the previous sentence in", () => {
     const r = adjustClipBoundary(tx, clip, "start", -1)!;
     expect(r.startSec).toBe(0);
-    expect(r.text).toBe("第1句 第2句 第3句");
+    expect(r.text).toBe("frase 1 frase 2 frase 3");
   });
 
   it("start +1 drops the first sentence", () => {
     const r = adjustClipBoundary(tx, clip, "start", 1)!;
     expect(r.startSec).toBe(8);
-    expect(r.text).toBe("第3句");
+    expect(r.text).toBe("frase 3");
   });
 
   it("end +1 pulls the next sentence in", () => {
     const r = adjustClipBoundary(tx, clip, "end", 1)!;
     expect(r.endSec).toBe(16);
-    expect(r.text).toBe("第2句 第3句 第4句");
+    expect(r.text).toBe("frase 2 frase 3 frase 4");
   });
 
   it("end -1 drops the last sentence", () => {
     const r = adjustClipBoundary(tx, clip, "end", -1)!;
     expect(r.endSec).toBe(8);
-    expect(r.text).toBe("第2句");
+    expect(r.text).toBe("frase 2");
   });
 
   it("refuses to move past the transcript edges", () => {
@@ -67,8 +67,8 @@ describe("adjustClipBoundary", () => {
   });
 });
 
-describe("adjustCandidateBoundary(拼接片)", () => {
-  // 十句连排,每句 4 秒:[0-4] … [36-40]
+describe("adjustCandidateBoundary (trecho colado)", () => {
+  // Dez frases em sequência, de 4 segundos cada: [0-4] … [36-40]
   const tenTx: Transcript = {
     language: "zh",
     engine: "test",
@@ -77,24 +77,24 @@ describe("adjustCandidateBoundary(拼接片)", () => {
       id: i + 1,
       startSec: i * 4,
       endSec: i * 4 + 4,
-      text: `第${i + 1}句`,
+      text: `frase ${i + 1}`,
       words: [],
     })),
   };
 
-  it("手动 5 段片调边后仍是 5 段——不许被 AI 的 4 段护栏悄悄砍", () => {
-    // 选了句 1/3/5/7/9(隔句选):5 个不相邻的段
+  it("um trecho manual de 5 pedaços continua com 5 depois do ajuste de borda — a proteção de 4 pedaços da IA não pode cortar em silêncio", () => {
+    // Foram escolhidas as frases 1/3/5/7/9 (uma sim, uma não): 5 pedaços não vizinhos
     const pieces = [0, 2, 4, 6, 8].map((i) => ({ startSec: i * 4, endSec: i * 4 + 4 }));
     const clip = { startSec: 0, endSec: 36, pieces };
     const adj = adjustCandidateBoundary(tenTx, clip, "end", 1);
     expect(adj).not.toBeNull();
-    // 尾段向后扩一句:最后一段 [32,36] → [32,40],其余四段原样保留
+    // O último pedaço estica uma frase para a frente: [32,36] → [32,40], e os outros quatro ficam como estavam
     expect(adj!.pieces).toHaveLength(5);
     expect(adj!.pieces![4]).toEqual({ startSec: 32, endSec: 40 });
     expect(adj!.pieces!.slice(0, 4)).toEqual(pieces.slice(0, 4));
   });
 
-  it("只动首/尾段的边,中间段一动不动", () => {
+  it("só as bordas do primeiro e do último pedaço se movem, e os do meio ficam parados", () => {
     const pieces = [
       { startSec: 4, endSec: 8 },
       { startSec: 16, endSec: 20 },

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { SAFE_ZONE_PLATFORMS, zonesFor, fitContain, cropRect9x16 } from "../../shared/safe-zones";
 
-describe("SAFE_ZONE_PLATFORMS 数据合法性", () => {
-  it("至少含通用预设,矩形全部落在画面内", () => {
+describe("validade dos dados de SAFE_ZONE_PLATFORMS", () => {
+  it("há pelo menos o preset genérico, e todos os retângulos ficam dentro da imagem", () => {
     expect(SAFE_ZONE_PLATFORMS.length).toBeGreaterThan(0);
     for (const p of SAFE_ZONE_PLATFORMS) {
       expect(p.id).toBeTruthy();
@@ -20,14 +20,14 @@ describe("SAFE_ZONE_PLATFORMS 数据合法性", () => {
     }
   });
 
-  it("zonesFor:未知 id 回落第一个预设", () => {
-    expect(zonesFor("不存在的平台")).toBe(SAFE_ZONE_PLATFORMS[0]);
+  it("zonesFor: um id desconhecido volta para o primeiro preset", () => {
+    expect(zonesFor("plataforma-que-nao-existe")).toBe(SAFE_ZONE_PLATFORMS[0]);
     for (const p of SAFE_ZONE_PLATFORMS) expect(zonesFor(p.id)).toBe(p);
   });
 });
 
-describe("fitContain(object-contain 显示盒)", () => {
-  it("宽视频在方容器:上下留黑边", () => {
+describe("fitContain (a caixa de exibição do object-contain)", () => {
+  it("vídeo largo num contêiner quadrado: barras pretas em cima e embaixo", () => {
     const b = fitContain(100, 100, 16 / 9);
     expect(b.w).toBeCloseTo(100);
     expect(b.h).toBeCloseTo(100 / (16 / 9));
@@ -35,21 +35,21 @@ describe("fitContain(object-contain 显示盒)", () => {
     expect(b.y).toBeCloseTo((100 - b.h) / 2);
   });
 
-  it("竖视频在宽容器:左右留黑边", () => {
+  it("vídeo vertical num contêiner largo: barras pretas dos lados", () => {
     const b = fitContain(200, 100, 9 / 16);
     expect(b.h).toBeCloseTo(100);
     expect(b.w).toBeCloseTo(100 * (9 / 16));
     expect(b.x).toBeCloseTo((200 - b.w) / 2);
   });
 
-  it("非法输入回零盒", () => {
+  it("entrada inválida devolve a caixa zerada", () => {
     expect(fitContain(0, 100, 1)).toEqual({ x: 0, y: 0, w: 0, h: 0 });
     expect(fitContain(100, 100, 0)).toEqual({ x: 0, y: 0, w: 0, h: 0 });
   });
 });
 
-describe("cropRect9x16(竖屏中心裁窗)", () => {
-  it("16:9 显示盒:裁窗满高、水平居中、比例 9:16", () => {
+describe("cropRect9x16 (a janela de recorte vertical pelo centro)", () => {
+  it("caixa de exibição 16:9: a janela ocupa toda a altura, é centralizada na horizontal e tem proporção 9:16", () => {
     const box = { x: 0, y: 0, w: 160, h: 90 };
     const c = cropRect9x16(box);
     expect(c.h).toBeCloseTo(90);
@@ -58,7 +58,7 @@ describe("cropRect9x16(竖屏中心裁窗)", () => {
     expect(c.y).toBeCloseTo(0);
   });
 
-  it("已是 9:16 的显示盒:裁窗即全盒", () => {
+  it("numa caixa que já é 9:16: a janela de recorte é a caixa inteira", () => {
     const box = { x: 10, y: 5, w: 90, h: 160 };
     const c = cropRect9x16(box);
     expect(c.x).toBeCloseTo(10);
@@ -67,8 +67,8 @@ describe("cropRect9x16(竖屏中心裁窗)", () => {
     expect(c.h).toBeCloseTo(160);
   });
 
-  it("比 9:16 更窄的源:裁窗保宽、垂直居中", () => {
-    const box = { x: 0, y: 0, w: 45, h: 160 }; // 窄于 9:16
+  it("origem mais estreita que 9:16: a janela preserva a largura e é centralizada na vertical", () => {
+    const box = { x: 0, y: 0, w: 45, h: 160 }; // mais estreita que 9:16
     const c = cropRect9x16(box);
     expect(c.w).toBeCloseTo(45);
     expect(c.h).toBeCloseTo(45 * (16 / 9));
