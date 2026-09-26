@@ -1,13 +1,13 @@
 /**
- * Clip cutting: extract [start, end] from a source video via ffmpeg.
- * `buildCutArgs` is a pure function (unit-testable); only `cutClip` executes.
+ * Corte do trecho: [início, fim] é extraído do vídeo de origem pelo ffmpeg.
+ * `buildCutArgs` é função pura (testável); só `cutClip` executa de verdade.
  *
- * Two modes:
- *  - "accurate" (default): re-encode with fast seek + output seek trim.
- *    Frame-accurate boundaries — required for hook-first clips where the
- *    first second matters. veryfast x264 keeps a 60s clip under ~10s encode.
- *  - "copy": stream copy. Near-instant but cuts snap to keyframes (can be
- *    seconds off on livestream VODs with sparse keyframes) — preview only.
+ * Dois modos:
+ *  - "accurate" (o padrão): recodifica, com busca rápida na entrada e aparo na saída.
+ *    As bordas ficam exatas no quadro — necessário para o trecho que começa pelo gancho, onde o
+ *    primeiro segundo é o que importa. Com o x264 em veryfast, um trecho de 60s codifica em menos de ~10s.
+ *  - "copy": cópia de fluxo. É quase instantâneo, mas os cortes encaixam em quadro-chave (o que pode
+ *    errar segundos em gravação de live com quadro-chave escasso) — serve só para pré-visualizar.
  */
 import { spawn } from "child_process";
 import { withAtomicOutput } from "./atomic-output";
@@ -22,24 +22,23 @@ import { videoEncoderArgs, type VideoEncoder } from "./video-encoder";
 import { visualEnhanceFilter, type VisualEnhancePlan } from "./visual-enhance";
 
 /**
- * Social loudness target (EBU R128): -14 LUFS integrated, -1.5 dBTP true-peak
- * ceiling — the level TikTok / Reels / Shorts / 抖音 normalize playback to, so
- * a batch of clips lands at one consistent, platform-friendly volume instead of
- * the source's raw (often too quiet) level.
+ * Alvo de volume das redes (EBU R128): -14 LUFS integrado e teto de pico real de -1,5 dBTP — o nível
+ * para o qual TikTok / Reels / Shorts normalizam a reprodução, de modo que um lote de trechos saia num
+ * volume só, coerente e amigo das plataformas, em vez do nível cru da origem (quase sempre baixo demais).
  *
- * loudnorm runs its analysis at 192kHz internally and would hand that rate to
- * the AAC encoder (which caps at 96kHz). We pin the output rate with the `-ar`
- * output option (see LOUDNORM_OUT_RATE) rather than an in-graph aresample —
- * output-side resampling negotiates the channel layout, an in-graph one does not.
+ * O loudnorm faz a análise interna a 192kHz e entregaria essa taxa ao codificador AAC (que para em 96kHz).
+ * A taxa de saída é fixada pela opção de saída `-ar` (veja LOUDNORM_OUT_RATE) em vez de um aresample dentro
+ * do grafo — a reamostragem do lado da saída negocia a disposição dos canais, e a de dentro do grafo não.
  */
 export const LOUDNORM_FILTER = "loudnorm=I=-14:TP=-1.5:LRA=11";
-/** Output sample rate forced alongside loudnorm to cap its 192kHz output. */
+/** A taxa de amostragem de saída, forçada junto do loudnorm para limitar a saída de 192kHz dele. */
 export const LOUDNORM_OUT_RATE = "48000";
 /**
- * 基础降噪链:双 80Hz 高通(24dB/oct,压 50Hz 电流声及其嗡嗡感)+ afftdn
- * 谱减降噪(nr=24 取温和档防真人声伪影,tn=1 随时段跟踪噪底)。合成实测:
- * 静音段底噪 -7.7dB、语音段仅 -0.2dB。定位是零成本基础降噪,不是 AI 修音。
- * 永远排在 loudnorm 之前——先去噪再标准化,否则响度归一会把噪底一起抬起来。
+ * Cadeia de redução de ruído básica: dois passa-altas de 80Hz (24dB/oct, que abafam o zumbido de 50Hz da
+ * rede elétrica) + o afftdn, de subtração espectral (nr=24 é a faixa suave, para não criar artefato na voz
+ * real, e tn=1 acompanha o piso de ruído ao longo do tempo). Medido na prática: -7,7dB de piso nos trechos
+ * de silêncio e só -0,2dB nos de fala. Isto é redução de ruído básica de custo zero, não restauração por IA.
+ * Vem sempre antes do loudnorm — primeiro tira o ruído, depois normaliza, senão a normalização levanta o piso junto.
  */
 export const DENOISE_FILTER = "highpass=f=80,highpass=f=80,afftdn=nr=24:nf=-40:tn=1";
 
@@ -50,15 +49,17 @@ export function muteRangeFilters(ranges?: Array<{ startSec: number; endSec: numb
 }
 
 /**
- * 切点边缘音频淡化时长:重编码切割的边界几乎必然落在波形非零点上,
- * 产生可闻的「咔哒」爆音;30ms 短到听不出淡化,却足以把边界钳到零附近。
- * 跳剪/高潮前置/合集的每段两端各自淡出+淡入,硬切拼缝天然平滑。
+ * A duração da suavização do áudio na borda do corte: recodificando, a borda quase sempre cai num ponto
+ * não nulo da onda e produz um «clique» audível; 30ms é curto o bastante para não se notar a suavização e
+ * já basta para prender a borda perto do zero. No corte seco, no clímax na frente e no compilado cada
+ * pedaço recebe o seu fade-out e fade-in nas pontas, e a emenda do corte seco sai naturalmente lisa.
  */
 export const EDGE_FADE_SEC = 0.03;
 
 /**
- * 段边缘淡入淡出 filter(纯函数)。段太短(≤4×淡化时长)不淡——
- * 淡化会吃掉整段能量,反而比爆音更可闻。
+ * O filtro de fade-in/fade-out na borda do pedaço (função pura). Pedaço curto demais (≤4× a duração da
+ * suavização) não recebe nada — a suavização comeria a energia do pedaço inteiro, o que seria mais audível
+ * que o estalo.
  */
 export function edgeFadeFilters(durationSec: number): string[] {
   if (!(durationSec > EDGE_FADE_SEC * 4)) return [];
@@ -73,63 +74,63 @@ export type CutMode = "accurate" | "copy";
 export interface CutOptions {
   mode?: CutMode;
   /**
-   * Internal smart-render path: copy only the H.264 video stream while audio
-   * still receives the normal fades/filters and AAC encoding. Callers must
-   * prove keyframe alignment first; any pixel-changing filter disables it.
+   * Caminho interno da renderização inteligente: só o fluxo de vídeo H.264 é copiado, e o áudio continua
+   * recebendo as suavizações/filtros normais e a codificação AAC. Quem chama precisa provar antes que os
+   * quadros-chave estão alinhados; qualquer filtro que mexa em pixel desliga isso.
    */
   videoCopy?: boolean;
-  /** ffprobe global stream index selected for the source picture. */
+  /** O índice global de stream do ffprobe escolhido para a imagem de origem. */
   videoStreamIndex?: number;
-  /** ffprobe global stream index selected for source audio. */
+  /** O índice global de stream do ffprobe escolhido para o áudio de origem. */
   audioStreamIndex?: number;
-  /** x264 CRF for accurate mode (lower = better); default 18 (visually lossless-ish). */
+  /** O CRF do x264 no modo accurate (quanto menor, melhor); por padrão 18 (praticamente sem perda visível). */
   crf?: number;
-  /** x264 preset for accurate mode; default "veryfast". */
+  /** O preset do x264 no modo accurate; por padrão "veryfast". */
   preset?: string;
-  /** Per-run encoder probe result. Hardware failures transparently retry with libx264. */
+  /** O resultado da sondagem do codificador nesta execução. Falha de hardware tenta de novo em libx264 de forma transparente. */
   encoder?: VideoEncoder;
-  /** Crop away static screen-recording chrome first (fractions of height). */
+  /** Apara primeiro a moldura fixa de uma gravação de tela (em frações da altura). */
   uiCrop?: { topFrac: number; bottomFrac: number };
   /**
-   * Face-tracking reframe: crop x follows a piecewise-linear expression in t.
-   * Replaces uiCrop+vertical (their geometry is folded into the plan).
+   * Reenquadramento com rastreio de rosto: o x do crop segue uma expressão linear por pedaços em t.
+   * Substitui uiCrop+vertical (a geometria dos dois é dobrada dentro do plano).
    */
   trackPlan?: { cropXExpr: string; cropW: number; cropH: number; cropY: number };
-  /** Reframe to 9:16 vertical (center crop → 1080×1920). Requires re-encode. */
+  /** Reenquadra em 9:16 vertical (recorte pelo centro → 1080×1920). Exige recodificar. */
   vertical?: boolean;
   /**
-   * 自动运镜:竖屏成片叠一层缓慢推拉(见 autozoom.ts)。需要源帧率——
-   * zoompan 不传 fps 会把素材重采样到 25fps。字段齐全才生效。
+   * Movimento automático de câmera: uma aproximação lenta é sobreposta ao vídeo vertical (veja autozoom.ts).
+   * Exige a taxa de quadros da origem — sem fps, o zoompan reamostra o material para 25fps. Só funciona com todos os campos preenchidos.
    */
   autoZoom?: { durationSec: number; fps: number; emphasisAtSec?: number[] };
-  /** Conservative source-measured picture correction; neutral/skipped plans add no filter. */
+  /** Correção de imagem conservadora, medida na própria origem; um plano neutro ou pulado não acrescenta filtro. */
   visualEnhance?: VisualEnhancePlan | null;
-  /** HDR sources are tone-mapped to a tagged SDR output before any geometric or finishing filters. */
+  /** Uma origem HDR é mapeada em tom para uma saída SDR etiquetada antes de qualquer filtro geométrico ou de acabamento. */
   color?: ColorRenderPlan;
-  /** Burn an .ass karaoke subtitle file via libass. Requires re-encode. */
+  /** Queima um arquivo de legenda karaokê .ass pelo libass. Exige recodificar. */
   subtitlePath?: string;
-  /** Directory holding bundled fonts for libass (subtitles filter fontsdir). */
+  /** A pasta com as fontes empacotadas para o libass (o fontsdir do filtro subtitles). */
   fontsDir?: string;
-  /** Normalize output audio to the -14 LUFS social target (EBU R128 loudnorm). */
+  /** Normaliza o áudio de saída no alvo social de -14 LUFS (loudnorm, EBU R128). */
   normalizeLoudness?: boolean;
-  /** 基础降噪:压直播回放常见的底噪/电流声(高通×2 + afftdn,先于 loudnorm)。 */
+  /** Redução de ruído básica: abafa o piso de ruído e o zumbido elétrico comuns em gravação de live (dois passa-altas + afftdn, antes do loudnorm). */
   denoise?: boolean;
-  /** Clip-output-relative ranges whose spoken audio should be muted. */
+  /** Intervalos relativos à saída do trecho cuja fala deve ser silenciada. */
   muteRanges?: Array<{ startSec: number; endSec: number }>;
-  /** 品牌水印:PNG 烧进画面一角(在字幕之上)。 */
+  /** Marca d'água da marca: um PNG queimado num canto da imagem (acima da legenda). */
   watermark?: WatermarkSpec;
-  /** 容器元数据(如 AIGC 隐式标识);copy 模式同样写入。 */
+  /** Metadados do contêiner (a sinalização implícita de conteúdo por IA, por exemplo); o modo copy também os grava. */
   metadata?: Record<string, string>;
 }
 
-/** -metadata k=v 参数对(纯函数,cut 与 audiogram 共用)。 */
+/** Os pares de parâmetro -metadata k=v (função pura, compartilhada por cut e audiogram). */
 export function metadataArgs(metadata?: Record<string, string>): string[] {
   return Object.entries(metadata ?? {}).flatMap(([k, v]) => ["-metadata", `${k}=${v}`]);
 }
 
-/** 解析 ffmpeg -progress 输出块里的 out_time_us/out_time_ms → 已编码秒数。 */
+/** Lê o out_time_us/out_time_ms do bloco de saída de -progress do ffmpeg → os segundos já codificados. */
 export function parseFfmpegProgress(chunk: string): number | null {
-  // out_time_us 是微秒;老字段 out_time_ms 名字带 ms 实际也是微秒(ffmpeg 历史坑)
+  // out_time_us está em microssegundos; o campo antigo out_time_ms, apesar do nome, também está em microssegundos (uma armadilha histórica do ffmpeg)
   const m = chunk.match(/out_time_us=(\d+)/) ?? chunk.match(/out_time_ms=(\d+)/);
   if (!m) return null;
   const us = Number(m[1]);
@@ -137,9 +138,10 @@ export function parseFfmpegProgress(chunk: string): number | null {
 }
 
 /**
- * spawn 版 ffmpeg 执行:-progress pipe:1 流式回报已编码秒数(切片内实时
- * 进度),stderr 只留尾部(报错定位),AbortSignal 直接 kill 子进程。
- * cut/jump-cut/audiogram 三条出片路径共用。
+ * A execução do ffmpeg pela versão com spawn: -progress pipe:1 informa em fluxo os segundos já
+ * codificados (o progresso real dentro do trecho), da stderr fica só a cauda (para localizar o erro), e
+ * o AbortSignal mata o processo filho direto.
+ * Os três caminhos de saída (cut, corte seco e audiogram) usam isto.
  */
 export async function runFfmpeg(
   args: string[],
@@ -166,8 +168,8 @@ export async function runFfmpeg(
       const sec = parseFfmpegProgress(d.toString());
       if (sec !== null) opts.onTimeSec?.(sec);
     });
-    // Abort emits error before close. Wait for close before a caller removes or
-    // publishes the output (especially important while Windows holds the file).
+    // O abort emite error antes do close. É preciso esperar o close antes de quem chama remover ou
+    // publicar a saída (o que importa especialmente enquanto o Windows mantém o arquivo preso).
     child.on("error", (e) => { processError = e; });
     child.on("close", (code) => {
       if (killTimer) clearTimeout(killTimer);
@@ -180,22 +182,23 @@ export async function runFfmpeg(
   });
 }
 
-/** 水印参数(widthPx 由调用方按输出宽度算好传入)。 */
+/** Os parâmetros da marca d'água (o widthPx é calculado por quem chama, a partir da largura de saída). */
 export interface WatermarkSpec {
   path: string;
   corner: "top-left" | "top-right" | "bottom-left" | "bottom-right";
-  /** 0..1。 */
+  /** De 0 a 1. */
   opacity: number;
-  /** 缩放到的目标宽度(像素)。 */
+  /** A largura de destino da escala (em pixels). */
   widthPx: number;
 }
 
-/** 水印距画面边缘的像素间距。 */
+/** O espaçamento em pixels entre a marca d'água e a borda da imagem. */
 const WM_MARGIN = 44;
 
 /**
- * 水印的两段 filter:source(movie 源读 PNG + 透明度 + 缩放)与 overlay
- * (按角落定位)。拆开返回,方便 -vf 与 filter_complex 两条路径各自组装。
+ * Os dois pedaços de filtro da marca d'água: source (a fonte movie lê o PNG + transparência + escala) e
+ * overlay (posicionado pelo canto). Voltam separados, o que facilita a montagem pelos dois caminhos,
+ * o -vf e o filter_complex.
  */
 export function watermarkStages(wm: WatermarkSpec): { source: string; overlay: string } {
   const alpha = wm.opacity < 1 ? `,colorchannelmixer=aa=${wm.opacity.toFixed(3)}` : "";
@@ -212,8 +215,9 @@ export function watermarkStages(wm: WatermarkSpec): { source: string; overlay: s
 }
 
 /**
- * 把线性 -vf 链与水印合成为最终 -vf 表达式。无水印时保持原样;有水印时
- * 用 movie 源在 -vf 内部起第二路输入(字幕之后叠加,logo 永远在最上层)。
+ * Junta a cadeia linear de -vf com a marca d'água na expressão final de -vf. Sem marca d'água, tudo
+ * segue como está; com ela, a fonte movie abre uma segunda entrada dentro do próprio -vf (sobreposta
+ * depois da legenda, de modo que o logotipo fique sempre na camada mais alta).
  */
 export function composeVideoFilter(filters: string[], wm?: WatermarkSpec): string {
   if (!wm) return filters.join(",");
@@ -223,23 +227,23 @@ export function composeVideoFilter(filters: string[], wm?: WatermarkSpec): strin
 }
 
 /**
- * ffmpeg filter-graph path escaping for the subtitles filter: forward slashes
- * everywhere, escape the Windows drive colon, guard stray quotes.
+ * O escape de caminho no grafo de filtros do ffmpeg para o filtro subtitles: barras normais em todo
+ * lugar, o dois-pontos da unidade do Windows escapado e as aspas soltas protegidas.
  */
 export function escapeFilterPath(p: string): string {
   return p.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
 }
 
-/** Compose the -vf chain for reframing + caption burn-in. Empty = no filter. */
+/** Monta a cadeia -vf do reenquadramento + da legenda queimada. Vazia = sem filtro. */
 export function buildVideoFilters(options: CutOptions): string[] {
   const filters: string[] = [];
   const toneMap = options.color ? hdrToneMapFilter(options.color) : null;
-  // HDR transfer/primaries must be normalized while pixels still represent the
-  // untouched source. Geometry, zoom, picture finishing and text all operate on
-  // the resulting SDR signal, preventing overlays from being tone-mapped too.
+  // A curva de transferência e as primárias do HDR precisam ser normalizadas enquanto os pixels ainda
+  // representam a origem intocada. Geometria, zoom, acabamento de imagem e texto operam todos sobre o
+  // sinal SDR resultante, o que evita que a sobreposição também seja mapeada em tom.
   if (toneMap) filters.push(toneMap);
   const enhance = visualEnhanceFilter(options.visualEnhance);
-  // 自动运镜:zoompan 顶替 scale 那一步(它自己出目标尺寸);返回 null 就照旧
+  // Movimento automático de câmera: o zoompan toma o lugar daquele passo de scale (ele mesmo entrega o tamanho de destino); devolvendo null, tudo segue como antes
   const zoom = options.autoZoom
     ? buildZoomFilter(options.autoZoom.durationSec, options.autoZoom.fps, 1080, 1920, {
         emphasisAtSec: options.autoZoom.emphasisAtSec,
@@ -259,12 +263,12 @@ export function buildVideoFilters(options: CutOptions): string[] {
   }
   const ui = options.uiCrop;
   if (ui && (ui.topFrac > 0 || ui.bottomFrac > 0)) {
-    // strip static screen-recording chrome BEFORE any reframe; keep dims even
+    // apara a moldura fixa da gravação de tela ANTES de qualquer reenquadramento, mantendo as dimensões pares
     const keep = Math.max(0.2, 1 - ui.topFrac - ui.bottomFrac);
     filters.push(`crop=w=iw:h='floor(ih*${keep.toFixed(4)}/2)*2':x=0:y='floor(ih*${ui.topFrac.toFixed(4)}/2)*2'`);
   }
   if (options.vertical) {
-    // Center crop to exactly 9:16 (whichever axis binds), then normalize size.
+    // Recorte pelo centro em exatamente 9:16 (pelo eixo que limitar) e depois o tamanho é normalizado.
     filters.push("crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)'", ...toVertical);
   }
   if (enhance) filters.push(enhance);
@@ -275,7 +279,7 @@ export function buildVideoFilters(options: CutOptions): string[] {
   return filters;
 }
 
-/** Build the ffmpeg argument list for one cut. Pure — no I/O. */
+/** Monta a lista de argumentos do ffmpeg de um corte. Pura — sem entrada nem saída. */
 export function buildCutArgs(
   inputPath: string,
   outputPath: string,
@@ -287,8 +291,8 @@ export function buildCutArgs(
     throw new Error(`invalid cut range: start=${startSec} end=${endSec}`);
   }
   const filters = buildVideoFilters(options);
-  // Any video filter — or an audio filter (loudnorm/denoise) — forces a
-  // re-encode, so silently upgrade copy → accurate.
+  // Qualquer filtro de vídeo — ou de áudio (loudnorm/denoise) — obriga a recodificar,
+  // então copy é promovido a accurate em silêncio.
   const mode =
     filters.length > 0 || options.watermark || options.normalizeLoudness || options.denoise
       ? "accurate"
@@ -296,10 +300,10 @@ export function buildCutArgs(
   const start = Math.max(0, startSec);
   const duration = endSec - start;
 
-  // Fast seek: -ss BEFORE -i jumps by keyframe index (instant even at hour 3
-  // of a VOD); the decoder then trims precisely inside the segment. Input
-  // seeking also resets PTS to ~0, which is exactly what the clip-relative
-  // ASS karaoke timestamps assume.
+  // Busca rápida: -ss ANTES de -i salta pelo índice de quadros-chave (instantâneo mesmo na terceira
+  // hora de uma gravação); o decodificador então apara com precisão dentro do segmento. A busca na
+  // entrada também zera o PTS para ~0, que é exatamente o que as marcas de tempo do karaokê ASS,
+  // relativas ao trecho, pressupõem.
   const common = ["-hide_banner", "-y", "-ss", toFfmpegTime(start), "-i", inputPath, "-t", toFfmpegTime(duration)];
   const maps = [
     "-map", ffmpegVideoStreamSpecifier(options.videoStreamIndex),
@@ -313,8 +317,8 @@ export function buildCutArgs(
   const crf = Number.isFinite(options.crf) ? String(options.crf) : "18";
   const preset = options.preset ?? "veryfast";
   const copyVideo = Boolean(options.videoCopy && filters.length === 0 && !options.watermark);
-  // 音频链固定顺序:降噪 → 响度标准化(loudnorm 必须看到去噪后的音频)
-  // → 边缘淡化(放最后,loudnorm 的动态增益才不会把淡化抬回去)
+  // A cadeia de áudio tem ordem fixa: redução de ruído → normalização de volume (o loudnorm precisa ver o áudio já sem ruído)
+  // → suavização das bordas (por último, para o ganho dinâmico do loudnorm não desfazer a suavização)
   const audioChain = [
     ...(options.denoise ? [DENOISE_FILTER] : []),
     ...(options.normalizeLoudness ? [LOUDNORM_FILTER] : []),
@@ -340,10 +344,10 @@ export function buildCutArgs(
 }
 
 /**
- * Jump-cut arg builder: keep only `segments` (absolute source time) of one
- * clip and splice them in a single filter_complex pass — trim/atrim → concat
- * → optional reframe + caption burn-in. Fast seek still applies: we seek to
- * the clip start and express segment times relative to the seek point.
+ * O construtor de argumentos do corte seco: de um trecho ficam só os `segments` (em tempo absoluto da
+ * origem), emendados numa única passada de filter_complex — trim/atrim → concat → reenquadramento
+ * opcional + legenda queimada. A busca rápida continua valendo: a busca é feita até o início do trecho
+ * e o tempo dos pedaços é expresso em relação a esse ponto.
  */
 export function buildJumpCutArgs(
   inputPath: string,
@@ -355,7 +359,7 @@ export function buildJumpCutArgs(
   if (segments.length === 0) throw new Error("jump cut requires at least one segment");
   const seek = Math.max(0, clipStartSec);
   const lastEnd = segments[segments.length - 1].endSec;
-  const readDuration = lastEnd - seek + 0.5; // small margin past the tail
+  const readDuration = lastEnd - seek + 0.5; // uma margem pequena além do fim
 
   const parts: string[] = [];
   const labels: string[] = [];
@@ -365,7 +369,7 @@ export function buildJumpCutArgs(
     const a = Math.max(0, s.startSec - seek);
     const b = Math.max(a, s.endSec - seek);
     parts.push(`[${videoInput}]trim=start=${a.toFixed(3)}:end=${b.toFixed(3)},setpts=PTS-STARTPTS[v${i}]`);
-    // 每段两端 30ms 淡化:相邻段的淡出+淡入在拼缝处相接,消掉跳剪爆音
+    // 30ms de suavização nas duas pontas de cada pedaço: o fade-out de um encontra o fade-in do seguinte na emenda, e o estalo do corte seco desaparece
     const fades = edgeFadeFilters(b - a);
     const fadeSuffix = fades.length > 0 ? `,${fades.join(",")}` : "";
     parts.push(`[${audioInput}]atrim=start=${a.toFixed(3)}:end=${b.toFixed(3)},asetpts=PTS-STARTPTS${fadeSuffix}[a${i}]`);
@@ -374,8 +378,8 @@ export function buildJumpCutArgs(
   const post = buildVideoFilters(options);
   const wm = options.watermark;
   const concatOut = post.length > 0 || wm ? "[vc]" : "[vout]";
-  // Process the *spliced* audio (denoise/loudnorm must see the final
-  // concatenated stream, not each segment) — concat → [araw] → chain → [aout].
+  // O áudio processado é o *já emendado* (a redução de ruído e o loudnorm precisam ver o fluxo final
+  // concatenado, não cada pedaço) — concat → [araw] → cadeia → [aout].
   const audioChain = [
     ...(options.denoise ? [DENOISE_FILTER] : []),
     ...(options.normalizeLoudness ? [LOUDNORM_FILTER] : []),
@@ -384,7 +388,7 @@ export function buildJumpCutArgs(
   const audioOut = audioChain.length > 0 ? "[araw]" : "[aout]";
   parts.push(`${labels.join("")}concat=n=${segments.length}:v=1:a=1${concatOut}${audioOut}`);
   if (wm) {
-    // 水印永远最后叠(在字幕之上):后处理链 → [vmain],movie 源 → [wm],overlay 收口
+    // A marca d'água é sempre a última a ser sobreposta (acima da legenda): cadeia de pós-processamento → [vmain], fonte movie → [wm], e o overlay fecha
     const s = watermarkStages(wm);
     const mainLabel = post.length > 0 ? "[vmain]" : "[vc]";
     if (post.length > 0) parts.push(`[vc]${post.join(",")}[vmain]`);
@@ -417,7 +421,7 @@ export function buildJumpCutArgs(
   ];
 }
 
-/** Execute a jump cut. Throws with ffmpeg's stderr tail on failure. */
+/** Executa um corte seco. Lança com a cauda da stderr do ffmpeg em caso de falha. */
 export async function cutJumpClip(
   inputPath: string,
   outputPath: string,
@@ -446,7 +450,7 @@ export async function cutJumpClip(
   }, signal);
 }
 
-/** Execute one cut. Throws with ffmpeg's stderr tail on failure. */
+/** Executa um corte. Lança com a cauda da stderr do ffmpeg em caso de falha. */
 export async function cutClip(
   inputPath: string,
   outputPath: string,
@@ -462,9 +466,9 @@ export async function cutClip(
       await runFfmpeg(args, { signal, onTimeSec });
       return options.videoCopy ? "copy" : "encode";
     } catch (e) {
-      // Smart video copy is an optimization only. Container/bitstream quirks can
-      // still reject an otherwise eligible stream, so retry the proven accurate
-      // path before considering hardware-encoder fallback.
+      // A cópia inteligente do vídeo é só uma otimização. Peculiaridades de contêiner ou de fluxo de bits
+      // podem recusar um fluxo que era elegível, então o caminho accurate, já comprovado, é tentado de novo
+      // antes de cogitar a volta para o codificador de hardware.
       if (options.videoCopy && !signal?.aborted) {
         try {
           await runFfmpeg(
@@ -484,28 +488,30 @@ export async function cutClip(
         return "encode";
       }
       const msg = e instanceof Error ? e.message : String(e);
-      // ffmpeg errors bury the cause at the end of stderr — surface only the tail
+      // Os erros do ffmpeg enterram a causa no fim da stderr — só a cauda é mostrada
       const tail = msg.split("\n").slice(-6).join("\n");
       throw new Error(`ffmpeg cut failed (${toFfmpegTime(startSec)}→${toFfmpegTime(endSec)}): ${tail}`);
     }
   }, signal);
 }
 
-/** concat demuxer 列表文件内容(路径里的单引号按其语法转义)。 */
+/** O conteúdo do arquivo de lista do demuxer concat (a aspa simples no caminho é escapada conforme a sintaxe dele). */
 export function buildConcatList(paths: string[]): string {
   return paths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join("\n") + "\n";
 }
 
 /**
- * 拼接参数:同一管线导出的分片编码参数一致,流复制(-c copy)秒级完成、
- * 零画质损失;硬切衔接(合集/高潮前置的通行做法,转场要整体重编码)。
- * metadata 用于把容器元数据(如 AIGC 隐式标识)补到拼接产物上。
+ * Os parâmetros da colagem: os pedaços exportados pela mesma esteira têm parâmetros de codificação
+ * iguais, então a cópia de fluxo (-c copy) termina em segundos e sem perda nenhuma de qualidade; a
+ * junção é por corte seco (a prática de sempre no compilado e no clímax na frente, já que transição
+ * exigiria recodificar tudo).
+ * metadata serve para completar os metadados de contêiner (como a sinalização implícita de conteúdo por IA) no resultado da colagem.
  */
 export function buildConcatArgs(listPath: string, outputPath: string, metadata?: Record<string, string>): string[] {
   return ["-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", "-movflags", "+faststart", ...metadataArgs(metadata), outputPath];
 }
 
-/** 把多条已导出分片按序流复制拼接。列表文件落在输出旁,跑完即删。 */
+/** Cola, na ordem, vários pedaços já exportados por cópia de fluxo. O arquivo de lista fica ao lado da saída e é apagado ao terminar. */
 export async function concatClips(
   paths: string[],
   outputPath: string,

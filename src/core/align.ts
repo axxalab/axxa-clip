@@ -1,18 +1,20 @@
 import { matchingCharacters, paraformerSupportsText } from "../shared/speech-text";
 /**
- * 精准切点(二遍对齐):导出期只对进入决赛的候选片段,用 Paraformer
- * (sherpa-onnx-paraformer-zh-2023-09-14,唯一支持时间戳的档)重解码一遍,
- * 拿 CIF 一体化词级时间戳修正主转写的词表——字幕卡拉OK、跳剪、冷开场、
- * SRT 全部受益。
+ * Ponto de corte preciso (segunda passada de alinhamento): na exportação, só os candidatos que chegaram
+ * à final são decodificados outra vez com o Paraformer (sherpa-onnx-paraformer-zh-2023-09-14, a única
+ * edição que dá marca de tempo), e a marca de tempo por palavra integrada do CIF corrige o vocabulário
+ * da transcrição principal — o karaokê da legenda, o corte seco, a abertura fria e o SRT se beneficiam todos.
  *
- * 为什么不换主 ASR:SenseVoice 的情绪/音频事件标签是第七八路证据的来源,
- * Paraformer 没有;而 Paraformer 的 CIF 时间戳精度(官方宣称超过 Kaldi
- * 强制对齐,±50ms 级)正是 SenseVoice 一侧的短板——各取所长,候选段才
- * 几十秒,二遍解码的代价可忽略。(方案出处:FunClip 拆解调研,2026-08-05)
+ * Por que o ASR principal não é trocado: as etiquetas de emoção e de evento de áudio do SenseVoice são a
+ * fonte da sétima e da oitava trilha de evidência, e o Paraformer não as tem; já a precisão da marca de
+ * tempo CIF do Paraformer (que os autores dizem superar o alinhamento forçado do Kaldi, na ordem de ±50ms)
+ * é justamente o ponto fraco do lado do SenseVoice — cada um contribui com o que tem de melhor, e como o
+ * trecho candidato tem só algumas dezenas de segundos, o custo da segunda decodificação é desprezível.
+ * (De onde vem a ideia: pesquisa desmontando o FunClip, 05/08/2026.)
  *
- * refineWordTimings 是纯函数(字符级 LCS 对齐+时间重映射),可单测;
- * createClipAligner 才碰模型与 ffmpeg。任何失败/低匹配率都返回 null,
- * 调用方回退原词表——精对齐是锦上添花,绝不拖垮导出。
+ * refineWordTimings é função pura (alinhamento por LCS de caracteres + remapeamento do tempo) e testável;
+ * só createClipAligner toca no modelo e no ffmpeg. Qualquer falha ou taxa de correspondência baixa devolve
+ * null e quem chama volta ao vocabulário original — o alinhamento fino é um bônus, e nunca derruba a exportação.
  */
 import { join } from "path";
 import { tmpdir } from "os";
@@ -31,23 +33,23 @@ import type { AlignmentQualityReport, TranscriptWord } from "../shared/api-types
 import type { ClipPiece } from "../shared/pieces";
 import { summarizeTimingQuality } from "../shared/transcript-quality";
 
-/** 匹配率低于此不采纳(转写幻觉/背景音乐段,对齐结果不可信)。 */
+/** Taxa de correspondência abaixo desta não é aceita (alucinação da transcrição / trecho de música de fundo: o alinhamento não é confiável). */
 export const ALIGN_MIN_MATCH_FRAC = 0.5;
-/** 候选段两侧解码余量(秒):边界词的完整发音要包进来。 */
+/** A folga de decodificação dos dois lados do trecho candidato (segundos): a pronúncia inteira da palavra da borda precisa caber dentro. */
 const ALIGN_PAD_SEC = 0.4;
-/** 二遍解码的窗口(与主转写同参)。 */
+/** A janela da segunda decodificação (com os mesmos parâmetros da transcrição principal). */
 const ALIGN_WINDOW_SEC = 28;
-/** 词最短时长(秒):重映射后不允许出现零长词。 */
+/** A duração mínima de uma palavra (segundos): depois do remapeamento não pode existir palavra de duração zero. */
 const MIN_WORD_SEC = 0.02;
 
-/** 归一化的对齐单元:一个 CJK 字或一个拉丁/数字字符。 */
+/** A unidade normalizada do alinhamento: um ideograma CJK ou um caractere latino/numérico. */
 interface AlignUnit {
   ch: string;
-  /** 所属词(目标侧)或 token(参考侧)的下标。 */
+  /** O índice da palavra a que pertence (do lado do destino) ou do token (do lado da referência). */
   idx: number;
 }
 
-/** 把词/token 流拆成归一化字符单元(小写、去标点空白)。纯函数。 */
+/** Quebra o fluxo de palavras/tokens em unidades de caractere normalizadas (minúsculas, sem pontuação nem espaço). Função pura. */
 export function toAlignUnits(items: Array<{ text: string }>): AlignUnit[] {
   const units: AlignUnit[] = [];
   for (let i = 0; i < items.length; i++) {
@@ -58,16 +60,18 @@ export function toAlignUnits(items: Array<{ text: string }>): AlignUnit[] {
 
 export interface RefineOutcome {
   words: TranscriptWord[];
-  /** 目标字符里成功对上参考时间的比例(0..1)。 */
+  /** A proporção dos caracteres do destino que casaram com um tempo da referência (de 0 a 1). */
   matchedFrac: number;
   alignedWords: number;
   interpolatedWords: number;
 }
 
 /**
- * 用参考 token 流(带可信时间戳)修正目标词表的时间:字符级 LCS 找对应,
- * 命中的词直接采纳参考时间,没命中的词按原相对时长内插进前后锚点之间,
- * 全程保持单调。文本内容原样保留——修的只是时间。纯函数。
+ * Corrige o tempo do vocabulário de destino usando o fluxo de tokens de referência (que tem marca de
+ * tempo confiável): a correspondência é achada por LCS de caracteres, a palavra que casou adota o tempo
+ * da referência direto, e a que não casou é interpolada entre as âncoras de antes e depois na proporção
+ * da sua duração original, com a monotonia preservada do começo ao fim. O texto continua igual — o que
+ * se corrige é só o tempo. Função pura.
  */
 export function refineWordTimings(
   words: TranscriptWord[],
@@ -80,10 +84,10 @@ export function refineWordTimings(
     return { words: [...words], matchedFrac: 0, alignedWords: 0, interpolatedWords: words.length };
   }
 
-  // 标准 LCS 动态规划(候选段字符量级 ~10^3,毫秒级)
+  // A programação dinâmica clássica do LCS (o trecho candidato tem uns 10^3 caracteres, o que leva milissegundos)
   const n = tgt.length;
   const m = ref.length;
-  // Bound both allocation and CPU work for pathological imported/edited cues.
+  // Limita tanto a alocação quanto o trabalho de CPU para legendas importadas/editadas patológicas.
   if ((n + 1) * (m + 1) > 4_000_000) return { words: [...words], matchedFrac: 0, alignedWords: 0, interpolatedWords: words.length };
   const dp = new Uint16Array((n + 1) * (m + 1));
   for (let i = 1; i <= n; i++) {
@@ -94,7 +98,7 @@ export function refineWordTimings(
           : Math.max(dp[(i - 1) * (m + 1) + j], dp[i * (m + 1) + (j - 1)]);
     }
   }
-  // 回溯出匹配对:目标单元 → 参考 token 下标
+  // O caminho de volta dá os pares que casaram: unidade do destino → índice do token de referência
   const matchRef = new Int32Array(n).fill(-1);
   let i = n;
   let j = m;
@@ -110,7 +114,7 @@ export function refineWordTimings(
     }
   }
 
-  // 每个词:命中单元的参考 token 时间取 min/max
+  // Para cada palavra: o min/max dos tempos dos tokens de referência das unidades que casaram
   const out: Array<TranscriptWord & { matched: boolean }> = words.map((w) => ({ ...w, matched: false }));
   let matchedUnits = 0;
   for (let u = 0; u < n; u++) {
@@ -129,10 +133,10 @@ export function refineWordTimings(
     }
   }
 
-  // 未命中的词:内插进前后锚点之间,按原相对时长分配;两端的用原时长贴锚点
+  // A palavra que não casou: interpolada entre as âncoras de antes e depois, na proporção da sua duração original; as das pontas encostam na âncora com a duração original
   for (let k = 0; k < out.length; k++) {
     if (out[k].matched) continue;
-    // 找未命中连续段 [k, e]
+    // Acha o trecho contínuo que não casou [k, e]
     let e = k;
     while (e + 1 < out.length && !out[e + 1].matched) e++;
     const prev = k > 0 ? out[k - 1] : null;
@@ -150,7 +154,7 @@ export function refineWordTimings(
     k = e;
   }
 
-  // 单调守卫:对齐/内插的边角误差不允许出现时间倒流
+  // Guarda de monotonia: o erro de arredondamento do alinhamento e da interpolação não pode fazer o tempo andar para trás
   for (let k = 1; k < out.length; k++) {
     if (out[k].startSec < out[k - 1].endSec - 1e-3) out[k].startSec = out[k - 1].endSec;
     if (out[k].endSec < out[k].startSec + MIN_WORD_SEC) out[k].endSec = out[k].startSec + MIN_WORD_SEC;
@@ -173,7 +177,7 @@ export interface ClipAlignmentResult {
   report: AlignmentQualityReport;
 }
 
-/** 精对齐输入(与 ExportClipSpec 的相关字段同构)。 */
+/** A entrada do alinhamento fino (com a mesma forma dos campos correspondentes de ExportClipSpec). */
 export interface AlignClipInput {
   startSec: number;
   endSec: number;
@@ -184,9 +188,10 @@ export interface AlignClipInput {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * 建一个批量精对齐器:模型只 ensure/加载一次,整批切片复用。
- * 返回的 align 对单条切片逐段(拼接片按段)解码并修正词表;
- * 匹配率低于门槛或任何异常返回 null(调用方回退原词表)。
+ * Cria um alinhador fino de lote: o modelo passa por ensure e é carregado uma única vez, e o lote inteiro
+ * de trechos o reaproveita.
+ * O align devolvido decodifica um trecho por vez (e, no trecho colado, pedaço por pedaço) e corrige o vocabulário;
+ * com a taxa de correspondência abaixo do limite, ou em qualquer erro, devolve null (e quem chama volta ao vocabulário original).
  */
 export function createClipAligner(
   modelsRoot: string,
@@ -197,7 +202,7 @@ export function createClipAligner(
     await ensureModel(modelsRoot, PARAFORMER_MODEL, undefined, signal);
     if (!recognizer) {
       const sh = loadSherpa();
-      // 模型文件由原生层自己打开(ANSI):Windows 中文路径先转 8.3 短路径(issue #4)
+      // O arquivo do modelo é aberto pela camada nativa (ANSI): no Windows, o caminho com acento vira primeiro o caminho curto 8.3 (issue #4)
       const dir = await toAnsiSafeDir(modelDir(modelsRoot, PARAFORMER_MODEL));
       recognizer = new sh.OfflineRecognizer({
         featConfig: { sampleRate: 16000, featureDim: 80 },
@@ -212,7 +217,7 @@ export function createClipAligner(
     }
   };
 
-  /** 解码一个源片区间 → 带绝对时间的 token 流。 */
+  /** Decodifica um intervalo do vídeo de origem → um fluxo de tokens com tempo absoluto. */
   const decodeSpan = async (filePath: string, fromSec: number, durationSec: number): Promise<TranscriptWord[]> => {
     const pcmPath = join(tmpdir(), `hotclip-align-${Date.now()}-${Math.round(fromSec * 1000)}.f32le`);
     try {
@@ -252,13 +257,13 @@ export function createClipAligner(
       const from = Math.max(0, r.startSec - ALIGN_PAD_SEC);
       const spanDur = r.endSec + ALIGN_PAD_SEC - from;
       const tokens = await decodeSpan(filePath, from, spanDur);
-      // 时间戳可用性守卫:若 token 时间几乎不铺开(全挤在一处),说明该
-      // 环境/模型档没吐出真时间戳——宁可整条放弃,不能拿假时间改词表
+      // Guarda de utilidade das marcas de tempo: se o tempo dos tokens quase não se espalha (tudo amontoado
+      // num ponto), aquele ambiente/edição de modelo não devolveu tempo de verdade — melhor abandonar tudo que corrigir o vocabulário com tempo falso
       if (tokens.length >= 5) {
         const spread = tokens[tokens.length - 1].startSec - tokens[0].startSec;
         if (spread < Math.min(spanDur, 5) * 0.2) return null;
       }
-      // 词归属按中点判段(与 sliceWords 同一语义)
+      // A palavra é atribuída ao pedaço pelo seu ponto médio (a mesma semântica de sliceWords)
       const wordsIn = clip.words.filter((w) => {
         const mid = (w.startSec + w.endSec) / 2;
         return mid >= r.startSec && mid <= r.endSec;

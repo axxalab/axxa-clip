@@ -258,7 +258,7 @@ describe("buildCutArgs", () => {
   });
 
   it("escapes windows drive colons and backslashes for the filter graph", () => {
-    expect(escapeFilterPath("C:\\Users\\我\\a.ass")).toBe("C\\:/Users/我/a.ass");
+    expect(escapeFilterPath("C:\\Users\\José\\a.ass")).toBe("C\\:/Users/José/a.ass");
   });
 });
 
@@ -275,12 +275,12 @@ describe("loudness normalization", () => {
     const args = buildCutArgs("/v/in.mp4", "/v/out.mp4", 0, 5, { normalizeLoudness: true });
     const af = args.indexOf("-af");
     expect(af).toBeGreaterThan(-1);
-    expect(args[af + 1].startsWith(LOUDNORM_FILTER)).toBe(true); // 边缘淡化排在其后
+    expect(args[af + 1].startsWith(LOUDNORM_FILTER)).toBe(true); // a suavização das bordas vem depois dele
     expect(args[args.indexOf("-ar") + 1]).toBe(LOUDNORM_OUT_RATE);
     expect(af).toBeLessThan(args.indexOf("-c:a")); // filter precedes the encoder
   });
 
-  it("plain cut: 关掉响度后 -af 只剩边缘淡化,无 loudnorm", () => {
+  it("corte simples: com o volume desligado, o -af fica só com a suavização das bordas, sem loudnorm", () => {
     const args = buildCutArgs("/v/in.mp4", "/v/out.mp4", 0, 5);
     expect(args[args.indexOf("-af") + 1]).toBe("afade=t=in:st=0:d=0.03,afade=t=out:st=4.970:d=0.03");
     expect(args.join(" ")).not.toContain("loudnorm");
@@ -314,27 +314,27 @@ describe("loudness normalization", () => {
   });
 });
 
-describe("denoise (基础降噪)", () => {
-  it("链路含双高通与 afftdn,不含 aresample", () => {
+describe("denoise (redução de ruído básica)", () => {
+  it("a cadeia tem os dois passa-altas e o afftdn, e não tem aresample", () => {
     expect(DENOISE_FILTER).toContain("highpass=f=80,highpass=f=80");
     expect(DENOISE_FILTER).toContain("afftdn");
     expect(DENOISE_FILTER).not.toContain("aresample");
   });
 
-  it("普通切割:仅降噪 → -af 以降噪链开头(后接边缘淡化),无 -ar,且强制重编码", () => {
+  it("corte comum: só redução de ruído → o -af começa pela cadeia de ruído (seguida da suavização das bordas), sem -ar, e recodificar é obrigatório", () => {
     const args = buildCutArgs("/v/in.mp4", "/v/out.mp4", 0, 5, { mode: "copy", denoise: true });
-    expect(args).toContain("libx264"); // copy 被升级
+    expect(args).toContain("libx264"); // copy foi promovido
     expect(args[args.indexOf("-af") + 1].startsWith(DENOISE_FILTER)).toBe(true);
     expect(args).not.toContain("-ar");
   });
 
-  it("普通切割:降噪+响度 → 降噪排在 loudnorm 之前,-ar 照常", () => {
+  it("corte comum: ruído + volume → a redução de ruído vem antes do loudnorm, e o -ar segue como sempre", () => {
     const args = buildCutArgs("/v/in.mp4", "/v/out.mp4", 0, 5, { denoise: true, normalizeLoudness: true });
     expect(args[args.indexOf("-af") + 1].startsWith(`${DENOISE_FILTER},${LOUDNORM_FILTER}`)).toBe(true);
     expect(args[args.indexOf("-ar") + 1]).toBe(LOUDNORM_OUT_RATE);
   });
 
-  it("跳剪:拼接后整段过降噪链([araw] → 降噪,loudnorm → [aout])", () => {
+  it("corte seco: depois da colagem o trecho inteiro passa pela cadeia de ruído ([araw] → ruído, loudnorm → [aout])", () => {
     const segs = [{ startSec: 10, endSec: 12 }, { startSec: 15, endSec: 17 }];
     const args = buildJumpCutArgs("/v/in.mp4", "/v/out.mp4", 10, segs, { denoise: true, normalizeLoudness: true });
     const fc = args[args.indexOf("-filter_complex") + 1];
@@ -342,7 +342,7 @@ describe("denoise (基础降噪)", () => {
     expect(fc).toContain(`[araw]${DENOISE_FILTER},${LOUDNORM_FILTER}[aout]`);
   });
 
-  it("跳剪:仅降噪也走 [araw] 链,不带 loudnorm/-ar", () => {
+  it("corte seco: só com redução de ruído a cadeia [araw] também é usada, sem loudnorm nem -ar", () => {
     const segs = [{ startSec: 10, endSec: 12 }, { startSec: 15, endSec: 17 }];
     const args = buildJumpCutArgs("/v/in.mp4", "/v/out.mp4", 10, segs, { denoise: true });
     const fc = args[args.indexOf("-filter_complex") + 1];
@@ -352,8 +352,8 @@ describe("denoise (基础降噪)", () => {
   });
 });
 
-describe("edgeFadeFilters (切点边缘 30ms 淡化防爆音)", () => {
-  it("正常段:头淡入 + 尾淡出,尾部时刻 = 段长 - 淡化时长", () => {
+describe("edgeFadeFilters (30ms de suavização na borda do corte, contra o estalo)", () => {
+  it("pedaço normal: fade-in no começo + fade-out no fim, com o instante do fim = duração do pedaço - duração da suavização", () => {
     const fades = edgeFadeFilters(2);
     expect(fades).toEqual([
       `afade=t=in:st=0:d=${EDGE_FADE_SEC}`,
@@ -361,35 +361,35 @@ describe("edgeFadeFilters (切点边缘 30ms 淡化防爆音)", () => {
     ]);
   });
 
-  it("超短段(≤4×淡化时长)不淡:淡化会吃掉整段能量", () => {
+  it("pedaço curtíssimo (≤4× a duração da suavização) não recebe nada: a suavização comeria a energia do pedaço inteiro", () => {
     expect(edgeFadeFilters(0.1)).toEqual([]);
     expect(edgeFadeFilters(0)).toEqual([]);
   });
 
-  it("copy 模式不受影响:流复制无法加滤镜", () => {
+  it("o modo copy não é afetado: cópia de fluxo não aceita filtro", () => {
     const args = buildCutArgs("/v/in.mp4", "/v/out.mp4", 10, 20, { mode: "copy" });
     expect(args.join(" ")).not.toContain("afade");
   });
 
-  it("跳剪:每段两端各自淡化,拼缝处淡出+淡入相接", () => {
+  it("corte seco: cada pedaço recebe suavização nas duas pontas, e na emenda o fade-out encontra o fade-in", () => {
     const segs = [{ startSec: 10, endSec: 12 }, { startSec: 15, endSec: 17 }];
     const args = buildJumpCutArgs("/v/in.mp4", "/v/out.mp4", 10, segs);
     const fc = args[args.indexOf("-filter_complex") + 1];
-    // 两段各带一对淡化(2 段 × in/out)
+    // Cada um dos dois pedaços leva um par de suavizações (2 pedaços × in/out)
     expect(fc.match(/afade=t=in/g)).toHaveLength(2);
     expect(fc.match(/afade=t=out/g)).toHaveLength(2);
-    // 淡化挂在 asetpts 之后、进 concat 之前(段内相对时间轴)
+    // A suavização entra depois do asetpts e antes do concat (na linha de tempo relativa ao pedaço)
     expect(fc).toContain(`asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${EDGE_FADE_SEC},afade=t=out:st=1.970:d=${EDGE_FADE_SEC}[a0]`);
   });
 });
 
-describe("metadataArgs (AIGC 隐式标识)", () => {
-  it("k=v 对展开;空缺省为空数组", () => {
+describe("metadataArgs (sinalização implícita de conteúdo por IA)", () => {
+  it("os pares k=v são abertos; ausente devolve array vazio", () => {
     expect(metadataArgs({ comment: "AIGC=true; Tool=HotClip" })).toEqual(["-metadata", "comment=AIGC=true; Tool=HotClip"]);
     expect(metadataArgs(undefined)).toEqual([]);
   });
 
-  it("三条出片路径都带 -metadata", () => {
+  it("os três caminhos de saída levam -metadata", () => {
     const meta = { comment: "AIGC=true" };
     const cut = buildCutArgs("/i.mp4", "/o.mp4", 0, 5, { metadata: meta, vertical: true });
     expect(cut.join(" ")).toContain("-metadata comment=AIGC=true");
@@ -400,13 +400,13 @@ describe("metadataArgs (AIGC 隐式标识)", () => {
   });
 });
 
-describe("parseFfmpegProgress (切片内实时进度)", () => {
-  it("解析 out_time_us(微秒)为秒;老字段 out_time_ms 同样按微秒", () => {
+describe("parseFfmpegProgress (progresso real dentro do trecho)", () => {
+  it("out_time_us (em microssegundos) é lido em segundos; o campo antigo out_time_ms também é tratado como microssegundos", () => {
     expect(parseFfmpegProgress("frame=100\nout_time_us=2500000\nprogress=continue\n")).toBe(2.5);
     expect(parseFfmpegProgress("out_time_ms=1500000\n")).toBe(1.5);
   });
 
-  it("无进度字段/垃圾块返回 null", () => {
+  it("sem campo de progresso ou com bloco lixo, devolve null", () => {
     expect(parseFfmpegProgress("speed=2.5x\n")).toBeNull();
     expect(parseFfmpegProgress("")).toBeNull();
   });
