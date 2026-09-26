@@ -1,8 +1,8 @@
 /**
- * Tier-0 audiovisual signals: cheap, fully-local evidence that feeds highlight
- * detection alongside the transcript — loudness peaks (emotional bursts,
- * laughter, shouting) and scene-cut density (visual action). Parsers are pure
- * (unit-testable); ffmpeg execution is isolated in collectSignals.
+ * Sinais audiovisuais de nível 0: evidência barata e totalmente local que alimenta a detecção de estouros
+ * ao lado da transcrição — os picos de volume (explosão de emoção, risada, grito) e a densidade de cortes
+ * de cena (ação visual). As leituras são funções puras (testáveis), e a execução do ffmpeg fica isolada em
+ * collectSignals.
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -24,46 +24,47 @@ export interface TimeRange {
 
 export interface MotionSample {
   t: number;
-  /** Low-resolution frame-difference score, 0..1. */
+  /** A nota de diferença entre quadros em baixa resolução, de 0 a 1. */
   score: number;
 }
 
 export interface MediaSignals {
-  /** Sustained loudness bursts well above the programme's median. */
+  /** As explosões de volume sustentadas, bem acima da mediana do material. */
   loudPeaks: TimeRange[];
-  /** Windows with dense scene cuts (fast visual pace). */
+  /** As janelas com cortes de cena densos (ritmo visual rápido). */
   cutDense: TimeRange[];
-  /** Sustained low-resolution frame-difference activity (movement/action, not semantic understanding). */
+  /** A atividade sustentada de diferença entre quadros em baixa resolução (movimento e ação, não compreensão de sentido). */
   motionPeaks?: TimeRange[];
-  /** One max frame-difference value per source second, retained for reuse/evaluation. */
+  /** Um valor máximo de diferença entre quadros por segundo de origem, guardado para reuso e avaliação. */
   motionSamples?: MotionSample[];
-  /** Strong, well-spaced source timestamps that can guide later visual sampling. */
+  /** As marcas de tempo fortes e bem espaçadas da origem, que podem guiar a amostragem visual mais adiante. */
   activityKeyframes?: MotionSample[];
-  /** Compact per-second luma/saturation evidence for opt-in adaptive finishing. */
+  /** A evidência compacta de luminância e saturação por segundo, para o acabamento adaptativo que se liga por escolha. */
   visualSamples?: VisualSignalSample[];
   /**
-   * ebur128 原始采样(t + momentary dB)。采集时顺手保留——工作台时间轴要画
-   * 全场响度曲线,不留的话同一条 2 小时音轨得再解码一遍。仅主进程内使用,
-   * 不进提示词也不进渲染层(时间轴 IPC 会把它压成每格一个值再发)。
+   * As amostras cruas do ebur128 (t + dB momentâneo). São guardadas de passagem na coleta — a linha de
+   * tempo da bancada precisa desenhar a curva de volume do material inteiro, e sem guardar seria preciso
+   * decodificar a mesma trilha de 2 horas outra vez. Usadas só dentro do processo principal: não entram
+   * no prompt nem na camada de renderização (o IPC da linha de tempo as comprime num valor por célula antes de enviar).
    */
   loudnessSamples?: Array<{ t: number; m: number }>;
-  /** 端侧视觉模型抽帧圈出的画面高能时段(可选,见 highlight/vision.ts)。 */
+  /** Os trechos de imagem de alta energia cercados pela amostragem de quadros do modelo de visão local (opcional, veja highlight/vision.ts). */
   visualPeaks?: TimeRange[];
-  /** 表情峰值时段(YuNet+FER+,零配置;可选,见 emotion.ts)。 */
+  /** Os trechos de pico de expressão (YuNet+FER+, sem configuração; opcional, veja emotion.ts). */
   emotionPeaks?: TimeRange[];
-  /** 语音情绪激动时段(SenseVoice 情绪标签短窗重扫;可选,见 voice-emotion.ts)。 */
+  /** Os trechos com a voz exaltada (a segunda varredura em janelas curtas das etiquetas de emoção do SenseVoice; opcional, veja voice-emotion.ts). */
   voiceEmotionPeaks?: TimeRange[];
-  /** 笑声/掌声/哭腔时段(SenseVoice 音频事件标签;可选,见 voice-emotion.ts)。 */
+  /** Os trechos de risada, palmas e choro (as etiquetas de evento de áudio do SenseVoice; opcional, veja voice-emotion.ts). */
   audioEventPeaks?: TimeRange[];
-  /** 弹幕热度峰值时段(同名 .xml 自动发现;可选,见 danmaku.ts)。 */
+  /** Os trechos de pico de calor do chat (o .xml de mesmo nome descoberto sozinho; opcional, veja danmaku.ts). */
   danmakuPeaks?: TimeRange[];
-  /** 主播剪辑口令时刻(「这段剪下来/clip that」——主播自证的爆点,内容在口令之前;见 highlight/commands.ts)。 */
+  /** Os instantes em que quem transmite pediu o corte («corta esse pedaço / clip that» — um estouro que a própria pessoa certifica, e o conteúdo vem antes do pedido; veja highlight/commands.ts). */
   clipCommandMarks?: number[];
-  /** 全场扫描的画面时刻线;visibleText 只收画面中可逐字确认的短文字,不收推断。 */
+  /** A linha do tempo da imagem da varredura completa; visibleText só recebe o texto curto que dá para confirmar palavra por palavra na imagem, nunca o inferido. */
   visualNotes?: Array<{ t: number; energy: number; note: string; visibleText?: string[] }>;
 }
 
-/** Parse `ebur128` stderr lines: "t: 12.5 ... M: -18.2 ..." → [t, M] samples. */
+/** Lê as linhas de stderr do `ebur128`: "t: 12.5 ... M: -18.2 ..." → as amostras [t, M]. */
 export function parseEbur128(stderr: string): Array<{ t: number; m: number }> {
   const out: Array<{ t: number; m: number }> = [];
   const re = /t:\s*([\d.]+)\s+.*?M:\s*(-?[\d.]+)/g;
@@ -75,7 +76,7 @@ export function parseEbur128(stderr: string): Array<{ t: number; m: number }> {
   return out;
 }
 
-/** Parse `showinfo` stderr: pts_time of frames that survived the scene filter. */
+/** Lê a stderr do `showinfo`: o pts_time dos quadros que sobreviveram ao filtro de cena. */
 export function parseShowinfoTimes(stderr: string): number[] {
   const out: number[] = [];
   for (const match of stderr.matchAll(/pts_time:([\d.]+)/g)) {
@@ -85,7 +86,7 @@ export function parseShowinfoTimes(stderr: string): number[] {
   return out;
 }
 
-/** Parse FFmpeg metadata=print pairs containing pts_time and lavfi.scene_score. */
+/** Lê os pares de metadata=print do FFmpeg que contêm pts_time e lavfi.scene_score. */
 export function parseSceneScoreSamples(stderr: string): MotionSample[] {
   const out: MotionSample[] = [];
   let pendingTime: number | null = null;
@@ -105,7 +106,7 @@ export function parseSceneScoreSamples(stderr: string): MotionSample[] {
   return out;
 }
 
-/** Keep a compact, deterministic max activity sample for each source second. */
+/** Guarda uma amostra compacta e determinística da atividade máxima de cada segundo de origem. */
 export function compactMotionSamples(samples: MotionSample[]): MotionSample[] {
   const bins = new Map<number, MotionSample>();
   for (const sample of samples) {
@@ -119,7 +120,7 @@ export function compactMotionSamples(samples: MotionSample[]): MotionSample[] {
     .map((sample) => ({ t: Number(sample.t.toFixed(3)), score: Number(sample.score.toFixed(5)) }));
 }
 
-/** High frame-difference samples become short activity ranges, ranked then capped. */
+/** As amostras de alta diferença entre quadros viram intervalos curtos de atividade, ordenados e limitados. */
 export function motionPeakRanges(samples: MotionSample[], durationSec: number, maxRanges = 12): TimeRange[] {
   const usable = samples.filter((sample) => Number.isFinite(sample.score) && sample.score > 0);
   if (usable.length < 8 || !(durationSec > 0)) return [];
@@ -144,7 +145,7 @@ export function motionPeakRanges(samples: MotionSample[], durationSec: number, m
     .map(({ startSec, endSec }) => ({ startSec: Number(startSec.toFixed(3)), endSec: Number(endSec.toFixed(3)) }));
 }
 
-/** Strong, separated timestamps for contact-sheet/VLM sampling; no image bytes are persisted. */
+/** As marcas de tempo fortes e separadas para a folha de contato e a amostragem do VLM; nenhum byte de imagem é gravado. */
 export function activityKeyframes(samples: MotionSample[], maxFrames = 48, minSpacingSec = 8): MotionSample[] {
   const scores = samples.map((sample) => sample.score).filter((score) => Number.isFinite(score) && score > 0).sort((a, b) => a - b);
   if (scores.length < 8) return [];
@@ -158,7 +159,7 @@ export function activityKeyframes(samples: MotionSample[], maxFrames = 48, minSp
   return picked.sort((a, b) => a.t - b.t);
 }
 
-/** Samples ≥ median+`riseDb` merged into ranges (≥ minDurSec, gap-tolerant). */
+/** As amostras ≥ mediana+`riseDb` são unidas em intervalos (com ≥ minDurSec, tolerando vãos). */
 export function loudnessPeaks(
   samples: Array<{ t: number; m: number }>,
   riseDb = 6,
@@ -184,7 +185,7 @@ export function loudnessPeaks(
   return ranges.filter((r) => r.endSec - r.startSec >= minDurSec);
 }
 
-/** Sliding-window cut density: windows with ≥ minCuts cuts, merged. */
+/** Densidade de cortes por janela deslizante: as janelas com ≥ minCuts cortes, unidas. */
 export function cutDensity(cutTimes: number[], windowSec = 15, minCuts = 4): TimeRange[] {
   if (cutTimes.length < minCuts) return [];
   const ranges: TimeRange[] = [];
@@ -201,15 +202,17 @@ export function cutDensity(cutTimes: number[], windowSec = 15, minCuts = 4): Tim
   return ranges;
 }
 
-/** Cap for LLM prompt injection — signals are hints, not the whole story. */
+/** O teto para a injeção no prompt do LLM — os sinais são pistas, não a história inteira. */
 const MAX_RANGES = 12;
 
 /**
- * 信号引导的采样规划:在已知的高能窗口(响度峰值/镜头密集段/弹幕峰值)内
- * 按步长密集采样,再用均匀网格铺满剩余额度防信号盲区漏段,全程保持最小
- * 间隔。二级信号采集(抽帧表情、短窗语音情绪)共用——把有限的推理预算
- * 花在最可能有爆点的地方;弹幕峰值是观众逐秒投的票,笑声/表情最该去
- * 那里找,所以弹幕要先于贵信号采集(它只是读个文件)。纯函数。
+ * O planejamento da amostragem guiado pelos sinais: dentro das janelas de alta energia já conhecidas
+ * (pico de volume / corte denso / pico do chat) a amostragem é densa, por passo, e depois uma grade
+ * uniforme gasta a cota que sobrou para nenhum trecho escapar num ponto cego dos sinais, sempre
+ * respeitando a distância mínima. A coleta dos sinais de segundo nível (expressão por amostragem de
+ * quadros, emoção da voz em janelas curtas) usa isto — o orçamento limitado de inferência é gasto onde
+ * mais provavelmente há estouro; o pico do chat é o voto que o público dá a cada segundo, e é ali que a
+ * risada e a expressão devem ser procuradas, então o chat vem antes da coleta cara (ele só lê um arquivo). Função pura.
  */
 export function planSignalGuidedTimes(
   durationSec: number,
@@ -229,7 +232,7 @@ export function planSignalGuidedTimes(
     const c = clamp(t);
     if (picked.length < maxCount && fits(c)) picked.push(c);
   };
-  // 信号窗口内步进采样(爆点就藏在响度峰值/镜头密集段/弹幕峰值里)
+  // A amostragem por passo dentro das janelas de sinal (o estouro se esconde justo no pico de volume, no corte denso e no pico do chat)
   const windows = [
     ...(signals?.loudPeaks ?? []),
     ...(signals?.cutDense ?? []),
@@ -238,15 +241,15 @@ export function planSignalGuidedTimes(
   for (const w of windows) {
     for (let t = w.startSec; t <= w.endSec; t += windowStepSec) tryPick(t);
   }
-  // 均匀网格兜底,防信号盲区整段漏掉
+  // A grade uniforme como rede de segurança, para um trecho inteiro não escapar num ponto cego dos sinais
   for (let i = 1; i <= maxCount; i++) tryPick((durationSec * i) / (maxCount + 1));
   return picked.sort((a, b) => a - b);
 }
 
 /**
- * Run both probes (audio-only + downscaled low-fps video) concurrently.
- * Fail-open: any probe error yields empty signals — detection must not die
- * because a source has no audio/video stream or ffmpeg hiccupped.
+ * Roda as duas sondagens (a de áudio e a do vídeo reduzido em baixa taxa de quadros) em paralelo.
+ * Falha em aberto: o erro de qualquer sondagem devolve sinais vazios — a detecção não pode morrer porque
+ * o material não tem trilha de áudio ou de vídeo, ou porque o ffmpeg engasgou.
  */
 export async function collectSignals(
   inputPath: string,
@@ -299,8 +302,9 @@ export async function collectSignals(
 }
 
 /**
- * 把 ebur128 采样压成时间轴曲线:每格取窗内最大响度,再按全场 5%~99% 分位
- * 归一到 0..1(用分位不用 min/max——一声爆响不该把整条曲线压扁)。纯函数。
+ * Comprime as amostras do ebur128 na curva da linha de tempo: cada célula fica com o maior volume da sua
+ * janela, e depois tudo é normalizado de 0 a 1 pelos percentis de 5% a 99% do material inteiro (por
+ * percentil, e não por min/max — um estrondo só não deve achatar a curva inteira). Função pura.
  */
 export function loudnessCurve(
   samples: Array<{ t: number; m: number }>,
@@ -321,7 +325,7 @@ export function loudnessCurve(
   return [...out].map((v) => (Number.isFinite(v) ? Math.min(1, Math.max(0, (v - lo) / span)) : 0));
 }
 
-/** Compact motion samples → 0..1 timeline curve using robust upper-percentile scaling. */
+/** As amostras compactas de movimento → a curva de 0 a 1 da linha de tempo, com escala robusta pelo percentil de cima. */
 export function motionCurve(samples: MotionSample[], durationSec: number, bins: number): number[] {
   if (!(durationSec > 0) || bins < 1) return [];
   const out = new Float64Array(bins);

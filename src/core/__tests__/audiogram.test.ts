@@ -4,13 +4,13 @@ import { buildAudiogramArgs, audiogramSpec, hexToFfmpegColor } from "../audiogra
 const SPEC = audiogramSpec(true);
 
 describe("hexToFfmpegColor / audiogramSpec", () => {
-  it("品牌色转 ffmpeg 形式,非法回落火焰橙", () => {
+  it("a cor da marca vira a forma do ffmpeg, e o inválido volta para o laranja de chama", () => {
     expect(hexToFfmpegColor("#00ff88")).toBe("0x00FF88");
-    expect(hexToFfmpegColor("红色")).toBe("0xFF6E0D");
+    expect(hexToFfmpegColor("vermelho")).toBe("0xFF6E0D");
     expect(hexToFfmpegColor(undefined)).toBe("0xFF6E0D");
   });
 
-  it("竖屏 1080×1920/横屏 1920×1080,波形不到高的三分之一", () => {
+  it("vertical 1080×1920 / horizontal 1920×1080, com a onda abaixo de um terço da altura", () => {
     expect(audiogramSpec(true)).toMatchObject({ width: 1080, height: 1920 });
     expect(audiogramSpec(false)).toMatchObject({ width: 1920, height: 1080 });
     expect(SPEC.waveHeight).toBeLessThan(SPEC.height / 3);
@@ -20,7 +20,7 @@ describe("hexToFfmpegColor / audiogramSpec", () => {
 describe("buildAudiogramArgs", () => {
   const range = [{ startSec: 10, endSec: 25 }];
 
-  it("单段:fast seek 到段起点,atrim 相对时刻,双 map 音视频", () => {
+  it("um pedaço só: busca rápida até o início dele, atrim em tempo relativo e os dois map de áudio e vídeo", () => {
     const args = buildAudiogramArgs("/a.mp3", "/out.mp4", range, { spec: SPEC });
     expect(args.join(" ")).toContain("-ss 10.000 -i /a.mp3");
     const fc = args[args.indexOf("-filter_complex") + 1];
@@ -32,7 +32,7 @@ describe("buildAudiogramArgs", () => {
     expect(args).toContain("[aout]");
   });
 
-  it("跳剪多段:atrim×N + concat,波形基于拼接后的音频", () => {
+  it("corte seco com vários pedaços: atrim×N + concat, e a onda sai do áudio já colado", () => {
     const args = buildAudiogramArgs("/a.mp3", "/out.mp4", [
       { startSec: 10, endSec: 14 },
       { startSec: 16, endSec: 20 },
@@ -44,7 +44,7 @@ describe("buildAudiogramArgs", () => {
     expect(fc).toContain("[acat]asplit=2[aout][awave]");
   });
 
-  it("响度标准化在拼接后、分流前;字幕与水印按序挂链", () => {
+  it("a normalização de volume vem depois da colagem e antes da divisão; a legenda e a marca d'água entram na cadeia em ordem", () => {
     const args = buildAudiogramArgs("/a.mp3", "/out.mp4", range, {
       spec: SPEC,
       normalizeLoudness: true,
@@ -60,7 +60,7 @@ describe("buildAudiogramArgs", () => {
     expect(args[args.indexOf("-map") + 1]).toBe("[vout]");
   });
 
-  it("降噪在响度标准化之前:[a0]→降噪[adn]→loudnorm[anorm]→asplit", () => {
+  it("a redução de ruído vem antes da normalização: [a0] → ruído [adn] → loudnorm [anorm] → asplit", () => {
     const args = buildAudiogramArgs("/a.mp3", "/out.mp4", range, {
       spec: SPEC,
       denoise: true,
@@ -68,12 +68,12 @@ describe("buildAudiogramArgs", () => {
     });
     const fc = args[args.indexOf("-filter_complex") + 1];
     expect(fc).toContain("afftdn");
-    expect(fc.indexOf("afftdn")).toBeLessThan(fc.indexOf("loudnorm")); // 先去噪再标准化
+    expect(fc.indexOf("afftdn")).toBeLessThan(fc.indexOf("loudnorm")); // primeiro tira o ruído, depois normaliza
     expect(fc).toContain("[adn]loudnorm");
     expect(fc).toContain("[anorm]asplit=2");
   });
 
-  it("空段/非法段抛错", () => {
+  it("pedaço vazio ou inválido lança erro", () => {
     expect(() => buildAudiogramArgs("/a.mp3", "/o.mp4", [], { spec: SPEC })).toThrow();
     expect(() => buildAudiogramArgs("/a.mp3", "/o.mp4", [{ startSec: 5, endSec: 5 }], { spec: SPEC })).toThrow();
   });

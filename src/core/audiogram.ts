@@ -1,38 +1,41 @@
 import { withAtomicOutput } from "./atomic-output";
 /**
- * Audiogram 出片:纯音频源(播客/录音)导出时自动合成画面——深色底 +
- * 品牌色波形动画(ffmpeg showwaves)+ 既有字幕/标题贴片/水印照常烧录。
- * 静态封面会被划走,会动的波形加字幕才能在信息流里留住人;Headliner/Wavve
- * 靠这一个能力撑起整个产品,这里作为纯音频输入的默认画面方案内建。
+ * Saída em audiograma: numa origem só de áudio (podcast, gravação), a imagem é sintetizada sozinha na
+ * exportação — fundo escuro + a animação da onda na cor da marca (showwaves do ffmpeg) + a legenda, a
+ * cartela de título e a marca d'água queimadas como sempre.
+ * Uma capa estática é deslizada; é a onda em movimento com legenda que segura a pessoa no feed. O
+ * Headliner e o Wavve sustentam produtos inteiros só com esta capacidade, e aqui ela vem embutida como a
+ * imagem padrão de qualquer entrada só de áudio.
  *
- * 单段剪切与跳剪多段统一走 filter_complex:先把音频段剪好拼好,再从
- * 成品音频生成波形(所以跳剪后的波形与声音天然同步)。纯参数构建可单测;
- * ffmpeg 执行隔离在 runAudiogram。
+ * O corte de um pedaço e o corte seco de vários passam pelo mesmo filter_complex: primeiro os pedaços de
+ * áudio são cortados e colados, e só então a onda é gerada a partir do áudio final (por isso a onda fica
+ * naturalmente em sincronia com o som depois do corte seco). A montagem dos parâmetros é testável, e a
+ * execução do ffmpeg fica isolada em runAudiogram.
  */
 import { escapeFilterPath, watermarkStages, metadataArgs, runFfmpeg, DENOISE_FILTER, edgeFadeFilters, muteRangeFilters, type WatermarkSpec } from "./cut";
 import { isValidHex } from "./brand";
 
-/** 深色底(与应用「灼热片场」底色同源)。 */
+/** O fundo escuro (a mesma cor de fundo do «estúdio em brasa» do aplicativo). */
 const BG_COLOR = "0x141110";
-/** 默认波形色 = 火焰橙。 */
+/** A cor padrão da onda = o laranja de chama. */
 const DEFAULT_WAVE_COLOR = "0xFF6E0D";
 
 export interface AudiogramSpec {
   width: number;
   height: number;
-  /** ffmpeg 颜色形式 0xRRGGBB。 */
+  /** A cor na forma do ffmpeg, 0xRRGGBB. */
   waveColor: string;
   bgColor: string;
-  /** 波形条带高度(居中叠放)。 */
+  /** A altura da faixa da onda (sobreposta no centro). */
   waveHeight: number;
 }
 
-/** "#FF6E0D" → "0xFF6E0D";非法输入回落默认橙。 */
+/** "#FF6E0D" → "0xFF6E0D"; entrada inválida volta para o laranja padrão. */
 export function hexToFfmpegColor(hex?: string): string {
   return isValidHex(hex) ? `0x${hex!.slice(1).toUpperCase()}` : DEFAULT_WAVE_COLOR;
 }
 
-/** 竖屏 1080×1920 / 横屏 1920×1080;波形约占高的 1/4,避开底部字幕区。 */
+/** Vertical 1080×1920 / horizontal 1920×1080; a onda ocupa cerca de 1/4 da altura, longe da faixa da legenda embaixo. */
 export function audiogramSpec(vertical: boolean, highlightHex?: string): AudiogramSpec {
   const width = vertical ? 1080 : 1920;
   const height = vertical ? 1920 : 1080;
@@ -50,22 +53,23 @@ export interface AudiogramOptions {
   subtitlePath?: string;
   fontsDir?: string;
   normalizeLoudness?: boolean;
-  /** 基础降噪(与视频路径同一条链,先于响度标准化)。 */
+  /** Redução de ruído básica (a mesma cadeia do caminho de vídeo, antes da normalização de volume). */
   denoise?: boolean;
   muteRanges?: Array<{ startSec: number; endSec: number }>;
   watermark?: WatermarkSpec;
-  /** 容器元数据(如 AIGC 隐式标识)。 */
+  /** Metadados do contêiner (a sinalização implícita de conteúdo por IA, por exemplo). */
   metadata?: Record<string, string>;
   crf?: number;
   preset?: string;
 }
 
-/** 与 cut.ts 相同的响度目标(-14 LUFS 社媒标准)。 */
+/** O mesmo alvo de volume do cut.ts (o padrão social de -14 LUFS). */
 const LOUDNORM = "loudnorm=I=-14:TP=-1.5:LRA=11";
 
 /**
- * 组装 audiogram 的 ffmpeg 参数。ranges 为源音频绝对秒(跳剪时多段);
- * fast seek 到首段起点,段内时刻用相对表达。纯函数。
+ * Monta os parâmetros do ffmpeg do audiograma. ranges está em segundos absolutos do áudio de origem (com
+ * vários pedaços no corte seco); a busca rápida vai até o início do primeiro pedaço, e os instantes de
+ * cada pedaço são expressos em relação a ele. Função pura.
  */
 export function buildAudiogramArgs(
   inputPath: string,
@@ -80,12 +84,12 @@ export function buildAudiogramArgs(
   const base = Math.max(0, ranges[0].startSec);
   const parts: string[] = [];
 
-  // 1) 音频段剪切与拼接(相对 fast-seek 点)
+  // 1) Corte e colagem dos pedaços de áudio (em relação ao ponto da busca rápida)
   const segLabels: string[] = [];
   ranges.forEach((r, i) => {
     const from = Math.max(0, r.startSec - base);
     const to = Math.max(from, r.endSec - base);
-    // 每段两端 30ms 淡化(与视频路径同一策略):跳剪拼缝不爆音
+    // 30ms de suavização nas duas pontas de cada pedaço (a mesma estratégia do caminho de vídeo): a emenda do corte seco não estala
     const fades = edgeFadeFilters(to - from);
     const fadeSuffix = fades.length > 0 ? `,${fades.join(",")}` : "";
     parts.push(`[0:a]atrim=start=${from.toFixed(3)}:end=${to.toFixed(3)},asetpts=PTS-STARTPTS${fadeSuffix}[a${i}]`);
@@ -96,12 +100,12 @@ export function buildAudiogramArgs(
     parts.push(`${segLabels.join("")}concat=n=${ranges.length}:v=0:a=1[acat]`);
     audioLabel = "[acat]";
   }
-  // 2a) 可选降噪(拼接后的完整音频上,先去噪再标准化——loudnorm 要看到干净音频)
+  // 2a) Redução de ruído opcional (sobre o áudio inteiro já colado; primeiro tira o ruído e depois normaliza — o loudnorm precisa ver o áudio limpo)
   if (options.denoise) {
     parts.push(`${audioLabel}${DENOISE_FILTER}[adn]`);
     audioLabel = "[adn]";
   }
-  // 2b) 可选响度标准化(在拼接后的完整音频上做,与视频路径一致)
+  // 2b) Normalização de volume opcional (sobre o áudio inteiro já colado, igual ao caminho de vídeo)
   if (options.normalizeLoudness) {
     parts.push(`${audioLabel}${LOUDNORM},aresample=48000[anorm]`);
     audioLabel = "[anorm]";
@@ -111,15 +115,15 @@ export function buildAudiogramArgs(
     parts.push(`${audioLabel}${mute.join(",")}[amute]`);
     audioLabel = "[amute]";
   }
-  // 3) 一份出声,一份画波形
+  // 3) Uma cópia sai como som e a outra vira a onda
   parts.push(`${audioLabel}asplit=2[aout][awave]`);
   parts.push(
     `[awave]showwaves=s=${spec.width}x${spec.waveHeight}:mode=cline:rate=30:colors=${spec.waveColor}[wv]`
   );
-  // 4) 深色底 + 波形居中;shortest=1 让无限时长的底随波形结束
+  // 4) Fundo escuro + a onda no centro; shortest=1 faz o fundo de duração infinita terminar junto com a onda
   parts.push(`color=c=${spec.bgColor}:size=${spec.width}x${spec.height}:rate=30[bg]`);
   parts.push(`[bg][wv]overlay=x=0:y=(H-h)/2:shortest=1[v0]`);
-  // 5) 字幕/水印(与视频路径同一套素材)
+  // 5) Legenda e marca d'água (o mesmo material do caminho de vídeo)
   let videoLabel = "[v0]";
   if (options.subtitlePath) {
     const fonts = options.fontsDir ? `:fontsdir='${escapeFilterPath(options.fontsDir)}'` : "";
@@ -151,7 +155,7 @@ export function buildAudiogramArgs(
   ];
 }
 
-/** 执行 audiogram 出片(与 cutClip 同风格的 ffmpeg 包装)。 */
+/** Executa a saída do audiograma (o mesmo estilo de embrulho do ffmpeg do cutClip). */
 export async function runAudiogram(
   inputPath: string,
   outputPath: string,
