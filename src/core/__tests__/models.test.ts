@@ -6,11 +6,11 @@ import { createHash } from "crypto";
 import { parseContentRange, candidateUrls, ensureModel, extractTarBz2, type ModelAsset } from "../models";
 
 describe("parseContentRange", () => {
-  it("解析标准 bytes 起-止/总长", () => {
+  it("lê o padrão bytes início-fim/total", () => {
     expect(parseContentRange("bytes 100-999/1000")).toEqual({ start: 100, total: 1000 });
   });
 
-  it("非法/缺失返回 null", () => {
+  it("inválido ou ausente devolve null", () => {
     expect(parseContentRange(null)).toBeNull();
     expect(parseContentRange("")).toBeNull();
     expect(parseContentRange("bytes */1000")).toBeNull();
@@ -18,7 +18,7 @@ describe("parseContentRange", () => {
 });
 
 describe("candidateUrls", () => {
-  it("镜像前缀在前、altUrls 居中、主 URL 兜底", () => {
+  it("o prefixo do espelho vem primeiro, as altUrls no meio e a URL principal por último", () => {
     const asset: ModelAsset = {
       id: "x",
       url: "https://github.com/a/b.tar.bz2",
@@ -36,9 +36,9 @@ describe("candidateUrls", () => {
   });
 });
 
-// ---- 断点续传:mock fetch,singleFile 资产走完整 ensureModel 流程 ----
+// ---- Retomada do download: o fetch é substituído por um dublê, e um modelo singleFile percorre o ensureModel inteiro ----
 
-const FULL = Buffer.from("0123456789abcdefghij"); // 20 字节的"模型文件"
+const FULL = Buffer.from("0123456789abcdefghij"); // o «arquivo de modelo» de 20 bytes
 
 function asset(overrides: Partial<ModelAsset> = {}): ModelAsset {
   return {
@@ -53,8 +53,10 @@ function asset(overrides: Partial<ModelAsset> = {}): ModelAsset {
 }
 
 /**
- * 前 n 字节正常吐出后断流的响应体(模拟 GitHub 大文件中途 terminated)。
- * 必须 pull 式:同步 enqueue+error 会让规范把未读队列直接丢弃,字节送不到。
+ * Um corpo de resposta que entrega os n primeiros bytes e cai (simulando o terminated no meio de um arquivo
+ * grande do GitHub).
+ * Precisa ser no modo pull: um enqueue+error síncrono faz a especificação descartar a fila não lida, e os
+ * bytes não chegam.
  */
 function brokenBody(bytes: Buffer): ReadableStream<Uint8Array> {
   let sent = false;
@@ -90,8 +92,8 @@ async function freshRoot(): Promise<string> {
   return root;
 }
 
-describe("ensureModel 断点续传", () => {
-  it("校验 raw 模型的发布方 SHA-256 后才安装", async () => {
+describe("ensureModel: retomada do download", () => {
+  it("um modelo cru só é instalado depois de conferir o SHA-256 de quem o publicou", async () => {
     const modelsRoot = await freshRoot();
     vi.stubGlobal("fetch", vi.fn(async () =>
       new Response(fullBody(FULL), { status: 200, headers: { "content-length": String(FULL.length) } })
@@ -101,7 +103,7 @@ describe("ensureModel 断点续传", () => {
     expect((await readFile(join(modelsRoot, a.extractedDir, "model.onnx"))).equals(FULL)).toBe(true);
   });
 
-  it("拒绝 SHA-256 不匹配的 raw 模型且不留下已安装文件", async () => {
+  it("recusa o modelo cru cujo SHA-256 não bate e não deixa arquivo instalado atrás", async () => {
     const modelsRoot = await freshRoot();
     vi.stubGlobal("fetch", vi.fn(async () =>
       new Response(fullBody(FULL), { status: 200, headers: { "content-length": String(FULL.length) } })
@@ -111,7 +113,7 @@ describe("ensureModel 断点续传", () => {
     await expect(stat(join(modelsRoot, a.extractedDir, "model.onnx"))).rejects.toThrow();
   });
 
-  it("断流后带 Range 续传,最终文件完整", async () => {
+  it("depois da queda, a retomada usa Range e o arquivo final fica completo", async () => {
     const modelsRoot = await freshRoot();
     const cut = 8;
     const calls: Array<string | undefined> = [];
@@ -121,13 +123,13 @@ describe("ensureModel 断点续传", () => {
         const range = (init?.headers as Record<string, string> | undefined)?.Range;
         calls.push(range);
         if (!range) {
-          // 首次全量:吐 8 字节后断流
+          // A primeira vez, inteira: entrega 8 bytes e cai
           return new Response(brokenBody(FULL.subarray(0, cut)), {
             status: 200,
             headers: { "content-length": String(FULL.length) },
           });
         }
-        // 续传:校验起点并补齐剩余字节
+        // A retomada: o ponto de partida é conferido e os bytes que faltam são completados
         expect(range).toBe(`bytes=${cut}-`);
         return new Response(fullBody(FULL.subarray(cut)), {
           status: 206,
@@ -146,7 +148,7 @@ describe("ensureModel 断点续传", () => {
     expect(calls).toEqual([undefined, `bytes=${cut}-`]);
   });
 
-  it("服务端不支持 Range(续传返回 200)则覆盖重下,不叠加污染", async () => {
+  it("se o servidor não suporta Range (a retomada devolve 200), o download é refeito sobrescrevendo, sem empilhar e contaminar", async () => {
     const modelsRoot = await freshRoot();
     let n = 0;
     vi.stubGlobal(
@@ -159,7 +161,7 @@ describe("ensureModel 断点续传", () => {
             headers: { "content-length": String(FULL.length) },
           });
         }
-        // 无视 Range 直接全量 200
+        // O Range é ignorado e vem um 200 com tudo
         return new Response(fullBody(FULL), {
           status: 200,
           headers: { "content-length": String(FULL.length) },
@@ -173,7 +175,7 @@ describe("ensureModel 断点续传", () => {
     expect(installed.equals(FULL)).toBe(true);
   });
 
-  it("镜像谎报续传起点则丢弃部分文件重来", async () => {
+  it("se o espelho mente sobre o ponto de retomada, o arquivo parcial é descartado e tudo recomeça", async () => {
     const modelsRoot = await freshRoot();
     let sawLie = false;
     vi.stubGlobal(
@@ -187,7 +189,7 @@ describe("ensureModel 断点续传", () => {
             headers: { "content-length": String(FULL.length) },
           });
         }
-        // 206 但 content-range 起点对不上:部分文件必须被丢弃
+        // Um 206, mas com o início do content-range fora de lugar: o arquivo parcial tem de ser descartado
         sawLie = true;
         return new Response(fullBody(FULL.subarray(2)), {
           status: 206,
@@ -202,10 +204,10 @@ describe("ensureModel 断点续传", () => {
     expect(installed.equals(FULL)).toBe(true);
   });
 
-  it("已有完整字节时 416 视为下载完成", async () => {
+  it("com os bytes já completos, um 416 conta como download concluído", async () => {
     const modelsRoot = await freshRoot();
     const a = asset();
-    // 预置完整的部分文件(上次断在最后一刻)
+    // O arquivo parcial já está completo (a queda da vez anterior foi no último instante)
     await writeFile(join(modelsRoot, `${a.id}.download.tar.bz2`), FULL);
     vi.stubGlobal(
       "fetch",
@@ -217,7 +219,7 @@ describe("ensureModel 断点续传", () => {
     expect(installed.size).toBe(FULL.length);
   });
 
-  it("彻底失败时保留部分文件供下次续传", async () => {
+  it("numa falha total o arquivo parcial fica, para a próxima retomada", async () => {
     const modelsRoot = await freshRoot();
     vi.stubGlobal(
       "fetch",
@@ -236,7 +238,7 @@ describe("ensureModel 断点续传", () => {
   });
 });
 
-// ---- tar.bz2 解压:issue #17 Windows 内置 tar 不支持 bzip2,纯 JS 兜底 ----
+// ---- Descompactação do tar.bz2: na issue #17, o tar embutido do Windows não suporta bzip2, e a reserva em JavaScript puro assume ----
 
 const FIXTURE = join(__dirname, "fixtures", "fixture-model.tar.bz2");
 
@@ -251,19 +253,19 @@ function archiveAsset(overrides: Partial<ModelAsset> = {}): ModelAsset {
   };
 }
 
-describe("extractTarBz2 纯 JS 兜底", () => {
-  it("跳过系统 tar(systemTar=null)也能解出归档", async () => {
+describe("extractTarBz2: a reserva em JavaScript puro", () => {
+  it("pulando o tar do sistema (systemTar=null), o pacote também é extraído", async () => {
     const dest = await freshRoot();
     const seen: Array<"download" | "extract" | undefined> = [];
     await extractTarBz2(FIXTURE, dest, (p) => seen.push(p.phase), null);
     const tokens = await readFile(join(dest, "fixture-model", "tokens.txt"), "utf8");
     expect(tokens).toBe("hello tokens\n");
-    // 全程都是 extract 阶段,且报了真实字节进度
+    // Todo o caminho é a etapa de extract, com o progresso real em bytes
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.every((s) => s === "extract")).toBe(true);
   });
 
-  it("系统 tar 不可用(Windows 无 bzip2 场景)自动落到 JS 解压", async () => {
+  it("com o tar do sistema indisponível (o cenário do Windows sem bzip2), a descompactação em JavaScript assume sozinha", async () => {
     const dest = await freshRoot();
     await extractTarBz2(FIXTURE, dest, undefined, "hotclip-no-such-tar-binary");
     const onnx = await readFile(join(dest, "fixture-model", "model.int8.onnx"), "utf8");
@@ -271,8 +273,8 @@ describe("extractTarBz2 纯 JS 兜底", () => {
   });
 });
 
-describe("ensureModel 归档资产端到端", () => {
-  it("下载 tar.bz2 → 解压 → 原子落位,归档清理", async () => {
+describe("ensureModel com um pacote, de ponta a ponta", () => {
+  it("baixa o tar.bz2 → descompacta → aterrissa de forma atômica, e o pacote é limpo", async () => {
     const modelsRoot = await freshRoot();
     const bytes = await readFile(FIXTURE);
     vi.stubGlobal(
@@ -289,12 +291,12 @@ describe("ensureModel 归档资产端到端", () => {
     const dir = await ensureModel(modelsRoot, a, undefined);
     const tokens = await readFile(join(dir, "tokens.txt"), "utf8");
     expect(tokens).toBe("hello tokens\n");
-    // 归档与 staging 目录都不残留
+    // Nem o pacote nem a pasta de preparo ficam atrás
     await expect(stat(join(modelsRoot, `${a.id}.download.tar.bz2`))).rejects.toThrow();
     await expect(stat(join(modelsRoot, `${a.id}.extracting`))).rejects.toThrow();
   });
 
-  it("真损坏的归档:两路解压都失败→删档换镜像,不留下能被误判已安装的目录", async () => {
+  it("pacote de fato corrompido: as duas descompactações falham → o pacote é apagado e o espelho é trocado, sem deixar uma pasta que passaria por instalada", async () => {
     const modelsRoot = await freshRoot();
     const garbage = Buffer.from("this is definitely not a bzip2 archive at all");
     vi.stubGlobal(
@@ -309,7 +311,7 @@ describe("ensureModel 归档资产端到端", () => {
 
     const a = archiveAsset();
     await expect(ensureModel(modelsRoot, a, undefined)).rejects.toThrow();
-    // 损坏归档已删除(下次从零重下),extractedDir 没有被残缺解压污染
+    // O pacote corrompido foi apagado (na próxima vez o download começa do zero), e o extractedDir não foi contaminado por uma extração pela metade
     await expect(stat(join(modelsRoot, `${a.id}.download.tar.bz2`))).rejects.toThrow();
     await expect(stat(join(modelsRoot, a.extractedDir))).rejects.toThrow();
   });

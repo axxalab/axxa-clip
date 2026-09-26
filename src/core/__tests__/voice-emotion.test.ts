@@ -14,12 +14,12 @@ import {
 import type { MediaSignals } from "../signals";
 
 describe("stripSenseVoiceTag", () => {
-  it("剥 <|TAG|> 包装并归一大写", () => {
+  it("tira o embrulho <|TAG|> e normaliza em maiúsculas", () => {
     expect(stripSenseVoiceTag("<|HAPPY|>")).toBe("HAPPY");
     expect(stripSenseVoiceTag("<|Laughter|>")).toBe("LAUGHTER");
   });
 
-  it("空值与非标签输入不炸(模型换版本改格式也能兜住)", () => {
+  it("valor vazio e entrada que não é etiqueta não quebram (mesmo que o modelo mude de versão e de formato)", () => {
     expect(stripSenseVoiceTag(undefined)).toBe("");
     expect(stripSenseVoiceTag(null)).toBe("");
     expect(stripSenseVoiceTag("")).toBe("");
@@ -27,8 +27,8 @@ describe("stripSenseVoiceTag", () => {
   });
 });
 
-describe("热标签判定", () => {
-  it("只认笑/怒/惊三情绪,中性与低落不算爆点", () => {
+describe("julgamento das etiquetas quentes", () => {
+  it("só riso, raiva e susto contam; o neutro e o para baixo não são estouro", () => {
     expect(isHotEmotion("<|HAPPY|>")).toBe(true);
     expect(isHotEmotion("<|ANGRY|>")).toBe(true);
     expect(isHotEmotion("<|SURPRISED|>")).toBe(true);
@@ -37,7 +37,7 @@ describe("热标签判定", () => {
     expect(isHotEmotion(undefined)).toBe(false);
   });
 
-  it("只认笑声/掌声/哭腔,常态语音与 BGM 不算", () => {
+  it("só risada, palmas e choro contam; a fala normal e a trilha não", () => {
     expect(isHotEvent("<|Laughter|>")).toBe(true);
     expect(isHotEvent("<|Applause|>")).toBe(true);
     expect(isHotEvent("<|Cry|>")).toBe(true);
@@ -47,7 +47,7 @@ describe("热标签判定", () => {
 });
 
 describe("planVoiceScanWindows", () => {
-  it("无信号时按均匀网格铺满,窗长固定且不越界", () => {
+  it("sem sinal, a grade uniforme espalha tudo, com janela de duração fixa e sem sair do limite", () => {
     const windows = planVoiceScanWindows(300, undefined);
     expect(windows.length).toBeGreaterThan(0);
     for (const w of windows) {
@@ -55,25 +55,25 @@ describe("planVoiceScanWindows", () => {
       expect(w.endSec).toBeLessThanOrEqual(300);
       expect(w.endSec - w.startSec).toBeCloseTo(VOICE_WINDOW_SEC, 5);
     }
-    // 按时间有序(mergeHitWindows 依赖有序输入)
+    // Ordenado no tempo (o mergeHitWindows depende de entrada ordenada)
     for (let i = 1; i < windows.length; i++) {
       expect(windows[i].startSec).toBeGreaterThanOrEqual(windows[i - 1].startSec);
     }
   });
 
-  it("有响度峰值时优先扫峰值区(把预算花在最可能有爆点的地方)", () => {
+  it("com pico de volume, a varredura vai primeiro à região do pico (o orçamento é gasto onde mais provavelmente há estouro)", () => {
     const signals: MediaSignals = {
       loudPeaks: [{ startSec: 100, endSec: 130 }],
       cutDense: [],
     };
     const windows = planVoiceScanWindows(600, signals);
     const inPeak = windows.filter((w) => w.startSec >= 95 && w.endSec <= 140).length;
-    // 峰值区只占全片 5%,但应拿到远多于 5% 的窗
+    // A região do pico é só 5% do material, mas recebe bem mais de 5% das janelas
     expect(inPeak).toBeGreaterThan(3);
     expect(inPeak / windows.length).toBeGreaterThan(0.05);
   });
 
-  it("窗数不超上限,极短素材不产生窗", () => {
+  it("o número de janelas não passa do teto, e material curtíssimo não gera janela", () => {
     expect(planVoiceScanWindows(36000, undefined).length).toBeLessThanOrEqual(VOICE_MAX_WINDOWS);
     expect(planVoiceScanWindows(0.5, undefined)).toEqual([]);
     expect(planVoiceScanWindows(0, undefined)).toEqual([]);
@@ -81,7 +81,7 @@ describe("planVoiceScanWindows", () => {
 });
 
 describe("mergeHitWindows", () => {
-  it("相邻命中窗并成一段,远离的各自成段", () => {
+  it("janelas vizinhas que acertaram viram um trecho, e as distantes formam trechos próprios", () => {
     const merged = mergeHitWindows(
       [
         { startSec: 10, endSec: 16 },
@@ -96,22 +96,22 @@ describe("mergeHitWindows", () => {
     ]);
   });
 
-  it("空输入返回空,不改写入参", () => {
+  it("entrada vazia devolve vazio, sem alterar o que entrou", () => {
     const input = [{ startSec: 1, endSec: 7 }];
     const out = mergeHitWindows(input);
     expect(mergeHitWindows([])).toEqual([]);
     out[0].endSec = 999;
-    expect(input[0].endSec).toBe(7); // 合并结果是新对象,没污染调用方
+    expect(input[0].endSec).toBe(7); // o resultado da união é um objeto novo, sem contaminar quem chamou
   });
 });
 
 describe("topByDuration", () => {
-  it("不超额时原样返回", () => {
+  it("abaixo do teto devolve como está", () => {
     const rs = [{ startSec: 0, endSec: 5 }];
     expect(topByDuration(rs, 12)).toBe(rs);
   });
 
-  it("超额时留最长的,不是最早的(直接截前 N 等于只看片头)", () => {
+  it("passando do teto ficam os mais longos, não os mais antigos (pegar os N primeiros seria olhar só o começo)", () => {
     const rs = [
       { startSec: 0, endSec: 2 },
       { startSec: 10, endSec: 30 },
@@ -125,7 +125,7 @@ describe("topByDuration", () => {
     ]);
   });
 
-  it("结果仍按时间排序(下游按时间轴消费)", () => {
+  it("o resultado continua ordenado no tempo (quem consome usa a linha de tempo)", () => {
     const rs = Array.from({ length: 20 }, (_, i) => ({ startSec: i * 10, endSec: i * 10 + (20 - i) }));
     const top = topByDuration(rs, 5);
     for (let i = 1; i < top.length; i++) expect(top[i].startSec).toBeGreaterThan(top[i - 1].startSec);
@@ -135,12 +135,12 @@ describe("topByDuration", () => {
 describe("collectVoiceEmotionSignal", () => {
   const base = { videoPath: "/x.mp4", durationSec: 300, modelsRoot: "/models" };
 
-  /** 按时间段给标签的假打标器。 */
+  /** Um etiquetador falso que dá etiquetas por intervalo de tempo. */
   const tagger = (fn: (startSec: number) => VoiceWindowTags | null) => ({
     tagWindow: async (startSec: number): Promise<VoiceWindowTags | null> => fn(startSec),
   });
 
-  it("把命中窗合成两路时段,并如实统计", async () => {
+  it("as janelas que acertaram viram os trechos das duas trilhas, com a estatística fiel", async () => {
     const out = await collectVoiceEmotionSignal({
       ...base,
       deps: tagger((t) => {
@@ -156,7 +156,7 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out!.stats.windowsScored).toBeGreaterThanOrEqual(3);
   });
 
-  it("全程中性 → 两路都空,但仍算成功扫描", async () => {
+  it("neutro do começo ao fim → as duas trilhas ficam vazias, mas a varredura conta como bem-sucedida", async () => {
     const out = await collectVoiceEmotionSignal({
       ...base,
       deps: tagger(() => ({ emotion: "NEUTRAL", event: "Speech" })),
@@ -166,7 +166,7 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out!.stats.windowsScored).toBeGreaterThan(0);
   });
 
-  it("单窗解码失败只跳过该窗,不拖垮整次采集", async () => {
+  it("a falha ao decodificar uma janela só pula aquela janela, sem derrubar a coleta inteira", async () => {
     let calls = 0;
     const out = await collectVoiceEmotionSignal({
       ...base,
@@ -183,7 +183,7 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out!.stats.windowsScored).toBeLessThan(out!.stats.windowsPlanned);
   });
 
-  it("成功窗太少 → 证据太薄,返回 null 而不是假信号", async () => {
+  it("janelas bem-sucedidas de menos → evidência fraca, devolve null em vez de sinal falso", async () => {
     const out = await collectVoiceEmotionSignal({
       ...base,
       deps: { tagWindow: async (): Promise<null> => null },
@@ -191,7 +191,7 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out).toBeNull();
   });
 
-  it("预算耗尽带着已得结果收工(不空手而归)", async () => {
+  it("com o orçamento esgotado, encerra com o que já tem (sem voltar de mãos vazias)", async () => {
     let n = 0;
     const out = await collectVoiceEmotionSignal({
       ...base,
@@ -199,7 +199,7 @@ describe("collectVoiceEmotionSignal", () => {
       deps: {
         tagWindow: async (): Promise<VoiceWindowTags> => {
           await new Promise((r) => setTimeout(r, 8));
-          // 三窗里一窗激动:有命中但不饱和
+          // Uma janela exaltada em três: há acerto, mas não satura
           return { emotion: n++ % 3 === 0 ? "HAPPY" : "NEUTRAL", event: "Speech" };
         },
       },
@@ -209,7 +209,7 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out!.voiceEmotionPeaks.length).toBeGreaterThan(0);
   });
 
-  it("每一窗都命中 → 该路饱和,整路丢弃而不是标成全片爆点", async () => {
+  it("acerto em toda janela → a trilha satura e é descartada inteira, em vez de marcar o material todo como estouro", async () => {
     const out = await collectVoiceEmotionSignal({
       ...base,
       deps: tagger(() => ({ emotion: "HAPPY", event: "Laughter" })),
@@ -221,15 +221,15 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out!.audioEventPeaks).toEqual([]);
   });
 
-  it("脱口秀式高命中(约六成窗有笑声)不算饱和,靠时长筛出最炸的几波", async () => {
-    // 实测:6 分钟脱口秀 58 窗里 36 窗命中笑声,旧的 0.6 阈值会把这路整个扔掉
+  it("o acerto alto de um stand-up (risada em cerca de 60% das janelas) não é saturação, e a duração separa as ondas mais fortes", async () => {
+    // Medido na prática: num stand-up de 6 minutos, 36 das 58 janelas acertam risada, e o limite antigo de 0,6 jogaria a trilha inteira fora
     let n = 0;
     const out = await collectVoiceEmotionSignal({
       ...base,
       deps: {
         tagWindow: async (): Promise<VoiceWindowTags> => ({
           emotion: "NEUTRAL",
-          event: n++ % 5 < 3 ? "Laughter" : "Speech", // 60% 命中
+          event: n++ % 5 < 3 ? "Laughter" : "Speech", // 60% de acerto
         }),
       },
     });
@@ -238,7 +238,7 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out!.audioEventPeaks.length).toBeLessThanOrEqual(12);
   });
 
-  it("命中率适中(约三成)时不算饱和,正常出信号", async () => {
+  it("com taxa de acerto moderada (cerca de 30%) não há saturação, e o sinal sai normalmente", async () => {
     let n = 0;
     const out = await collectVoiceEmotionSignal({
       ...base,
@@ -253,7 +253,7 @@ describe("collectVoiceEmotionSignal", () => {
     expect(out!.voiceEmotionPeaks.length).toBeGreaterThan(0);
   });
 
-  it("极短素材没有扫描窗 → null", async () => {
+  it("material curtíssimo não tem janela de varredura → null", async () => {
     const out = await collectVoiceEmotionSignal({
       ...base,
       durationSec: 0.5,
