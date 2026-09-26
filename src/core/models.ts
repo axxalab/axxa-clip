@@ -1,10 +1,9 @@
 /**
- * Local AI model management: registry + first-run download with mirror
- * fallback (GitHub is slow/unreachable for many Chinese users, so every
- * asset lists proxy mirrors tried in order).
+ * Gestão dos modelos de IA locais: o registro + o download da primeira execução com espelhos de reserva
+ * (o GitHub é lento ou inalcançável para muita gente, então cada modelo lista espelhos tentados em ordem).
  *
- * Models live OUTSIDE the app bundle (user data dir) so app updates never
- * re-download them and the installer stays small.
+ * Os modelos moram FORA do pacote do aplicativo (na pasta de dados do usuário), de modo que uma
+ * atualização do app nunca os baixe de novo e o instalador continue pequeno.
  */
 import { mkdir, open, readFile, rename, rm, stat } from "fs/promises";
 import { createReadStream } from "fs";
@@ -21,50 +20,50 @@ const execFileAsync = promisify(execFile);
 
 export interface ModelAsset {
   id: string;
-  /** Primary download URL (GitHub release asset). */
+  /** A URL principal de download (o arquivo anexado a um release do GitHub). */
   url: string;
-  /** Mirror prefixes tried before the primary URL for mainland-CN reachability. */
+  /** Os prefixos de espelho tentados antes da URL principal, para alcançar quem está em rede difícil. */
   mirrors: string[];
-  /** Directory name the archive extracts to (tar.bz2 top-level folder). */
+  /** O nome da pasta em que o arquivo compactado é extraído (a pasta de primeiro nível do tar.bz2). */
   extractedDir: string;
-  /** Approximate size for progress UI. */
+  /** O tamanho aproximado, para a barra de progresso. */
   approxBytes: number;
   /**
-   * Single raw file instead of a tar.bz2 archive — downloaded straight to
+   * Um arquivo cru e único em vez de um tar.bz2 — baixado direto para
    * `<modelsRoot>/<extractedDir>/<singleFile>`.
    */
   singleFile?: string;
-  /** Exact lowercase SHA-256 for raw single-file assets when published upstream. */
+  /** O SHA-256 exato, em minúsculas, dos arquivos crus e únicos, quando o projeto de origem o publica. */
   sha256?: string;
   /**
-   * 完整替代 URL(整条换 host 的镜像,如 hf-mirror.com)——`mirrors` 只能做
-   * 前缀代理,对 HuggingFace 这类换域名镜像不适用;altUrls 排在主 URL 之前
-   * 尝试,保持「国内源优先」的下载顺序。
+   * URLs alternativas completas (um espelho que troca o host inteiro, como o hf-mirror.com) — `mirrors`
+   * só sabe fazer proxy de prefixo, o que não serve para espelhos que trocam o domínio, como os do
+   * HuggingFace; as altUrls são tentadas antes da URL principal, mantendo a ordem de «espelho mais perto primeiro».
    */
   altUrls?: string[];
 }
 
 /**
- * SenseVoice-Small int8 (zh/yue/en/ja/ko ASR, Apache-2.0) via sherpa-onnx.
- * One model covers the MVP language set with per-token timestamps.
+ * SenseVoice-Small int8 (ASR de zh/yue/en/ja/ko, Apache-2.0) pelo sherpa-onnx.
+ * Um modelo só cobre o conjunto de idiomas do MVP, com marca de tempo por token.
  */
 export const SENSEVOICE_MODEL: ModelAsset = {
   id: "sensevoice-2024-07-17",
   url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2",
   mirrors: [
-    // gh proxy services commonly reachable from mainland China; tried in order
+    // Serviços de proxy do gh normalmente alcançáveis de redes difíceis; tentados em ordem
     "https://ghfast.top/",
     "https://gh-proxy.com/",
   ],
   extractedDir: "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
-  // 实测归档体积(2026-07 本机下载验证):999MB,远大于模型本体——进度条按这个才准。
+  // O tamanho medido do arquivo compactado (conferido baixando na máquina em 07/2026): 999MB, muito maior que o modelo em si — só com este número a barra de progresso fica correta.
   approxBytes: 1_047_870_769,
 };
 
 /**
- * Paraformer-large zh/en int8 (Apache-2.0) via sherpa-onnx — the "more
- * accurate" local tier: noticeably lower zh CER than SenseVoice-Small,
- * per-token timestamps, ~230MB.
+ * Paraformer-large zh/en int8 (Apache-2.0) pelo sherpa-onnx — a edição local «mais precisa»:
+ * taxa de erro por caractere em mandarim bem menor que a do SenseVoice-Small, com marca de tempo por
+ * token, em ~230MB.
  */
 export const PARAFORMER_MODEL: ModelAsset = {
   id: "paraformer-zh-2023-09-14",
@@ -75,9 +74,9 @@ export const PARAFORMER_MODEL: ModelAsset = {
 };
 
 /**
- * FireRedASR2-CTC int8 (zh + dialects + en, Apache-2.0, XiaoHongShu 2026-02)
- * via sherpa-onnx — the top-accuracy local tier: ~half the relative error of
- * SenseVoice-Small, per-token timestamps. Needs sherpa-onnx >= 1.12.27.
+ * FireRedASR2-CTC int8 (mandarim + dialetos + inglês, Apache-2.0, XiaoHongShu 02/2026) pelo sherpa-onnx
+ * — a edição local de maior precisão: cerca de metade do erro relativo do SenseVoice-Small, com marca
+ * de tempo por token. Exige sherpa-onnx >= 1.12.27.
  */
 export const FIRERED_MODEL: ModelAsset = {
   id: "fireredasr2-ctc-2026-02-25",
@@ -88,9 +87,9 @@ export const FIRERED_MODEL: ModelAsset = {
 };
 
 /**
- * YuNet face detector (233KB, MIT, OpenCV zoo) — powers face-aware vertical
- * reframing. Fixed 640×640 input variant (verified decode); tiny enough that
- * downloading is instant even without mirrors.
+ * Detector de rosto YuNet (233KB, MIT, do zoo da OpenCV) — é ele que move o reenquadramento vertical
+ * ciente de rosto. A variante de entrada fixa em 640×640 (com decodificação conferida); é tão pequeno
+ * que o download é instantâneo mesmo sem espelho.
  */
 export const YUNET_MODEL: ModelAsset = {
   id: "yunet-2023mar",
@@ -102,8 +101,9 @@ export const YUNET_MODEL: ModelAsset = {
 };
 
 /**
- * FER+ 表情识别(VGG13,MIT,onnx/models 官方 validated)——表情峰值信号用:
- * 输入 1×1×64×64 灰度(0-255 原始值),输出 8 类情绪 logits。
+ * Reconhecimento de expressão FER+ (VGG13, MIT, validado oficialmente no onnx/models) — usado pelo sinal
+ * de pico de expressão: entrada 1×1×64×64 em tons de cinza (valores crus de 0 a 255) e saída com os
+ * logits de 8 emoções.
  */
 export const EMOTION_MODEL: ModelAsset = {
   id: "emotion-ferplus-8",
@@ -115,8 +115,8 @@ export const EMOTION_MODEL: ModelAsset = {
 };
 
 /**
- * CT-Transformer punctuation (zh/en, int8, Apache-2.0) — Paraformer/FireRed
- * emit no punctuation, which starves sentence segmentation; this restores it.
+ * Pontuação CT-Transformer (zh/en, int8, Apache-2.0) — o Paraformer e o FireRed não emitem pontuação,
+ * o que deixa a divisão em frases sem base; este modelo a recupera.
  */
 export const PUNCT_MODEL: ModelAsset = {
   id: "punct-ct-transformer-2024-04-12",
@@ -127,8 +127,8 @@ export const PUNCT_MODEL: ModelAsset = {
 };
 
 /**
- * pyannote segmentation-3.0 ONNX (MIT) — speaker-change detection front-end
- * for diarization. Distributed by sherpa-onnx releases (no HF login needed).
+ * pyannote segmentation-3.0 em ONNX (MIT) — a frente de detecção de troca de falante da diarização.
+ * Distribuído pelos releases do sherpa-onnx (sem precisar de login no HF).
  */
 export const SEGMENTATION_MODEL: ModelAsset = {
   id: "pyannote-segmentation-3-0",
@@ -139,9 +139,9 @@ export const SEGMENTATION_MODEL: ModelAsset = {
 };
 
 /**
- * 3D-Speaker ERes2Net base zh embedding (Apache-2.0) — voice fingerprints for
- * clustering diarization segments into speakers. NOTE: the upstream release
- * tag really is spelled "speaker-recongition-models".
+ * Embedding 3D-Speaker ERes2Net base zh (Apache-2.0) — as impressões vocais que agrupam os trechos da
+ * diarização por falante. ATENÇÃO: a etiqueta do release de origem é mesmo escrita
+ * "speaker-recongition-models".
  */
 export const SPEAKER_EMBEDDING_MODEL: ModelAsset = {
   id: "3dspeaker-eres2net-base-zh",
@@ -153,9 +153,10 @@ export const SPEAKER_EMBEDDING_MODEL: ModelAsset = {
 };
 
 /**
- * TransNetV2 镜头边界检测 ONNX(MIT,~31MB)——逐帧输出镜头切换概率,
- * 驱动「切点吸附镜头边界」。输入 float32 [1,100,27,48,3](RGB 0-255),
- * 输出 "534" 为已过 sigmoid 的单帧切换概率(实测硬切 0.98,阈值 0.5)。
+ * Detecção da borda entre cortes de câmera TransNetV2 em ONNX (MIT, ~31MB) — devolve, quadro a quadro,
+ * a probabilidade de troca de câmera, e é o que move o «encaixe do ponto de corte na borda do corte».
+ * Entrada float32 [1,100,27,48,3] (RGB de 0 a 255), e a saída "534" é a probabilidade de troca no quadro
+ * já passada por sigmoide (na prática, um corte seco dá 0,98, e o limite é 0,5).
  */
 export const TRANSNETV2_MODEL: ModelAsset = {
   id: "transnetv2-onnx",
@@ -168,8 +169,8 @@ export const TRANSNETV2_MODEL: ModelAsset = {
 };
 
 /**
- * Silero VAD v6 ONNX (MIT, <1MB) — speech/non-speech evidence for safe clip
- * edges and jump cuts. Runs through the already bundled sherpa-onnx runtime.
+ * Silero VAD v6 em ONNX (MIT, <1MB) — a evidência de fala e não-fala para bordas de trecho seguras e para
+ * o corte seco. Roda pelo runtime do sherpa-onnx que já vem empacotado.
  */
 export const SILERO_VAD_MODEL: ModelAsset = {
   id: "silero-vad-v6",
@@ -182,10 +183,10 @@ export const SILERO_VAD_MODEL: ModelAsset = {
 };
 
 /**
- * DPDFNet2 high-resolution speech enhancement (Apache-2.0, 48 kHz).
- * Unlike the tiny GTCRN export, this model keeps a full-band 48 kHz output,
- * so it is suitable for an explicit publish-audio enhancement pass rather
- * than only ASR preprocessing. Runs through the bundled sherpa-onnx runtime.
+ * Realce de voz em alta resolução DPDFNet2 (Apache-2.0, 48 kHz).
+ * Diferente da exportação minúscula do GTCRN, este modelo mantém a saída de banda cheia em 48 kHz, o que
+ * o torna adequado a uma passada explícita de realce do áudio de publicação, e não só a um
+ * pré-processamento para ASR. Roda pelo runtime do sherpa-onnx que já vem empacotado.
  */
 export const DPDFNET_SPEECH_ENHANCEMENT_MODEL: ModelAsset = {
   id: "dpdfnet2-48khz-hr",
@@ -201,24 +202,24 @@ export interface DownloadProgress {
   downloadedBytes: number;
   totalBytes: number;
   /**
-   * "download" while bytes stream from the network; "extract" while the
-   * archive unpacks locally. The in-process bz2 fallback can take minutes on
-   * a 1GB archive, so the UI must show it as its own stage, not a stuck 100%.
+   * "download" enquanto os bytes vêm da rede; "extract" enquanto o arquivo é descompactado localmente.
+   * A reserva de bz2 em processo pode levar minutos num arquivo de 1GB, então a interface precisa
+   * mostrar isso como uma etapa própria, e não como um 100% travado.
    */
   phase?: "download" | "extract";
 }
 
-/** Candidate URLs in retry order: mirrors first (domestic-first), then origin. */
+/** As URLs candidatas na ordem de tentativa: os espelhos primeiro (o mais perto antes) e a origem depois. */
 export function candidateUrls(asset: ModelAsset): string[] {
   return [...asset.mirrors.map((m) => `${m}${asset.url}`), ...(asset.altUrls ?? []), asset.url];
 }
 
-/** Absolute path a model extracts to under the given models root. */
+/** O caminho absoluto em que um modelo é extraído, dada a raiz de modelos. */
 export function modelDir(modelsRoot: string, asset: ModelAsset): string {
   return join(modelsRoot, asset.extractedDir);
 }
 
-/** True when the model is already present on disk. */
+/** Verdadeiro quando o modelo já está presente no disco. */
 export async function isModelInstalled(modelsRoot: string, asset: ModelAsset): Promise<boolean> {
   try {
     if (asset.singleFile) {
@@ -238,12 +239,12 @@ export async function isModelInstalled(modelsRoot: string, asset: ModelAsset): P
   }
 }
 
-/** 每个 URL 的续传重试次数——大文件断流靠 Range 接着下,而不是从零重来。 */
+/** Quantas vezes a retomada é tentada em cada URL — um arquivo grande que cai continua por Range, em vez de começar do zero. */
 const RESUME_ATTEMPTS_PER_URL = 3;
-/** 重试间隔:给瞬断的网络一口喘息,又不至于让用户干等。 */
+/** O intervalo entre tentativas: um respiro para a rede que caiu num instante, sem deixar a pessoa esperando de graça. */
 const RETRY_DELAY_MS = 1500;
 
-/** 解析 Content-Range "bytes 起-止/总长",失败返回 null。 */
+/** Lê o Content-Range "bytes início-fim/total"; na falha devolve null. */
 export function parseContentRange(header: string | null): { start: number; total: number } | null {
   const m = /bytes\s+(\d+)-\d+\/(\d+)/.exec(header ?? "");
   if (!m) return null;
@@ -251,10 +252,12 @@ export function parseContentRange(header: string | null): { start: number; total
 }
 
 /**
- * 单 URL 断点续传下载:失败保留已下字节,下一轮带 Range 接着下。fetch 对
- * GitHub 大文件(SenseVoice 归档 1GB)中途断流是常态,没有续传就是全 mirror
- * 轮番失败(2026-07 本机实测)。206 响应校验起点,镜像谎报即归零重来,
- * 保证部分文件永远不被污染;归档最终还有 tar 解压/体积守卫兜底。
+ * Download com retomada numa URL só: na falha os bytes já baixados ficam, e a rodada seguinte continua
+ * com Range. O fetch cair no meio de um arquivo grande do GitHub (o pacote do SenseVoice tem 1GB) é o
+ * normal, e sem retomada o resultado é falhar em todos os espelhos, um a um (medido na máquina em
+ * 07/2026). A resposta 206 confere o ponto de partida, e um espelho que mentir zera tudo e recomeça,
+ * garantindo que o arquivo parcial nunca seja contaminado; no fim, o pacote ainda tem a descompactação
+ * do tar e a guarda de tamanho como rede de segurança.
  */
 async function downloadResumable(
   url: string,
@@ -272,11 +275,11 @@ async function downloadResumable(
       try {
         existing = (await stat(archivePath)).size;
       } catch {
-        // 没有部分文件:从零开始
+        // Não há arquivo parcial: começa do zero
       }
       const headers: Record<string, string> = existing > 0 ? { Range: `bytes=${existing}-` } : {};
       const res = await fetch(url, { signal, redirect: "follow", headers });
-      // 416:已有字节 ≥ 服务端文件长度,视为下载完成,交给上层校验定生死
+      // 416: os bytes já baixados ≥ o tamanho do arquivo no servidor, o que conta como download concluído, e a validação da camada de cima decide o resto
       if (res.status === 416) return;
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
@@ -285,20 +288,20 @@ async function downloadResumable(
       if (res.status === 206) {
         const range = parseContentRange(res.headers.get("content-range"));
         if (!range || range.start !== existing) {
-          // 镜像谎报续传起点:部分文件不可信,归零重来
+          // O espelho mentiu sobre o ponto de retomada: o arquivo parcial não é confiável, então zera e recomeça
           await rm(archivePath, { force: true });
           throw new Error("bad content-range on resume");
         }
         exactTotal = range.total;
       } else {
-        // 服务端不支持 Range(返回 200 全量):覆盖写,从头计数
+        // O servidor não suporta Range (devolveu 200 com o arquivo inteiro): sobrescreve e conta do começo
         offset = 0;
       }
       const remaining = Number(res.headers.get("content-length") ?? NaN);
       const totalBytes = exactTotal ?? (Number.isFinite(remaining) ? offset + remaining : asset.approxBytes);
 
-      // 逐块显式写盘(而非 pipeline+WriteStream):断流时已收到的字节一个不丢,
-      // 续传起点才与磁盘现状严格一致。
+      // Cada bloco é escrito explicitamente no disco (em vez de pipeline+WriteStream): se a conexão cair,
+      // nenhum byte já recebido se perde, e é só assim que o ponto de retomada bate exatamente com o disco.
       let downloadedBytes = offset;
       const fh = await open(archivePath, offset > 0 ? "a" : "w");
       try {
@@ -317,23 +320,22 @@ async function downloadResumable(
     } catch (e) {
       lastError = e;
       if (signal?.aborted) throw e;
-      // 部分文件保留:下一轮(或下一个镜像,同一份 release 资产)续传
+      // O arquivo parcial fica: a rodada seguinte (ou o espelho seguinte, do mesmo arquivo de release) continua de onde parou
     }
   }
   throw lastError;
 }
 
 /**
- * Extract a .tar.bz2 archive into destDir. System tar first (fast native
- * path on macOS/Linux); pure-JS fallback when it fails — Windows 10/11 ships
- * bsdtar compiled with gzip ONLY, so `tar -xjf` needs an external bzip2
- * program that doesn't exist → deterministic failure on every Windows box
- * (issue #17: 1GB download reached 100%, "corrupt" archive deleted, next
- * mirror re-downloaded from zero, forever). Only when BOTH extractors fail
- * is the archive actually corrupt.
+ * Extrai um .tar.bz2 em destDir. O tar do sistema primeiro (o caminho nativo rápido no macOS/Linux); a
+ * reserva em JavaScript puro entra quando ele falha — o Windows 10/11 vem com um bsdtar compilado
+ * SOMENTE com gzip, então `tar -xjf` precisa de um programa bzip2 externo que não existe → falha
+ * determinística em toda máquina Windows (issue #17: o download de 1GB chegava a 100%, o pacote era
+ * apagado como «corrompido», o espelho seguinte baixava do zero, para sempre). Só quando os DOIS
+ * extratores falham é que o pacote está de fato corrompido.
  *
- * `systemTar` is injectable for tests (force the fallback path); pass null
- * to skip system tar entirely.
+ * `systemTar` é injetável nos testes (para forçar o caminho de reserva); passe null para pular o tar do
+ * sistema por completo.
  */
 export async function extractTarBz2(
   archivePath: string,
@@ -349,11 +351,11 @@ export async function extractTarBz2(
       onProgress?.({ downloadedBytes: totalBytes, totalBytes, phase: "extract" });
       return;
     } catch {
-      // fall through to the in-process extractor
+      // segue para o extrator em processo
     }
   }
-  // In-process bz2 → tar. Progress = compressed bytes consumed, so the bar
-  // moves honestly through a minutes-long 1GB decompress.
+  // bz2 → tar em processo. O progresso conta os bytes compactados consumidos, então a barra anda de
+  // forma honesta ao longo de uma descompactação de 1GB que leva minutos.
   let read = 0;
   const source = createReadStream(archivePath);
   source.on("data", (chunk) => {
@@ -364,12 +366,12 @@ export async function extractTarBz2(
 }
 
 /**
- * Download + extract a model archive. Tries each candidate URL until one
- * succeeds; writes to a temp file, extracts with system tar (in-process
- * bz2+tar fallback where system tar can't do bzip2 — notably Windows),
- * renames atomically.
- * 断流的部分文件跨镜像保留续传(所有候选 URL 指向同一份资产);用户中途
- * 取消也保留,下次启动接着下。
+ * Baixa e extrai o pacote de um modelo. Cada URL candidata é tentada até uma dar certo; o arquivo é
+ * escrito num temporário, extraído com o tar do sistema (com a reserva de bz2+tar em processo onde o tar
+ * do sistema não sabe fazer bzip2 — notadamente no Windows) e renomeado de forma atômica.
+ * O arquivo parcial de uma conexão que caiu é preservado entre espelhos para a retomada (todas as URLs
+ * candidatas apontam para o mesmo arquivo); se a pessoa cancelar no meio, ele também fica, e a próxima
+ * inicialização continua de onde parou.
  */
 export async function ensureModel(
   modelsRoot: string,
@@ -390,12 +392,12 @@ export async function ensureModel(
     } catch (e) {
       lastError = e;
       if (signal?.aborted) throw e;
-      continue; // 网络失败:部分文件留给下一个镜像续传
+      continue; // falha de rede: o arquivo parcial fica para o espelho seguinte retomar
     }
 
     try {
       if (asset.singleFile) {
-        // guard against Git-LFS pointer files masquerading as the model
+        // protege contra um arquivo de ponteiro do Git-LFS se passando pelo modelo
         const dl = await stat(archivePath);
         if (dl.size < asset.approxBytes * 0.5) {
           throw new Error(`downloaded file too small (${dl.size}B) — likely an LFS pointer`);
@@ -404,14 +406,14 @@ export async function ensureModel(
           const actual = createHash("sha256").update(await readFile(archivePath)).digest("hex");
           if (actual !== asset.sha256.toLowerCase()) throw new Error(`checksum mismatch for ${asset.id}`);
         }
-        // raw file: move into place atomically
+        // arquivo cru: movido para o lugar de forma atômica
         await mkdir(target, { recursive: true });
         const installedPath = join(target, asset.singleFile);
         await rm(installedPath, { force: true });
         await rename(archivePath, installedPath);
       } else {
-        // 解压进 staging 目录再原子 rename:进程被杀/解压失败都不会留下
-        // 会被 isModelInstalled 误判为「已安装」的残缺模型目录。
+        // A extração vai para uma pasta de preparo e só então um rename atômico acontece: nem um processo
+        // morto nem uma extração que falha deixam atrás uma pasta de modelo incompleta que o isModelInstalled tomaria por «instalado».
         const staging = join(modelsRoot, `${asset.id}.extracting`);
         await rm(staging, { recursive: true, force: true });
         await mkdir(staging, { recursive: true });
@@ -434,7 +436,7 @@ export async function ensureModel(
       return target;
     } catch (e) {
       lastError = e;
-      // 下载完但两路解压都失败:文件真损坏,归零后换下一个镜像重来
+      // Baixou, mas os dois caminhos de extração falharam: o arquivo está de fato corrompido, então zera e recomeça no espelho seguinte
       await rm(archivePath, { force: true });
       if (signal?.aborted) throw e;
     }
@@ -445,10 +447,11 @@ export async function ensureModel(
 }
 
 /**
- * 从任意媒体抽出 16k 单声道 raw f32le 样本文件(ASR 引擎直接消费)。
- * 不出 wav 再让 sherpa readWave 去开文件:原生层在 Windows 上按 ANSI 开路径,
- * 中文用户名下的临时目录一律打不开(issue #4)。raw 样本由 Node 侧读入内存
- * (fs 对 Unicode 路径免疫),原生层只见到内存里的 Float32Array。
+ * Extrai de qualquer mídia um arquivo de amostras raw f32le mono a 16k (que o motor de ASR consome direto).
+ * Não se gera um wav para depois o sherpa abrir com readWave: a camada nativa abre o caminho em ANSI no
+ * Windows, e uma pasta temporária sob um nome de usuário com acento simplesmente não abre (issue #4). As
+ * amostras cruas são lidas para a memória pelo lado do Node (o fs é imune a caminho Unicode), e a camada
+ * nativa só vê um Float32Array em memória.
  */
 export async function extractPcmF32le16k(
   ffmpegPath: string,
@@ -465,7 +468,7 @@ export async function extractPcmF32le16k(
       ffmpegPath,
       [
         "-hide_banner", "-y",
-        // 范围抽取(精对齐只解码候选段):-ss 在 -i 前快速跳转,-t 截取时长
+        // Extração por intervalo (o alinhamento fino decodifica só o trecho candidato): -ss antes de -i salta rápido, e -t recorta a duração
         ...(range ? ["-ss", String(Math.max(0, range.startSec))] : []),
         "-i", inputPath,
         ...(range ? ["-t", String(Math.max(0.1, range.durationSec))] : []),
@@ -478,7 +481,7 @@ export async function extractPcmF32le16k(
   } finally { await rm(tmp, { force: true }).catch(() => {}); }
 }
 
-/** 读 raw f32le 样本进内存。Buffer 的 byteOffset 不保证 4 字节对齐,拷进新 ArrayBuffer 再套 Float32Array。 */
+/** Lê as amostras raw f32le para a memória. O byteOffset de um Buffer não é garantidamente alinhado em 4 bytes, então os dados são copiados para um ArrayBuffer novo antes de virar Float32Array. */
 export async function readF32leSamples(path: string): Promise<Float32Array> {
   const buf = await readFile(path);
   const bytes = buf.byteLength - (buf.byteLength % 4);

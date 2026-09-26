@@ -1,35 +1,39 @@
 /**
- * 重录(NG)检测:口播录制时说错了重来一遍——同一句话紧挨着说了两遍甚至三遍,
- * 人工剪辑第一件事就是把前面的废稿删掉只留最后一遍。这里用逐句稿的相邻句
- * 相似度找出这些重复,把废稿那几遍变成强制剪切段,复用跳剪的拼接机制。
+ * Detecção de regravação (a tomada queimada): gravando uma fala, a pessoa erra e refaz — a mesma frase
+ * é dita duas ou até três vezes seguidas, e a primeira coisa que alguém faz ao editar é apagar as
+ * tomadas queimadas e ficar só com a última. Aqui a semelhança entre frases vizinhas da transcrição
+ * acha essas repetições e transforma as tomadas queimadas em trechos de corte forçado, reaproveitando
+ * o mecanismo de colagem do corte seco.
  *
- * 判据刻意保守——宁可漏剪也不能剪掉有意义的内容:
- *  - 只看紧邻(允许跨一句,重录之间常夹一句"啊不对/等一下");
- *  - 两遍必须挨得近(默认 20 秒内),隔了半小时的同句是话术循环不是重录;
- *  - 太短的句子不碰("好的""对""来"这类天然重复,剪了反而破坏语流);
- *  - 保留最后一遍(说对了才往下讲),剪掉前面的。
- * 纯函数,可单测。
+ * Os critérios são conservadores de propósito — melhor deixar de cortar que cortar conteúdo que importa:
+ *  - só o que está logo ao lado conta (com uma frase de distância permitida, já que entre duas tomadas
+ *    costuma entrar um «ah, não é isso / peraí»);
+ *  - as duas tomadas precisam estar próximas (20 segundos por padrão), porque a mesma frase meia hora
+ *    depois é o bordão de sempre, não uma regravação;
+ *  - frase curta demais não é tocada («beleza», «isso», «vem») — ela se repete naturalmente, e cortar só quebra o fluxo;
+ *  - a última tomada fica (foi a que saiu certa e seguiu adiante) e as anteriores saem.
+ * Função pura, testável.
  */
 import type { TranscriptWord } from "../shared/api-types";
 import { segmentWords } from "./transcribe/segment";
 import type { KeptSegment } from "./gaps";
 
-/** 判为同一句的相似度阈值(bigram Dice 系数)。 */
+/** O limite de semelhança para julgar que é a mesma frase (coeficiente de Dice sobre bigramas). */
 export const RETAKE_SIMILARITY = 0.72;
-/** 参与比较的最短句(字符数):短句天然重复,不碰。 */
+/** A frase mais curta que entra na comparação (em caracteres): frase curta se repete naturalmente e não é tocada. */
 export const RETAKE_MIN_CHARS = 6;
-/** 两遍之间的最大间隔(秒):超过就是话术循环,不是重录。 */
+/** O intervalo máximo entre as duas tomadas (segundos): acima disso é bordão, não regravação. */
 export const RETAKE_MAX_GAP_SEC = 20;
-/** 最多允许跨几句去找重录(中间夹"啊不对/等一下"这类插话)。 */
+/** Quantas frases no máximo se pode atravessar procurando a regravação (com um «ah, não é isso / peraí» no meio). */
 export const RETAKE_LOOKAHEAD = 2;
 
 export interface RetakeHit {
-  /** 废稿那一遍的时间段(要剪掉)。 */
+  /** O intervalo de tempo da tomada queimada (o que será cortado). */
   startSec: number;
   endSec: number;
-  /** 废稿原文(UI/日志展示"剪掉了什么")。 */
+  /** O texto da tomada queimada (para a interface e o registro mostrarem «o que foi cortado»). */
   text: string;
-  /** 最终保留的那一遍原文。 */
+  /** O texto da tomada que ficou. */
   keptText: string;
   similarity: number;
 }
@@ -42,14 +46,15 @@ export interface RetakeOptions {
 }
 
 /**
- * 归一化:去标点空白、转小写。中英文都按「有意义字符序列」比,
- * 免得标点恢复的差异("这款不错" vs "这款不错!")把同一句判成两句。纯函数。
+ * Normalização: tira a pontuação e o espaço e passa para minúsculas. A comparação é sempre por
+ * «sequência de caracteres que significam algo», para uma diferença de pontuação recuperada ("esse é bom"
+ * vs "esse é bom!") não transformar a mesma frase em duas. Função pura.
  */
 export function normalizeForCompare(text: string): string {
   return text.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
 }
 
-/** 相邻字符二元组集合(中文按字、英文也按字符——跨语种同一套度量)。 */
+/** O conjunto de bigramas de caracteres vizinhos (por caractere, tanto em escrita ideográfica quanto latina — uma métrica só para todos os idiomas). */
 function bigrams(s: string): Map<string, number> {
   const out = new Map<string, number>();
   if (s.length < 2) {
@@ -64,8 +69,9 @@ function bigrams(s: string): Map<string, number> {
 }
 
 /**
- * Dice 相似度(0-1):2×共有二元组 / 两者二元组总数。
- * 对「说到一半重来」这种前缀重复很敏感,正是重录的典型形态。纯函数。
+ * Semelhança de Dice (de 0 a 1): 2× os bigramas em comum / o total de bigramas dos dois.
+ * É bem sensível à repetição de prefixo, do tipo «começou a falar e recomeçou», que é justamente a forma
+ * típica de uma regravação. Função pura.
  */
 export function sentenceSimilarity(a: string, b: string): number {
   const na = normalizeForCompare(a);
@@ -87,8 +93,10 @@ export function sentenceSimilarity(a: string, b: string): number {
 }
 
 /**
- * 找出重录废稿。输入是一条切片(或整段素材)的逐词稿;内部先折成句子。
- * 一句可能被重录多遍(说错两次),此时前面所有遍都进结果,只留最后一遍。
+ * Acha as tomadas queimadas. A entrada é a transcrição palavra a palavra de um trecho (ou do material
+ * inteiro), que por dentro é dobrada em frases.
+ * Uma frase pode ser regravada várias vezes (dois erros seguidos), e aí todas as tomadas anteriores
+ * entram no resultado, ficando só a última.
  */
 export function findRetakes(words: TranscriptWord[], options: RetakeOptions = {}): RetakeHit[] {
   const threshold = options.similarity ?? RETAKE_SIMILARITY;
@@ -105,8 +113,8 @@ export function findRetakes(words: TranscriptWord[], options: RetakeOptions = {}
     if (dropped.has(i)) continue;
     const cur = sentences[i];
     if (normalizeForCompare(cur.text).length < minChars) continue;
-    // 往后找最近的一遍重说;找到就把「当前这遍」判为废稿,
-    // 然后以后面那遍为基准继续往后找(说错三遍也能连锁剪掉前两遍)
+    // Procura para a frente a repetição mais próxima; ao achar, «esta tomada» é julgada queimada,
+    // e a busca continua tomando a de trás como base (com três erros seguidos, as duas primeiras caem em cadeia)
     for (let j = i + 1; j <= Math.min(i + lookahead, sentences.length - 1); j++) {
       if (dropped.has(j)) continue;
       const next = sentences[j];
@@ -129,7 +137,7 @@ export function findRetakes(words: TranscriptWord[], options: RetakeOptions = {}
   return hits.sort((a, b) => a.startSec - b.startSec);
 }
 
-/** 废稿段 → 强制剪切区间(与 fillerCutSpans 同形,喂给跳剪规划器)。 */
+/** Tomada queimada → intervalo de corte forçado (com a mesma forma de fillerCutSpans, para alimentar o planejador do corte seco). */
 export function retakeCutSpans(hits: RetakeHit[], mergeGapSec = 0.2): KeptSegment[] {
   const sorted = [...hits].sort((a, b) => a.startSec - b.startSec);
   const out: KeptSegment[] = [];
@@ -141,7 +149,7 @@ export function retakeCutSpans(hits: RetakeHit[], mergeGapSec = 0.2): KeptSegmen
   return out;
 }
 
-/** 落在废稿段里的词要从字幕里去掉(剪掉的内容不能还印在画面上)。 */
+/** As palavras que caem dentro de uma tomada queimada saem da legenda (o que foi cortado não pode continuar impresso na imagem). */
 export function dropRetakeWords(words: TranscriptWord[], hits: RetakeHit[]): TranscriptWord[] {
   if (hits.length === 0) return words;
   const spans = retakeCutSpans(hits);
