@@ -97,32 +97,38 @@ export interface ExportClipSpec {
   startSec: number;
   endSec: number;
   /**
-   * 多片段拼接的段清单(按时间序;≥2 段才生效)。给了它就用它,startSec/endSec
-   * 退化为跨度首尾——段间空隙走跳剪机器剪掉,字幕/译文/封面/EDL 自动对齐。
+   * A lista de trechos da costura (em ordem de tempo; só vale com 2 ou mais).
+   * Informando ela, é ela que vale, e startSec/endSec passam a ser apenas as pontas
+   * do intervalo — os espaços entre os trechos são removidos pela máquina de corte
+   * seco, e legenda, tradução, capa e EDL se alinham sozinhos.
    */
   pieces?: ClipPiece[];
   /** Words the clip covers (absolute source time) — needed for caption burn-in. */
   words?: TranscriptWord[];
   /** Verbatim keywords to emphasize (keyword caption style). */
   keywords?: string[];
-  /** 片外紧邻词的时刻(全量转写里算好传入)——镜头吸附外扩的守卫。 */
+  /** O instante das palavras vizinhas que ficam fora do clipe (calculado na transcrição inteira e passado aqui) — é a proteção da expansão do encaixe na troca de plano. */
   snapContext?: { prevWordEndSec: number | null; nextWordStartSec: number | null };
-  /** 用户在审阅台手动定过切点:跳过镜头吸附,机器不再改人的决定。 */
+  /** A pessoa definiu os pontos de corte à mão na bancada de revisão: o encaixe na troca de plano é pulado, e a máquina não mexe mais na decisão humana. */
   manualBounds?: boolean;
-  /** 双语字幕的整句译文行(源片绝对时间,主进程预先翻译好传入)。 */
+  /** As linhas de tradução das frases inteiras da legenda bilíngue (em tempo absoluto da origem, traduzidas de antemão pelo processo principal e passadas aqui). */
   translation?: TranslationLine[];
-  /** 发布文案(主进程预先生成传入),落 .post.txt 并进 clips.json。 */
+  /** Texto de publicação (gerado de antemão pelo processo principal e passado aqui), que vai para o .post.txt e para o clips.json. */
   publish?: PublishCopy;
-  /** 一片多版:本条是哪条原版的变体(原版 spec 的 id);原版缺省。 */
+  /** Várias versões: de qual original este clipe é uma versão (o id da especificação original); ausente na original. */
   variantOf?: number;
-  /** 版本序号(原版是 1,变体从 2 起);原版缺省。 */
+  /** Número da versão (a original é 1, e as versões começam em 2); ausente na original. */
   variant?: number;
-  /** 封面抓第几高的响度峰(0=最高,与历史一致);变体封面靠它错开帧。 */
+  /** De qual pico de volume, em ordem decrescente, a capa é tirada (0 = o mais alto, igual ao histórico); é por aqui que a capa de cada versão fica num quadro diferente. */
   coverRank?: number;
   /**
-   * 一片多版的结构差异维度:本条强制开「爆点闪现」开场(与全局开关 OR)。
-   * 变体不只换包装——最后一版连开场结构都不同,矩阵分发的「真差异」再进一步;
-   * 闪不出来(全程无显著峰)按既有 fail-open 回退普通开场。
+   * A dimensão de diferença estrutural das várias versões: este clipe tem a
+   * antecipação do pico forçada na abertura (em OU com a chave global).
+   * A versão não troca só a embalagem — a última também tem outra estrutura de
+   * abertura, levando a "diferença de verdade" da distribuição em várias contas um
+   * passo adiante;
+   * se a antecipação não sair (nenhum pico significativo em todo o material), o recuo
+   * para a abertura comum é o fail-open que já existe.
    */
   flashForward?: boolean;
   /** Evidence-chain fields carried into clips.json for CMS/matrix pipelines. */
@@ -144,13 +150,17 @@ export interface ExportClipSpec {
   };
 }
 
-/** How long the opening hook (teaser) stays on screen — the 黄金3秒 window. */
+/** Quanto tempo o gancho de abertura (a chamada) fica na tela — é a janela dos 3 segundos de ouro. */
 const OPENING_HOOK_SEC = 2.2;
 
 /**
- * 抽峰值轨的最大跨度。拼接片的跨度可能横跨几十分钟(「前后打脸」的两段本来
- * 就隔得远),整段解码抽峰值又慢又没用——超过这个跨度就不抽,跳剪的静音门
- * 和智能封面各自按既有 fail-open 路径退化(与"提取失败"完全同一条分支)。
+ * Intervalo máximo para extrair a trilha de picos. O intervalo de um clipe
+ * costurado pode atravessar dezenas de minutos (os dois trechos de uma
+ * "contradição" já são distantes por natureza), e decodificar tudo para extrair os
+ * picos é lento e inútil — passando desse intervalo, a extração não acontece, e a
+ * porta de silêncio do corte seco e a capa inteligente recuam cada uma pelo
+ * caminho de fail-open que já existe (exatamente o mesmo ramo de "a extração
+ * falhou").
  */
 export const PEAK_SPAN_MAX_SEC = 300;
 
@@ -159,9 +169,13 @@ function peakSpanTooLong(clip: { startSec: number; endSec: number }): boolean {
 }
 
 /**
- * 拼接片的人脸取景:逐段检测再把关键帧平移到「相对切片起点」的同一时间基,
- * 裁窗尺寸取第一段成功的那版(同一源片,各段算出来必然一致)。
- * 全部失败返回 null → 上游回退中心裁,与单段路径同一语义。
+ * Enquadramento por rosto num clipe costurado: a detecção roda trecho por trecho e
+ * depois os quadros-chave são deslocados para a mesma base de tempo, "relativa ao
+ * início do clipe", e o tamanho da janela de recorte é o do primeiro trecho que deu
+ * certo (sendo a mesma origem, o cálculo de todos os trechos coincide
+ * necessariamente).
+ * Se todos falharem, devolve null → e a camada acima recorre ao recorte central, com
+ * a mesma semântica do caminho de trecho único.
  */
 async function cropPlanOverPieces(
   inputPath: string,
@@ -212,9 +226,11 @@ export function summarizeEdit(
 }
 
 /**
- * 变形度输入(v0.14,纯函数):从单条回执 + 导出选项映射出各变形项——
- * 尽量用「实际发生了什么」(outcome)而非「开关开没开」(options),
- * 回退失败的项不能骗分。
+ * Entradas da nota de transformação (v0.14, função pura): os itens de transformação
+ * são mapeados a partir do comprovante de um clipe mais as opções de exportação —
+ * usando, sempre que possível, "o que de fato aconteceu" (outcome) em vez de "a
+ * chave estava ligada ou não" (options), porque um item que recuou não pode inflar
+ * a nota.
  */
 export function transformInputsFromRender(
   render: ClipRenderOutcome,
@@ -256,9 +272,9 @@ export interface ClipRenderOutcome {
   edit: { splices: number; keptSec: number; removedSec: number; cutRatio: number } | null;
   /** Number of filler/stutter words removed. */
   fillersRemoved: number;
-  /** 剪掉的重录废稿句数(开了「剪重录」才可能非 0)。 */
+  /** Quantas frases de tomada refeita foram cortadas (só pode ser diferente de 0 com "cortar repetições" ligado). */
   retakesRemoved: number;
-  /** 多片段拼接的段数(0 表示这条是一段连续内容)。 */
+  /** Quantidade de trechos da costura (0 significa que este clipe é um conteúdo contínuo). */
   stitchedPieces: number;
   /** True when audio was matched to the -14 LUFS social loudness target. */
   loudnessNormalized: boolean;
@@ -272,15 +288,15 @@ export interface ClipRenderOutcome {
   color?: ColorRenderPlan | null;
   /** Number of transcript-timed sensitive-language windows muted. */
   sensitiveMutes?: number;
-  /** 高潮前置迷你片时长(秒);没开/钩子定位失败/被守卫跳过为 null。 */
+  /** Duração do trecho curto da abertura fria (em segundos); null quando está desligada, quando o gancho não foi localizado ou quando a proteção pulou. */
   coldOpenSec: number | null;
-  /** True 表示前置的迷你片是「爆点闪现」(0.3-1s 画面钩子)而非钩子句。 */
+  /** True significa que o trecho colocado na frente é a "antecipação do pico" (o gancho visual de 0,3 a 1s), e não a frase de gancho. */
   flashForward: boolean;
   /** True when the AI teaser was burned in as an opening hook. */
   openingHookBurned: boolean;
-  /** 实际烧进画面的译文行数;没开双语/翻译失败为 0。 */
+  /** Quantas linhas de tradução foram de fato queimadas na imagem; 0 quando o bilíngue está desligado ou a tradução falhou. */
   translatedLines: number;
-  /** 切点吸附到镜头边界的实际位移(秒);没吸附(或检测失败)为 null。 */
+  /** O deslocamento real do ponto de corte ao encaixar no limite de plano (em segundos); null quando não houve encaixe (ou a detecção falhou). */
   shotSnap: { startDeltaSec: number; endDeltaSec: number } | null;
   /** Local speech evidence used by automatic edges/jump cuts; absent on legacy exports. */
   speechActivity?: {
@@ -291,15 +307,15 @@ export interface ClipRenderOutcome {
     endDeltaSec: number;
     protectedGaps: number;
   };
-  /** True 表示词表经 Paraformer 二遍对齐修正过(精准切点)。 */
+  /** True significa que a lista de palavras foi corrigida por um segundo alinhamento com o Paraformer (pontos de corte precisos). */
   preciseAligned: boolean;
   /** Detailed final-candidate alignment receipt; absent on legacy exports, null when alignment did not run or failed open. */
   alignment?: AlignmentQualityReport | null;
   /** Deterministic subtitle lint; issue ranges use the final clip timeline before cold-open duplication. */
   subtitleQuality?: SubtitleQualityReport | null;
-  /** 实际打进成片的音效数(0 = 没开/无处可打/混音失败回退)。 */
+  /** Quantos efeitos sonoros de fato entraram no vídeo (0 = desligado, sem lugar para colocar, ou recuo por falha na mixagem). */
   sfxCues: number;
-  /** True 表示 BGM 混入成功(含人声闪避)。 */
+  /** True significa que a trilha de fundo foi mixada com sucesso (incluindo o abaixamento sob a voz). */
   bgmMixed: boolean;
   /** Base-render cache result for this clip. */
   renderCache?: "hit" | "miss" | "disabled";
@@ -318,27 +334,29 @@ export interface ExportRenderOptions {
   renderOverlay?: OverlayRenderFn;
   /** Splice out intra-clip silences (clips must carry `words`). */
   jumpCut?: boolean;
-  /** 保留呼吸口:跳剪剪长停顿时每个剪口多留一口气(~0.25s),不无缝贴死。 */
+  /** Manter as respiradas: quando o corte seco remove pausas longas, cada emenda fica com cerca de 0,25s de ar, em vez de colar tudo sem folga. */
   keepBreath?: boolean;
-  /** 说话人标签:多说话人切片换人时字幕行首加彩色「A:」(词表带标注才生效)。 */
+  /** Marca de falante: em clipes com várias pessoas, a troca de falante coloca um "A:" colorido no começo da linha da legenda (só vale quando a lista de palavras traz a identificação). */
   speakerLabels?: boolean;
-  /** 模板受控微扰:按切片种子小幅抖动字幕几何(字号/基线),批量出片不共享模板指纹。 */
+  /** Variação controlada do template: desloca levemente a geometria da legenda (tamanho da fonte e linha de base) conforme uma semente por clipe, para que exportações em lote não compartilhem a mesma impressão digital. */
   templateJitter?: boolean;
-  /** Splice out hesitation sounds (嗯/呃/um/uh) and stutter repeats. */
+  /** Remove as hesitações ("é…", "ãh", "um", "uh") e as repetições de gagueira. */
   cleanFillers?: boolean;
-  /** 剪掉重录废稿:同一句紧挨着说了两遍时,只留最后一遍(见 retakes.ts)。 */
+  /** Cortar as tomadas refeitas: quando a mesma frase é dita duas vezes seguidas, só a última fica (veja retakes.ts). */
   cutRetakes?: boolean;
-  /** 自动运镜:竖屏成片叠一层缓慢推拉镜头(见 autozoom.ts)。 */
+  /** Movimento automático de câmera: os clipes verticais recebem uma camada de aproximação e afastamento lentos (veja autozoom.ts). */
   autoZoom?: boolean;
-  /** 音效打点:whoosh 卡拼接缝/ding 卡情绪峰/pop 卡开场钩子(见 sound-design.ts)。 */
+  /** Acentos sonoros: whoosh na emenda da costura, ding no pico de emoção e pop no gancho de abertura (veja sound-design.ts). */
   sfx?: boolean;
-  /** BGM 文件路径:循环铺满全片,对人声 sidechain 闪避后混入。 */
+  /** Caminho do arquivo de trilha: entra em laço cobrindo o material inteiro e é mixado depois do abaixamento automático sob a voz. */
   bgmPath?: string;
-  /** 直播品类 id(core/genre.ts):决定跳剪静音阈值分档;缺省走默认档。 */
+  /** Id do gênero da transmissão (core/genre.ts): define o nível do limite de silêncio do corte seco; ausente usa o nível padrão. */
   genreId?: string;
   /**
-   * 精准切点(可选注入,见 align.ts createClipAligner):候选段用 Paraformer
-   * 二遍解码修正词级时间戳;返回 null 表示对不上(回退原词表)。
+   * Pontos de corte precisos (injeção opcional; veja createClipAligner em align.ts):
+   * os candidatos passam por uma segunda decodificação com o Paraformer para corrigir
+   * a marcação por palavra; devolver null significa que não deu para casar (e a lista
+   * de palavras original é mantida).
    */
   alignWords?: (
     filePath: string,
@@ -352,13 +370,13 @@ export interface ExportRenderOptions {
   modelsRoot?: string;
   /** Burn each clip's title into the top safe zone. */
   titleCard?: boolean;
-  /** Burn the AI teaser (悬念句) as a big opening hook over the clip's first seconds. */
+  /** Queima a chamada da IA (a frase de suspense) em letras grandes como gancho de abertura sobre os primeiros segundos do clipe. */
   openingHook?: boolean;
   /** Bundled-font directory handed to libass so CJK renders identically everywhere. */
   fontsDir?: string;
   /** Match audio to the -14 LUFS social loudness target (EBU R128 loudnorm). */
   normalizeLoudness?: boolean;
-  /** 基础降噪:压直播回放常见底噪/电流声(高通×2+afftdn,先于响度标准化)。 */
+  /** Redução de ruído básica: abaixa o ruído de fundo e o zumbido comuns em gravação de live (dois passa-altas mais afftdn, antes da normalização de volume). */
   denoise?: boolean;
   /** `smart` uses the optional 48 kHz local speech model and falls back to `basic`. */
   denoiseMode?: DenoiseMode;
@@ -366,56 +384,67 @@ export interface ExportRenderOptions {
   autoEnhance?: boolean;
   /** User-controlled terms muted at transcript word timestamps. */
   muteTerms?: string[];
-  /** 精华合集:导出的切片按时间序流复制拼成一支合集(≥2 条才生成)。 */
+  /** Compilado dos melhores momentos: os clipes exportados são emendados em ordem de tempo, por cópia direta do fluxo, num único compilado (só é gerado com 2 ou mais). */
   compilation?: boolean;
-  /** 高潮前置:钩子句剪成迷你片拼到切片开头再接完整正片(cold-open)。 */
+  /** Abertura fria: a frase de gancho vira um trecho curto emendado no começo do clipe, e depois vem o vídeo inteiro (cold open). */
   coldOpen?: boolean;
   /**
-   * 爆点闪现(flash-forward):把全片情绪峰值的 0.3-1s 画面闪现到开头再切回
-   * ——视觉钩子版的高潮前置。与 coldOpen 同开时优先闪现,闪不出(全程无
-   * 显著峰)回退钩子句前置。
+   * Antecipação do pico (flash-forward): de 0,3 a 1s da imagem do pico emocional do
+   * material aparece na abertura e depois volta — é a versão visual da abertura fria.
+   * Com coldOpen ligado ao mesmo tempo, a antecipação tem prioridade, e se ela não
+   * sair (nenhum pico significativo em todo o material), o recuo é a frase de gancho
+   * na frente.
    */
   flashForward?: boolean;
-  /** 多画幅:竖屏之外再出一版横屏原画幅(落 `横屏/` 子目录,竖版发抖音横版发B站)。 */
+  /** Duas proporções: além do vertical, sai também uma versão horizontal na proporção original (na subpasta `horizontal/`; o vertical vai para o TikTok e o horizontal para YouTube e Bilibili). */
   alsoLandscape?: boolean;
-  /** 切点吸附镜头边界(TransNetV2,需 modelsRoot);检测失败静默回退不吸附。 */
+  /** Encaixa os pontos de corte no limite de plano (TransNetV2, exige modelsRoot); se a detecção falhar, o recuo silencioso é não encaixar. */
   snapToShots?: boolean;
-  /** 品牌样式预设(高亮色/字号/位置/水印);缺省走内置默认,输出不变。 */
+  /** Predefinição de estilo da marca (cor de destaque, tamanho da fonte, posição, marca d'água); ausente usa o padrão interno, e a saída não muda. */
   brand?: BrandStyle;
-  /** x264 CRF(越小越清晰、文件越大);缺省 18——保持历史默认画质不变。 */
+  /** CRF do x264 (quanto menor, mais nítido e maior o arquivo); ausente usa 18 — mantendo a qualidade padrão histórica. */
   crf?: number;
-  /** 双语字幕的目标语言(回执用;译文本身随 ExportClipSpec.translation 传入)。 */
+  /** Idioma alvo da legenda bilíngue (para o comprovante; a tradução em si vem pelo ExportClipSpec.translation). */
   translateLang?: string;
-  /** 每条切片旁落同名 .srt 字幕文件(平台字幕上传/二次精修用)。 */
+  /** Coloca ao lado de cada clipe um arquivo .srt de mesmo nome (para subir a legenda na plataforma ou refinar depois). */
   subtitleFile?: boolean;
-  /** 输出目录落 timeline.edl(CMX3600)——切点交给剪辑软件重链源片精修。 */
+  /** Escreve um timeline.edl (CMX3600) na pasta de saída — os pontos de corte vão para o programa de edição, revinculando a origem para o acabamento. */
   timeline?: boolean;
-  /** 剪映草稿:每条切片一个草稿文件夹(拷进剪映草稿目录即可打开精修)。 */
+  /** Rascunho do JianYing: uma pasta de rascunho por clipe (que basta copiar para o diretório de rascunhos do JianYing e abrir para refinar). */
   jianyingDraft?: boolean;
   /**
-   * AI 封面双档(v0.14):按切片标题生成竖版大字封面,与抓帧封面并存。
-   * volume=Seedream 走量档 / premium=Nano Banana Pro 精品档;需要 LLM 档
-   * 指向 Atlas 且带 Key(zh 控制提示词语言);失败静默,绝不拖垮导出。
+   * Capa por IA em dois níveis (v0.14): gera, a partir do título do clipe, uma capa
+   * vertical de letras grandes, que passa a existir junto da capa tirada de um quadro.
+   * volume = o nível econômico do Seedream / premium = o nível premium do Nano Banana
+   * Pro; exige que o nível de LLM aponte para o Atlas e tenha chave (o parâmetro pt
+   * controla o idioma do prompt); a falha é silenciosa e nunca derruba a exportação.
    */
   aiCover?: { tier: CoverTier; baseUrl: string; apiKey: string; zh?: boolean };
-  /** AIGC 标识:左上角「AI 生成」显式标识 + 容器元数据隐式标识(《标识办法》)。 */
+  /** Selo de conteúdo por IA: a sinalização explícita "Gerado por IA" no canto superior esquerdo mais a implícita nos metadados do contêiner (conforme as regras de rotulagem). */
   aigcLabel?: boolean;
-  /** 留证包(v0.14):每条切片流复制源片前后各 3 分钟到「留证/」——授权审核新规要求的原始录屏留存。 */
+  /** Pacote de evidências (v0.14): cada clipe copia da origem, sem recodificar, os 3 minutos antes e depois para "evidencias/" — é a guarda da gravação original que as novas regras de revisão de autorização exigem. */
   evidencePack?: boolean;
-  /** 平台发布包:按平台规格整理齐套素材到 `发布包/<平台>/`(见 publish-pack.ts)。 */
+  /** Pacote por plataforma: organiza o material completo conforme as especificações de cada plataforma em `pacotes-publicacao/<plataforma>/` (veja publish-pack.ts). */
   publishPack?: string[];
-  /** 主题系列包:按重复关键词把原版成片整理为有顺序的系列目录。 */
+  /** Pacote de série por tema: organiza os vídeos originais em pastas de série ordenadas, a partir das palavras-chave repetidas. */
   seriesPack?: boolean;
   /**
-   * 出片自我质检(默认开):每条成片渲染后解码扫描黑屏/长静音/响度/时长
-   * 偏差,复核切点是否压在词中间,并扫标题/钩子/文案/字幕的平台违禁词;
-   * 报告进 clips.json 的 qa 字段。显式 false 关闭(如超长批量赶时间)。
+   * Verificação de qualidade do próprio vídeo (ligada por padrão): depois de
+   * renderizar cada clipe, uma decodificação procura tela preta, silêncio longo,
+   * desvio de volume e de duração, confere se o ponto de corte caiu no meio de uma
+   * palavra e varre título, gancho, texto e legenda em busca de palavras proibidas
+   * pelas plataformas;
+   * o relatório entra no campo qa do clips.json. Um false explícito desliga (por
+   * exemplo num lote enorme com pressa).
    */
   qa?: boolean;
   /**
-   * qa 修复循环(默认随 qa 开):可自愈的告警——首尾静音/黑屏裁边、响度
-   * 二遍归一——自动修复后重检,告警变少才替换成片(qa.repair 可审计)。
-   * 显式 false 只检不修。
+   * Laço de correção da verificação (ligado junto com a qa, por padrão): os avisos
+   * que dá para curar sozinho — recortar o silêncio e a tela preta do começo e do
+   * fim, uma segunda normalização de volume — são corrigidos e reconferidos, e o
+   * vídeo só é substituído quando os avisos de fato diminuem (o que fica auditável em
+   * qa.repair).
+   * Um false explícito só confere, sem corrigir.
    */
   qaRepair?: boolean;
   /** Shared bounded cache for exact base renders. Omit to disable. */
@@ -442,7 +471,7 @@ export interface ExportedClip {
   colorInspectionFailed?: boolean;
   /** Effective audio cleanup tier for completion/headless status. */
   audioEnhancement?: AudioEnhancementReceipt["applied"];
-  /** 出片质检报告;质检关闭或检测失败为 null/undefined。 */
+  /** Relatório da verificação de qualidade; null ou ausente quando a verificação está desligada ou falhou. */
   qa?: ClipQaReport | null;
 }
 
@@ -459,12 +488,12 @@ export function sanitizeFilename(name: string, fallback = "clip"): string {
   return cleaned || fallback;
 }
 
-/** "01-标题.mp4" — index keeps timeline order even after fs sorting. */
+/** "01-titulo.mp4" — o índice preserva a ordem da linha do tempo mesmo depois da ordenação do sistema de arquivos. */
 export function clipFilename(index: number, title: string): string {
   return `${String(index).padStart(2, "0")}-${sanitizeFilename(title)}.mp4`;
 }
 
-/** 章节时间戳里的时刻:YouTube/B站章节格式(超一小时自动带小时位)。 */
+/** O instante dentro do arquivo de capítulos: o formato de capítulos do YouTube e do Bilibili (passando de uma hora, a casa de hora entra sozinha). */
 function chapterClock(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
   const h = Math.floor(s / 3600);
@@ -474,8 +503,10 @@ function chapterClock(sec: number): string {
 }
 
 /**
- * 合集的章节时间戳文本(YouTube 章节/B站简介都认这个格式,粘贴即用):
- * 每条切片一行「0:00 标题」,时刻为该条在合集里的起点(累计时长)。
+ * O texto com as marcações de tempo dos capítulos do compilado (o formato serve
+ * tanto para os capítulos do YouTube quanto para a descrição do Bilibili, e é só
+ * colar): uma linha "0:00 título" por clipe, com o instante sendo o começo dele
+ * dentro do compilado (a duração acumulada).
  */
 export function buildChapters(items: Array<{ title: string; durationSec: number }>): string {
   let t = 0;
@@ -504,7 +535,7 @@ export async function exportClips(
     Boolean(options.captionStyle) || Boolean(options.titleCard) || Boolean(options.openingHook) ||
     Boolean(options.aigcLabel) || clips.some((c) => (c.translation?.length ?? 0) > 0);
   const assDir = needAss ? await mkdtemp(join(tmpdir(), "hotclip-ass-")) : null;
-  // 音效素材目录:首次要用时才建(mkdtemp + ffmpeg 合成三个 wav,幂等)
+  // Pasta dos arquivos de efeito sonoro: criada só na primeira vez que é preciso (mkdtemp mais três wav sintetizados pelo ffmpeg, de forma idempotente)
   let sfxDir: string | null = null;
   const ensureSfxDir = async (): Promise<string> => {
     if (!sfxDir) {
@@ -514,20 +545,22 @@ export async function exportClips(
     return sfxDir;
   };
   try {
-    // 品牌预设:字号/位置作用于布局,高亮色传给字幕构建,水印挂进 filter 链
+    // Predefinição da marca: o tamanho da fonte e a posição agem no layout, a cor de destaque vai para a construção da legenda, e a marca d'água entra na cadeia de filtros
     const baseLayout = applyBrandToLayout(options.vertical ? VERTICAL_LAYOUT : HORIZONTAL_LAYOUT, options.brand);
     const watermark: WatermarkSpec | undefined = options.brand?.watermark
       ? {
           path: options.brand.watermark.path,
           corner: options.brand.watermark.corner,
           opacity: options.brand.watermark.opacity,
-          // 竖屏输出恒为 1080 宽,logo 占 16%;横屏输出宽度=源宽(未知),用固定 300px
+          // A saída vertical é sempre de 1080 de largura, e o logo ocupa 16%; na saída horizontal a largura é a da origem (desconhecida), então o valor fixo é 300px
           widthPx: options.vertical ? Math.round(1080 * 0.16) : 300,
         }
       : undefined;
 
-    // 纯音频源(播客/录音)走 audiogram:深色底+品牌色波形自动合成画面,
-    // 视频专属阶段(去录屏UI/人脸取景/镜头吸附)整体跳过
+    // Origem só de áudio (podcast, gravação) segue o caminho da onda sonora: fundo
+    // escuro mais onda na cor da marca compõem a imagem sozinhos, e as etapas
+    // exclusivas de vídeo (remoção da interface de gravação de tela, enquadramento por
+    // rosto, encaixe na troca de plano) são puladas por completo
     const srcInfo = await probeMedia(inputPath, signal).catch(() => {
       signal?.throwIfAborted();
       return null;
@@ -579,8 +612,10 @@ export async function exportClips(
       visualSamples = signals?.visualSamples ?? [];
     }
 
-    // 多画幅:开「+横屏版」时进度总数翻倍(第二遍横屏在主循环后递归跑)。
-    // 竖屏源裁不出可用的 16:9,原画幅本来就是竖的——直接跳过横屏版。
+    // Duas proporções: com "+horizontal" ligado, o total do progresso dobra (a segunda
+    // passada, horizontal, roda recursivamente depois do laço principal).
+    // Uma origem vertical não consegue produzir um 16:9 aproveitável, porque a proporção
+    // original já é vertical — nesse caso a versão horizontal é simplesmente pulada.
     const alsoLandscape =
       Boolean(options.alsoLandscape && options.vertical) &&
       (srcInfo && srcInfo.hasVideo ? srcInfo.width >= srcInfo.height : !audioOnly);
@@ -604,32 +639,38 @@ export async function exportClips(
     // Per-clip processing outcomes for clips.json — what the pipeline actually
     // did (and where it fell back), so "fully managed" stays inspectable.
     const renderByClip = new Map<number, ClipRenderOutcome>();
-    // 吸附后的实际切点(clips.json 的 sourceStart/End 要报真实值)
+    // O ponto de corte real depois do encaixe (o sourceStart e o sourceEnd do clips.json precisam informar o valor verdadeiro)
     const snappedRange = new Map<number, { startSec: number; endSec: number }>();
-    // 规整后的拼接段清单(clips.json 报的是真正剪进去的那几段)
+    // A lista de trechos da costura já organizada (o clips.json informa os trechos que de fato entraram no corte)
     const piecesByClip = new Map<number, ClipPiece[]>();
-    // 时间线导出:每条切片实际保留的源片区间(跳剪时一条多段)
+    // Exportação da linha do tempo: o intervalo da origem que cada clipe de fato preserva (com corte seco, um clipe tem vários trechos)
     const edlClips: EdlClip[] = [];
     for (let i = 0; i < clips.length; i++) {
       let clip = clips[i];
       if (signal?.aborted) throw new Error("export cancelled");
       onProgress?.({ current: i + 1, total: totalUnits, clipId: clip.id, stage: "cutting" });
 
-      // 模板受控微扰(v0.14):按「源文件+切片 id」种子小幅抖动字幕几何,
-      // 批量出的成片不共享像素级相同的版式指纹;同种子可复现。
+      // Variação controlada do template (v0.14): desloca levemente a geometria da
+      // legenda conforme uma semente de "arquivo de origem + id do clipe", para que os
+      // vídeos de um lote não compartilhem a mesma impressão digital de layout; a mesma
+      // semente é reproduzível.
       const layout = options.templateJitter
         ? perturbLayout(baseLayout, `${basename(inputPath)}#${clip.id}`)
         : baseLayout;
 
-      // 多片段拼接:段清单在这里定型,后面所有阶段都以它为准。
-      // 手动选段(manualBounds)只并重叠不砍段——「最多 4 段/最短 2 秒」是
-      // AI 拼接的护栏,用户亲手挑的句子一段都不许悄悄丢
+      // Costura de vários trechos: a lista de trechos é definida aqui, e todas as
+      // etapas seguintes passam a se guiar por ela.
+      // A seleção manual (manualBounds) só funde sobreposições e não corta trechos — o
+      // "no máximo 4 trechos, mínimo de 2 segundos" é a proteção da costura feita pela
+      // IA, e nenhuma frase escolhida a dedo pela pessoa pode ser descartada em silêncio
       const pieces = clip.manualBounds ? mergePieces(clip.pieces ?? [], 0) : normalizePieces(clip.pieces ?? []);
       const stitched = pieces.length > 1;
       if (stitched) piecesByClip.set(clip.id, pieces);
 
-      // 精准切点(二遍对齐):必须在镜头吸附/跳剪/字幕之前修好词表——
-      // 下游所有阶段都消费 clip.words 的时间。失败/低匹配率回退原词表。
+      // Pontos de corte precisos (segundo alinhamento): a lista de palavras precisa ser
+      // corrigida antes do encaixe na troca de plano, do corte seco e da legenda — todas
+      // as etapas adiante consomem o tempo de clip.words. Falha ou taxa baixa de
+      // correspondência voltam para a lista original.
       let preciseAligned = false;
       let alignment: AlignmentQualityReport | null = null;
       if (options.alignWords && clip.words && clip.words.length > 0) {
@@ -712,9 +753,13 @@ export async function exportClips(
         }
       }
 
-      // 切点吸附:起止点吸到最近的镜头边界(词边界守卫,检测失败回退不吸附)。
-      // 必须在跳剪/字幕/取景之前调整——下游全部消费 clip.startSec/endSec。
-      // 拼接片跳过:内部切点是「意思」定的,吸到镜头边界会把对照关系吸歪。
+      // Encaixe do ponto de corte: o início e o fim são encaixados no limite de plano
+      // mais próximo (com proteção de limite de palavra; se a detecção falhar, o recuo é
+      // não encaixar).
+      // Isso precisa ser ajustado antes do corte seco, da legenda e do enquadramento —
+      // todas as etapas adiante consomem clip.startSec e clip.endSec.
+      // Um clipe costurado é pulado: os pontos de corte internos dele foram definidos
+      // pelo "sentido", e encaixar no limite de plano torceria a relação de contraste.
       let shotSnap: ClipRenderOutcome["shotSnap"] = null;
       if (options.snapToShots && options.modelsRoot && !clip.manualBounds && !audioOnly && !stitched) {
         const pad = SNAP_MAX_OUT_SEC + 0.4;
@@ -758,16 +803,16 @@ export async function exportClips(
       // Filler cleanup rides the same splice machinery: hesitation sounds and
       // stutters become forced-cut spans (they are audible speech — neither
       // the gap rule nor the silence gate would remove them).
-      // 拼接片的段间空隙就是强制剪除区间——拼接完全复用跳剪机器,不另起时间轴
+      // O espaço entre os trechos de um clipe costurado é justamente o intervalo de remoção obrigatória — a costura reaproveita inteiramente a máquina de corte seco, sem criar outra linha do tempo
       const stitchSpans = stitched ? pieceCutSpans(pieces, { exact: clip.manualBounds }) : [];
       let plan = null;
       let fillerHits: FillerHit[] = [];
       let retakeHits: RetakeHit[] = [];
-      // 峰值轨提升作用域:跳剪的静音门用,封面选帧也用(见下)
+      // A trilha de picos sobe de escopo: a porta de silêncio do corte seco usa, e a escolha do quadro da capa também (veja abaixo)
       let clipPeaks: Awaited<ReturnType<typeof extractPeaks>> | undefined;
       if ((options.jumpCut || options.cleanFillers || options.cutRetakes || stitched) && clip.words && clip.words.length > 0) {
         fillerHits = options.cleanFillers ? findFillerWords(clip.words) : [];
-        // 重录废稿:在去掉语气词之后判(口误"呃"不该影响两遍话的相似度)
+        // Tomada refeita: o julgamento acontece depois de tirar os vícios de linguagem (um "ãh" de deslize não deveria afetar a semelhança entre as duas falas)
         const deFilled = dropFillerWords(clip.words, fillerHits);
         retakeHits = options.cutRetakes ? findRetakes(deFilled) : [];
         const planWords = dropRetakeWords(deFilled, retakeHits);
@@ -777,8 +822,10 @@ export async function exportClips(
         clipPeaks = peaks;
         // filler/retake-only mode with nothing found → leave the clip untouched
         if (options.jumpCut || stitched || fillerHits.length > 0 || retakeHits.length > 0) {
-          // 情绪守卫:峰值事件(笑声/怒吼/掌声)前后 1s 的停顿是节目效果,禁剪——
-          // 抖包袱前的憋是喜剧节奏,机器不该「优化」掉它
+          // Proteção da emoção: a pausa de 1s antes e depois de um evento de pico (riso,
+          // grito, aplauso) é efeito de programa, e cortar é proibido — a suspensão antes
+          // de soltar a piada é o tempo da comédia, e a máquina não deveria "otimizar"
+          // isso
           const protectedSpans = peaks
             ? findPeakEvents(peaks).map((e) => ({ startSec: e.startSec - 1.0, endSec: e.endSec + 1.0 }))
             : [];
@@ -787,17 +834,17 @@ export async function exportClips(
             forceCutSpans: [...stitchSpans, ...fillerCutSpans(fillerHits), ...retakeCutSpans(retakeHits)].sort(
               (a, b) => a.startSec - b.startSec
             ),
-            // 静音阈值按品类分档:解说 0.4s、口播 0.6s、对谈 0.9s(genre.ts)
+            // O limite de silêncio muda por gênero: narração 0,4s, locução 0,6s, conversa 0,9s (genre.ts)
             gapThresholdSec: options.jumpCut ? genrePauseGapSec(options.genreId) : Infinity,
             protectedSpans,
-            // 保留呼吸口:每个剪口在句尾多留一口气,不是无缝贴死
+            // Manter as respiradas: cada emenda deixa um pouco de ar no fim da frase, em vez de colar tudo sem folga
             breathPadSec: options.keepBreath ? BREATH_PAD_SEC : 0,
             speechSpans,
           });
           if (speechActivity && speechSpans) speechActivity.protectedGaps = plan.speechProtectedGaps ?? 0;
         }
       }
-      // 拼接片但没有词表(不烧字幕也不跳剪):段清单本身就是成片计划
+      // Clipe costurado mas sem lista de palavras (sem queimar legenda e sem corte seco): a própria lista de trechos já é o plano do vídeo final
       if (!plan && stitched) {
         plan = planFromPieces(pieces);
       }
@@ -824,14 +871,16 @@ export async function exportClips(
       const subtitleQuality = wantCaptions
         ? lintSubtitleTimeline(captionWords!, layout, assStyle, plan?.breaks, clip.keywords, { readability: true, endSec: captionShift + clipDuration })
         : null;
-      // Opening hook: burn the AI teaser (悬念句) big in the upper third for the
+      // Gancho de abertura: a chamada da IA (a frase de suspense) é queimada em letras grandes no terço superior durante os
       // clip's first seconds — this is what the teaser was generated for.
       const teaser = clip.meta?.teaser?.trim();
       const openingHook = options.openingHook && teaser
         ? { text: teaser, durationSec: Math.min(OPENING_HOOK_SEC, clipDuration) }
         : undefined;
-      // 双语译文行:先夹进(吸附后的)最终切片,跳剪时再映射到压缩时间轴。
-      // 时间基与 captionWords 保持一致,buildCaptionAss 用同一个 captionShift 平移。
+      // As linhas de tradução: primeiro entram no clipe final (o de depois do encaixe) e
+      // só então, no corte seco, são mapeadas para a linha do tempo comprimida.
+      // A base de tempo é a mesma de captionWords, e o buildCaptionAss usa o mesmo
+      // captionShift para deslocar.
       let transLines = clip.translation && clip.translation.length > 0
         ? clampTranslationLines(clip.translation, clip.startSec, clip.endSec)
         : [];
@@ -865,8 +914,12 @@ export async function exportClips(
       let reframeComposition: ClipRenderOutcome["reframeComposition"];
       let reframeCoverage: ClipQaReport["subjectCoverage"];
       if (options.vertical && options.faceTrack && options.modelsRoot && !audioOnly) {
-        // 拼接片逐段各算一版:整段跨度可能有几十分钟,人脸检测按跨度跑纯属白烧。
-        // 每段的关键帧相对本段起点,统一平移到「相对切片起点」再走同一条重映射。
+        // Num clipe costurado, cada trecho recebe o seu próprio cálculo: o intervalo
+        // inteiro pode ter dezenas de minutos, e rodar a detecção de rosto por todo esse
+        // intervalo seria puro desperdício.
+        // Os quadros-chave de cada trecho são relativos ao início dele, e todos são
+        // deslocados para "relativo ao início do clipe" antes de passar pelo mesmo
+        // remapeamento.
         const cp = stitched
           ? await cropPlanOverPieces(inputPath, pieces, clip.startSec, options.modelsRoot, uiCrop, sourceAnalysis)
           : await generateCropPlan(
@@ -900,29 +953,32 @@ export async function exportClips(
       let webRenderFailed = false;
       // Web captions: cut to a base file first, then composite words on top.
       const cutTarget = webStyle ? outPath.replace(/\.mp4$/, ".base.mp4") : outPath;
-      // 切片内实时进度:ffmpeg 已编码秒数 → 当前切片 0-1,节流后随进度事件上报
+      // Progresso ao vivo dentro do clipe: os segundos que o ffmpeg já codificou → de 0 a 1 no clipe atual, informado com controle de frequência junto dos eventos de progresso
       let lastPct = -1;
       const onTimeSec = (sec: number): void => {
         const fraction = Math.max(0, Math.min(1, sec / Math.max(0.1, clipDuration)));
-        const pct = Math.floor(fraction * 50); // 2% 粒度节流
+        const pct = Math.floor(fraction * 50); // controle de frequência com granularidade de 2%
         if (pct !== lastPct) {
           lastPct = pct;
           onProgress?.({ current: i + 1, total: totalUnits, clipId: clip.id, stage: "cutting", fraction });
         }
       };
 
-      // AIGC 隐式标识:内容属性 + 服务者 + 内容编号写进容器元数据(《标识办法》)
+      // Sinalização implícita de IA: o atributo do conteúdo, o serviço e o identificador do conteúdo são escritos nos metadados do contêiner (conforme as regras de rotulagem)
       const aigcMeta = options.aigcLabel
         ? { comment: `AIGC=true; Label=AI-assisted-editing; Tool=HotClip; ContentId=${basename(outPath)}` }
         : undefined;
-      // 峰值事件(输出时间轴):运镜强调与音效打点共用一份——响度峰≈情绪
-      // 高点,与智能封面同一声学代理;跳剪时映射到压缩时间轴。提取失败/
-      // 拼接跨度超限按「无事件」fail-open。
+      // Eventos de pico (na linha do tempo de saída): a ênfase do movimento de câmera e
+      // os acentos sonoros compartilham a mesma lista — um pico de volume equivale a um
+      // ponto alto de emoção, o mesmo indicador acústico da capa inteligente; no corte
+      // seco, isso é mapeado para a linha do tempo comprimida. Falha na extração ou
+      // intervalo de costura acima do limite viram "sem eventos", em fail-open.
       if ((options.autoZoom || options.sfx || options.flashForward || clip.flashForward) && !clipPeaks && !peakSpanTooLong(clip)) {
         clipPeaks = await extractPeaks(inputPath, clip.startSec, clip.endSec, srcInfo?.audioStreamIndex).catch(() => undefined);
       }
-      // (源时间, 输出时间) 成对保留:运镜强调/音效打点吃输出时间,
-      // 爆点闪现要回源片切那一刀、吃源时间
+      // O par (tempo na origem, tempo na saída) é preservado: a ênfase do movimento de
+      // câmera e os acentos sonoros usam o tempo de saída, e a antecipação do pico
+      // precisa voltar à origem para dar aquele corte, usando o tempo da origem
       const peakEventPairs = clipPeaks
         ? findPeakEvents(clipPeaks)
             .map((e) => ({
@@ -932,10 +988,14 @@ export async function exportClips(
             .filter((p): p is { srcSec: number; outSec: number } => p.outSec !== null && p.outSec >= 0 && p.outSec <= clipDuration)
         : [];
       const peakEventsOut = peakEventPairs.map((p) => p.outSec);
-      // 自动运镜:只对竖屏画面有意义(音频波形图和横屏原片不做);
-      // 帧率未知就不开——zoompan 会把素材重采样到 25fps。
-      // 强调时刻 = 最响的几个峰值事件——「推近必须绑定真实事件」,纯呼吸
-      // 之外镜头语言要和内容对上(autozoom.ts 本就支持,这里把信号接通)
+      // Movimento automático de câmera: só faz sentido em imagem vertical (a onda sonora
+      // e o material horizontal original não recebem);
+      // sem saber a taxa de quadros, não é ligado — o zoompan reamostraria o material
+      // para 25 quadros por segundo.
+      // Os instantes de ênfase são os poucos eventos de pico mais fortes — "a aproximação
+      // precisa estar amarrada a um evento real", e além do simples respiro a linguagem
+      // de câmera tem que combinar com o conteúdo (o autozoom.ts já dava suporte a isso, e
+      // aqui o sinal é ligado nele)
       const autoZoom =
         options.autoZoom && options.vertical && !audioOnly && srcInfo && srcInfo.fps > 0
           ? {
@@ -1024,13 +1084,13 @@ export async function exportClips(
         onProgress?.({ current: i + 1, total: totalUnits, clipId: clip.id, stage: "cutting", fraction: 1 });
       } else {
         if (audioOnly) {
-          // audiogram:深色底+品牌色波形合成画面,单段/跳剪统一(波形随剪好的音频生成)
+           // Onda sonora: fundo escuro mais onda na cor da marca compõem a imagem, igual para trecho único e corte seco (a onda é gerada a partir do áudio já editado)
           await runAudiogram(
             inputPath,
             cutTarget,
             baseSegments,
             {
-              // 与 ASS layout 的竖/横选择严格一致,playRes 才对得上
+               // É estritamente igual à escolha entre vertical e horizontal do layout ASS, porque só assim o playRes coincide
               spec: audiogramSpec(Boolean(options.vertical), options.brand?.highlightColor),
               subtitlePath,
               fontsDir: subtitlePath ? options.fontsDir : undefined,
@@ -1127,18 +1187,23 @@ export async function exportClips(
           console.error(`overlay pass failed for clip ${clip.id}, shipped base:`, e);
         }
       }
-      // 高潮前置(cold-open):钩子句剪成迷你片拼到正片前——前 3 秒决定完播,
-      // 到原位置原样重复是直播切片圈通行做法;任一步失败回退原片,绝不拖垮该条
+      // Abertura fria (cold open): a frase de gancho vira um trecho curto emendado antes
+      // do vídeo — os 3 primeiros segundos decidem se a pessoa assiste até o fim, e
+      // repetir no lugar original é prática corrente no mundo dos cortes de live; se
+      // qualquer passo falhar, o recuo é o vídeo original, e este clipe nunca é derrubado
       let coldOpenSec: number | null = null;
       let coldOpenPlan: ReturnType<typeof planColdOpen> = null;
-      // 迷你片是「爆点闪现」而非钩子句时为 true(回执要区分两种开场形态)
+      // True quando o trecho curto é a "antecipação do pico" e não a frase de gancho (o comprovante precisa distinguir as duas formas de abertura)
       let flashForwardUsed = false;
-      // 钩子文本在 meta.hook(证据链字段),不在顶层——读错位置会让高潮前置永远不触发
+      // O texto do gancho fica em meta.hook (o campo da cadeia de evidências) e não no topo — ler no lugar errado faria a abertura fria nunca disparar
       const coldOpenHook = clip.meta?.hook?.trim();
       if (!audioOnly && !webStyle && (options.flashForward || clip.flashForward || options.coldOpen)) {
-        // 爆点闪现优先:两个开关同开时,视觉钩子是更强的差异化(全网仅
-        // 0.04% 切片有 visual hook);闪不出来(全程无显著峰)回退钩子句。
-        // clip.flashForward 是一片多版的结构差异维度(该变体单独开闪现)
+        // A antecipação do pico tem prioridade: com as duas chaves ligadas, o gancho
+        // visual é a diferenciação mais forte (só 0,04% dos cortes da internet têm um
+        // gancho visual); se ela não sair (nenhum pico significativo em todo o material),
+        // o recuo é a frase de gancho.
+        // clip.flashForward é a dimensão de diferença estrutural das várias versões
+        // (aquela versão específica liga a antecipação por conta própria)
         if (options.flashForward || clip.flashForward) {
           const farEnough = peakEventPairs
             .filter((p) => p.outSec >= FLASH_SKIP_NEAR_START_SEC)
@@ -1151,9 +1216,11 @@ export async function exportClips(
         }
         if (!coldOpenPlan && options.coldOpen && coldOpenHook && clip.words && clip.words.length > 0) {
           coldOpenPlan = planColdOpen(clip.words, coldOpenHook, clip.startSec);
-          // 拼接片:迷你片是从源片单独切一刀,必须整个落在某一段内,
-          // 否则会把被剪掉的空隙内容当作钩子重新放进成片
-          // (爆点闪现从保留段里挑窗,天然满足,无需再验)
+          // Clipe costurado: o trecho curto é um corte feito à parte na origem, e precisa
+          // cair inteiro dentro de um dos trechos, senão o conteúdo do espaço que foi
+          // removido voltaria para o vídeo final como gancho
+          // (a antecipação do pico escolhe a janela entre os trechos preservados, então
+          // atende a isso por natureza e não precisa de nova verificação)
           if (coldOpenPlan && stitched && !withinOnePiece(pieces, coldOpenPlan.startSec, coldOpenPlan.endSec)) {
             coldOpenPlan = null;
           }
@@ -1164,8 +1231,11 @@ export async function exportClips(
           const bodyPath = outPath.replace(/\.mp4$/, ".body.mp4");
           const miniDur = coPlan.endSec - coPlan.startSec;
           const ok = await (async (): Promise<boolean> => {
-            // 迷你片字幕:钩子句卡拉OK照常;悬念句/标题/AIGC 徽标烧在开头这几秒
-            // (钩子必须字幕可读——60%+ 移动端静音观看)
+            // Legenda do trecho curto: a frase de gancho segue com o karaokê normalmente; a
+            // frase de suspense, o título e o selo de IA são queimados nesses primeiros
+            // segundos
+            // (o gancho precisa ser legível na legenda — mais de 60% assiste no celular
+            // sem som)
             let miniAssPath: string | undefined;
             if (assDir && needAss) {
               miniAssPath = join(assDir, `clip-${clip.id}-hook.ass`);
@@ -1182,7 +1252,7 @@ export async function exportClips(
               });
               await writeFile(miniAssPath, miniAss, "utf8");
             }
-            // 人脸跟随:迷你片自己算一版裁窗(keyframes 已相对段起点),失败回退中心裁
+            // Rastreio de rosto: o trecho curto calcula a própria janela de recorte (os keyframes já são relativos ao início do trecho), e em caso de falha o recuo é o recorte central
             let miniTrack;
             if (trackPlan && options.modelsRoot) {
               const cp = await generateCropPlan(inputPath, coPlan.startSec, coPlan.endSec, options.modelsRoot, uiCrop).catch(() => null);
@@ -1198,14 +1268,14 @@ export async function exportClips(
               : { ...sourceStreams, uiCrop, vertical: options.vertical, visualEnhance: miniVisualEnhance, color: activeColor, subtitlePath: miniAssPath, fontsDir: miniAssPath ? options.fontsDir : undefined, normalizeLoudness: baseNormalizeLoudness, denoise: baseDenoise, muteRanges: options.muteTerms && clip.words ? mapSensitiveRanges(clip.words, options.muteTerms, [{ startSec: coPlan.startSec, endSec: coPlan.endSec }]) : undefined, watermark, crf: options.crf, encoder: videoEncoder };
             await rename(outPath, bodyPath);
             await cutClip(inputPath, miniPath, coPlan.startSec, coPlan.endSec, miniCutOptions, signal);
-            // 硬切拼接(通行做法);AIGC 隐式标识补到最终容器上
+            // Emenda em corte seco (prática corrente); a sinalização implícita de IA é acrescentada no contêiner final
             await concatClips([miniPath, bodyPath], outPath, signal, aigcMeta);
             await rm(miniPath, { force: true });
             await rm(bodyPath, { force: true });
             return true;
           })().catch(async (e) => {
             if (signal?.aborted) throw e;
-            // 回退:正片就是最终产物(rename 可能未发生或已发生,两种都兜)
+            // Recuo: o vídeo principal é o produto final (o rename pode não ter acontecido ou já ter acontecido, e os dois casos são cobertos)
             await rename(bodyPath, outPath).catch(() => {});
             await rm(miniPath, { force: true }).catch(() => {});
             return false;
@@ -1226,15 +1296,18 @@ export async function exportClips(
           : { requested: "basic", applied: "basic" };
       }
 
-      // 声音设计(音效打点 + BGM 闪避):成片完全组装好之后做一遍音频后处理
-      // (视频流复制零画质损失),质检在其后照常复核最终混音。失败保留原片
-      // ——音效是锦上添花,绝不拖垮出片。
+      // Desenho de som (acentos sonoros mais o abaixamento da trilha): depois de o vídeo
+      // estar completamente montado, uma passada de pós-processamento de áudio
+      // (com o fluxo de vídeo copiado, sem perda de qualidade), e a verificação de
+      // qualidade confere a mixagem final normalmente depois disso. Em caso de falha, o
+      // vídeo original é preservado — os efeitos sonoros são um acréscimo e nunca podem
+      // derrubar a entrega.
       let sfxApplied: SfxCue[] = [];
       let bgmMixed = false;
       if (options.sfx || options.bgmPath) {
         const shift = coldOpenSec ?? 0;
         const soundDur = clipDuration + shift;
-        // 拼接缝(输出时间轴):whoosh 卡在观众必然感知到的内容跳变处
+        // Emenda da costura (na linha do tempo de saída): o whoosh entra justamente onde o público inevitavelmente percebe o salto de conteúdo
         const stitchSeamsOut =
           stitched && plan
             ? pieces
@@ -1274,12 +1347,16 @@ export async function exportClips(
 
       const s = await stat(outPath);
 
-      // 出片自我质检 + 平台违禁词 lint:解码扫描黑屏/长静音/响度/时长偏差,
-      // 复核切点是否压在词中间,并扫标题/钩子/文案/字幕的平台风险词——
-      // 回执说「AI 干了什么」,质检说「干得好不好、能不能直接发」。
-      // 检测失败静默置空,绝不拖垮导出(与封面/SRT 同一兜底语义)。
+      // Verificação de qualidade do próprio vídeo mais a checagem de palavras proibidas:
+      // a decodificação procura tela preta, silêncio longo, desvio de volume e de duração,
+      // confere se o ponto de corte caiu no meio de uma palavra e varre título, gancho,
+      // texto e legenda em busca das palavras de risco nas plataformas —
+      // o comprovante diz "o que a IA fez", e a verificação diz "se foi bem feito e se dá
+      // para publicar direto".
+      // Uma falha na verificação deixa o campo vazio em silêncio e nunca derruba a
+      // exportação (a mesma semântica de reserva da capa e do SRT).
       let qaReport: ClipQaReport | null = null;
-      // qa 修复循环裁掉的头部时长(封面时刻/SRT 时间轴要同步前移)
+      // A duração que o laço de correção da verificação cortou do começo (o instante da capa e a linha do tempo do SRT precisam ser deslocados junto)
       let headTrimSec = 0;
       if (options.qa !== false) {
         const contentHits = lintClipContent({
@@ -1288,8 +1365,10 @@ export async function exportClips(
           publish: clip.publish ?? null,
           captionText: clip.words?.map((w) => w.text).join(""),
         });
-        // 钩子兑付校验:标题/钩子/悬念句承诺的数字实体必须真实出现在片中
-        // 转写里——不兑付的信息缺口 = 标题党,完播率崩且账号降权(2026 调研)
+        // Conferência do desfecho do gancho: as entidades numéricas que o título, o gancho
+        // e a frase de suspense prometem precisam aparecer de verdade na transcrição do
+        // clipe — uma lacuna de informação não cumprida é título enganoso, o que derruba a
+        // taxa de conclusão e o alcance da conta (pesquisa de 2026)
         const hookPayoffMissing =
           clip.words && clip.words.length > 0
             ? missingHookPayoffs(
@@ -1297,9 +1376,12 @@ export async function exportClips(
                 clip.words.map((w) => w.text).join("")
               )
             : null;
-        // 节奏评估:字幕逐块上屏/自动运镜/音频波形图本身就是持续视觉变化,
-        // 有其一就不评;其余按剪辑计划(跳剪缝/拼接缝/高潮前置接缝)算最长
-        // 无视觉变化间隔,超 5s 在 qa 里告警(见 qa.ts PACING_MAX_GAP_SEC)
+        // Avaliação de ritmo: legenda entrando bloco por bloco, movimento automático de
+        // câmera e a própria onda sonora já são mudança visual contínua, e basta um deles
+        // para a avaliação não acontecer; nos demais casos, o maior intervalo sem mudança
+        // visual é calculado pelo plano de edição (emendas do corte seco, emendas da
+        // costura, a junção da abertura fria), e passando de 5s a verificação emite aviso
+        // (veja PACING_MAX_GAP_SEC em qa.ts)
         const pacingCovered = Boolean(autoZoom) || (wantCaptions && !webRenderFailed) || audioOnly;
         const pacingGapSec = pacingCovered
           ? null
@@ -1322,9 +1404,12 @@ export async function exportClips(
           if (signal?.aborted) throw e;
           return null;
         });
-        // qa 修复循环(一轮):可自愈的告警——首尾静音/黑屏(裁边)、响度偏差
-        // (二遍归一)——当场修掉再重检,告警变少才替换成片;修复失败或没
-        // 变好都保留原片并记录尝试(qa.repair)。
+        // Laço de correção da verificação (uma rodada): os avisos que dá para curar
+        // sozinho — silêncio e tela preta no começo e no fim (recortando as bordas) e
+        // desvio de volume (com uma segunda normalização) — são corrigidos ali mesmo e
+        // reconferidos, e o vídeo só é substituído quando os avisos diminuem; correção que
+        // falha ou que não melhora nada preserva o vídeo original e registra a tentativa
+        // (qa.repair).
         if (qaReport?.status === "warn" && options.qaRepair !== false) {
           const repairPlan = planRepair(qaReport, {
             normalizeLoudness: Boolean(options.normalizeLoudness),
@@ -1353,25 +1438,28 @@ export async function exportClips(
           }
         }
       }
-      // 修复裁过边的用实测时长,其余沿用管线预期时长(行为不变)
+      // O que passou pela correção com recorte de borda usa a duração medida, e o resto segue com a duração prevista pela esteira (o comportamento não muda)
       const finalDurationSec = qaReport?.repair?.applied ? qaReport.durationSec : clipDuration + (coldOpenSec ?? 0);
 
       // Cover: a frame just after the hook lands, pulled from the FINISHED
       // clip so captions/title plate are baked in — platform-upload ready.
       const coverPath = outPath.replace(/\.mp4$/, ".jpg");
-      // 智能封面:切片内响度最高的一帧(峰值≈情绪最高点);没跳剪时补提一次
-      // 峰值轨,失败回退固定 0.8s 帧
+      // Capa inteligente: o quadro de maior volume dentro do clipe (o pico equivale ao
+      // ponto mais alto de emoção); sem corte seco, a trilha de picos é extraída uma vez
+      // a mais, e em caso de falha o recuo é o quadro fixo de 0,8s
       if (!clipPeaks && !peakSpanTooLong(clip)) {
         clipPeaks = await extractPeaks(inputPath, clip.startSec, clip.endSec, srcInfo?.audioStreamIndex).catch(() => undefined);
       }
-      // cold-open 让输出时间轴整体后移一个迷你片时长,封面时刻同步平移;
-      // qa 修复裁头则整体前移,并钳进修复后的实际时长
+      // A abertura fria desloca a linha do tempo de saída inteira para frente, pela
+      // duração do trecho curto, e o instante da capa é deslocado junto;
+      // se a correção da verificação cortou o começo, o deslocamento é para trás, preso
+      // dentro da duração real depois da correção
       const coverAtRaw =
         pickCoverTime(
           clipPeaks,
           plan ? plan.segments : [{ startSec: clip.startSec, endSec: clip.endSec }],
           clipDuration,
-          clip.coverRank ?? 0 // 变体封面抓下一个响度峰,和原版错开帧
+          clip.coverRank ?? 0 // a capa da versão pega o pico de volume seguinte, ficando num quadro diferente do da original
         ) + (coldOpenSec ?? 0) - headTrimSec;
       const clampCoverAt = (at: number): number =>
         Math.min(Math.max(0.2, at), Math.max(0.2, finalDurationSec - 0.2));
@@ -1409,17 +1497,18 @@ export async function exportClips(
         { maxBuffer: 8 * 1024 * 1024 }
       ).then(() => true, () => false);
 
-      // SRT 字幕文件:与烧录字幕同一套词/断行/时间基(跳剪重映射后),
-      // 平台原生字幕上传与二次精修用
+      // Arquivo de legenda SRT: usa a mesma lista de palavras, as mesmas quebras de
+      // linha e a mesma base de tempo da legenda queimada (depois do remapeamento do
+      // corte seco), para subir a legenda nativa na plataforma e para refinar depois
       if (options.subtitleFile && wantCaptions) {
-        // cold-open 后正片词整体后移;qa 修复裁头则整体前移
+        // Depois da abertura fria, as palavras do vídeo principal deslocam para frente; se a correção da verificação cortou o começo, deslocam para trás
         const shift = (coldOpenSec ?? 0) - headTrimSec;
         let relWords = captionWords!.map((w) => ({
           text: w.text,
           startSec: w.startSec - captionShift + shift,
           endSec: w.endSec - captionShift + shift,
         }));
-        // 前置的钩子迷你片:词平移到 0 起,排在正片词前(与成片画面一致)
+        // O trecho curto de gancho colocado na frente: as palavras são deslocadas para começar em 0 e ficam antes das do vídeo principal (igual à imagem do vídeo final)
         if (coldOpenSec && coldOpenPlan && clip.words) {
           const co = coldOpenPlan;
           const miniRel = clip.words
@@ -1427,7 +1516,7 @@ export async function exportClips(
             .map((w) => ({ text: w.text, startSec: w.startSec - co.startSec, endSec: w.endSec - co.startSec }));
           relWords.unshift(...miniRel);
         }
-        // qa 修复裁过边:被裁掉的头尾词不再出现在画面里,SRT 同步丢弃
+        // Quando a correção da verificação cortou as bordas: as palavras cortadas do começo e do fim não aparecem mais na imagem, e o SRT as descarta junto
         const repaired = qaReport?.repair?.applied === true;
         if (repaired) {
           relWords = relWords.filter((w) => w.endSec > 0.05 && w.startSec < finalDurationSec - 0.05);
@@ -1439,8 +1528,11 @@ export async function exportClips(
             text: l.text,
           }))
           .filter((l) => !repaired || (l.endSec > 0.05 && l.startSec < finalDurationSec - 0.05));
-        // 断行点与词同基:正片整体平移后,跳剪的强制断行时刻也要同步平移;
-        // cold-open 接缝处强制断行(钩子行与正片首句不并行)
+        // Os pontos de quebra de linha usam a mesma base das palavras: depois de o vídeo
+        // principal ser deslocado, os instantes de quebra obrigatória do corte seco também
+        // se deslocam;
+        // na emenda da abertura fria a quebra é obrigatória (a linha do gancho não fica
+        // junto da primeira frase do vídeo principal)
         const breaks = [...(shift > 0 ? [shift] : []), ...(plan?.breaks ?? []).map((b) => b + shift)];
         const srt = buildSrt(srtLinesFromWords(relWords, breaks, relTrans, { readability: true, endSec: finalDurationSec }));
         if (srt.trim()) {
@@ -1448,7 +1540,7 @@ export async function exportClips(
         }
       }
 
-      // 发布文案:mp4 旁落同名 .post.txt(标题+话题+简介,直接全选复制)
+      // Texto de publicação: um .post.txt de mesmo nome ao lado do mp4 (título, hashtags e descrição, pronto para selecionar tudo e copiar)
       if (clip.publish) {
         await writeFile(outPath.replace(/\.mp4$/, ".post.txt"), postTextFile(clip.publish, Boolean(options.aigcLabel)), "utf8").catch(() => {});
       }
@@ -1469,15 +1561,17 @@ export async function exportClips(
       if (fillerHits.length > 0) {
         removedFillersByClip.set(clip.id, fillerHits.map((h) => h.text.trim()));
       }
-      // 变体与原版切点完全相同,EDL 里只记原版(重复三遍是噪声)
+      // As versões têm exatamente os mesmos pontos de corte da original, então o EDL registra só a original (repetir três vezes é ruído)
       if (!clip.variantOf) {
         edlClips.push({
           title: clip.title,
           segments: plan ? plan.segments : [{ startSec: clip.startSec, endSec: clip.endSec }],
         });
       }
-      // 剪掉多少的基准:拼接片按「各段之和」算(跨度里那几十分钟本来就不该
-      // 进成片,拿它当分母会报出「剪掉了 97%」这种毫无意义的数)
+      // A base do quanto foi cortado: num clipe costurado o cálculo é pela "soma dos
+      // trechos" (aqueles dezenas de minutos do intervalo nunca deveriam entrar no vídeo
+      // final, e usá-los como denominador produziria um número sem sentido, do tipo
+      // "cortou 97%")
       const origDur = stitched ? piecesDurationSec(pieces) : clip.endSec - clip.startSec;
       renderByClip.set(clip.id, {
         captionStyle: wantCaptions ? (webStyle ?? assStyle) : "none",
@@ -1515,25 +1609,28 @@ export async function exportClips(
     signal?.throwIfAborted();
     onProgress?.({ current: clips.length, total: totalUnits, clipId: clips.at(-1)?.id ?? 0, stage: "finalizing" });
 
-    // 精华合集:同批切片编码参数一致,流复制拼接秒级完成零画质损失;
-    // 合集惯例硬切不加转场;失败静默跳过,绝不拖垮已导出的单条切片
+    // Compilado dos melhores momentos: como os parâmetros de codificação do lote são
+    // iguais, a emenda por cópia direta do fluxo termina em segundos e sem perda de
+    // qualidade;
+    // a convenção do compilado é corte seco, sem transição; em caso de falha é pulado em
+    // silêncio, e nunca derruba os clipes já exportados
     let compilationFile: string | null = null;
-    // 合集只收原版:变体是同一段内容的另一套包装,拼进合集就是重复播三遍
+    // O compilado leva apenas as originais: uma versão é outra embalagem do mesmo conteúdo, e colocá-la no compilado seria tocar a mesma coisa três vezes
     const compResults = results.filter((r) => !clips.find((c) => c.id === r.id)?.variantOf);
     if (options.compilation && compResults.length > 1) {
-      const compPath = join(outDir, "00-精华合集.mp4");
+      const compPath = join(outDir, "00-compilado.mp4");
       const totalSec = compResults.reduce((a, r) => a + r.durationSec, 0);
       const ok = await concatClips(compResults.map((r) => r.path), compPath, signal)
         .then(() => true)
         .catch((e) => {
-          // 用户取消要向上抛(与单条切片同一语义),其余失败静默
+          // Um cancelamento da pessoa precisa ser propagado (a mesma semântica dos clipes individuais), e as outras falhas ficam em silêncio
           if (signal?.aborted) throw e;
           return false;
         });
       if (ok) {
         const cs = await stat(compPath).catch(() => null);
         compilationFile = basename(compPath);
-        // 章节时间戳:YouTube 章节/B站简介粘贴即用,B站还可照此拆分P
+        // Marcações de tempo dos capítulos: dá para colar direto nos capítulos do YouTube e na descrição do Bilibili, e no Bilibili ainda serve para dividir em partes
         await writeFile(
           compPath.replace(/\.mp4$/, ".chapters.txt"),
           buildChapters(compResults.map((r) => ({ title: r.title, durationSec: r.durationSec }))),
@@ -1541,7 +1638,7 @@ export async function exportClips(
         ).catch(() => {});
         results.push({
           id: 0,
-          title: "精华合集",
+          title: "Compilado dos melhores momentos",
           path: compPath,
           sizeBytes: cs?.size ?? 0,
           durationSec: totalSec,
@@ -1552,8 +1649,11 @@ export async function exportClips(
       }
     }
 
-    // 主题系列包:只收原版,避免一片多版被误当成连续剧集;按源时间排序。
-    // 归组/文件失败均 fail-open,不影响已经完成的成片。
+    // Pacote de série por tema: leva apenas as originais, para que várias versões de um
+    // mesmo clipe não sejam confundidas com episódios em sequência; a ordenação é pelo
+    // tempo na origem.
+    // Falha no agrupamento ou nos arquivos é fail-open, e não afeta os vídeos já
+    // concluídos.
     let seriesSummary: SeriesPackSummary | null = null;
     if (options.seriesPack && compResults.length > 1) {
       seriesSummary = await buildSeriesPack(
@@ -1570,7 +1670,7 @@ export async function exportClips(
       ).catch(() => null);
     }
 
-    // 时间线 EDL:切点(含跳剪内部剪)交给剪辑软件重链源片精修;失败不拖垮导出
+    // EDL da linha do tempo: os pontos de corte (inclusive os cortes internos do corte seco) vão para o programa de edição, revinculando a origem para o acabamento; em caso de falha, a exportação não é derrubada
     if (options.timeline && edlClips.length > 0) {
       const fps = srcInfo && srcInfo.fps > 0 ? srcInfo.fps : 30;
       const edl = buildEdl({
@@ -1582,9 +1682,11 @@ export async function exportClips(
       await writeFile(join(outDir, "timeline.edl"), edl, "utf8").catch(() => {});
     }
 
-    // 剪映草稿:每条切片一个草稿文件夹(含跳剪的每一段),整夹拷进剪映
-    // 草稿目录即可打开精修——EDL 的国民级剪辑器版本。纯音频源无画面轨,
-    // 草稿无意义跳过;单条失败静默,绝不拖垮导出。
+    // Rascunho do JianYing: uma pasta de rascunho por clipe (com cada trecho do corte
+    // seco), e basta copiar a pasta inteira para o diretório de rascunhos do JianYing
+    // para abrir e refinar — é a versão do EDL para o editor mais popular do país. Uma
+    // origem só de áudio não tem trilha de imagem, então o rascunho não faz sentido e é
+    // pulado; a falha de um clipe fica em silêncio e nunca derruba a exportação.
     if (options.jianyingDraft && edlClips.length > 0 && srcInfo && srcInfo.hasVideo) {
       const draftsRoot = join(outDir, "rascunhos-jianying");
       const fps = srcInfo.fps > 0 ? Math.round(srcInfo.fps) : 30;
@@ -1605,13 +1707,15 @@ export async function exportClips(
           await writeFile(join(folder, "draft_content.json"), JSON.stringify(content, null, 4), "utf8");
           await writeFile(join(folder, "draft_meta_info.json"), JSON.stringify(buildDraftMetaInfo(), null, 4), "utf8");
         } catch {
-          /* fail-open:草稿是附加产物 */
+          /* fail-open: o rascunho é um produto adicional */
         }
       }
     }
 
-    // 平台发布包:每平台一个文件夹,视频硬链+按平台画幅裁的封面+按平台上限
-    // 适配的文案,拿起来就能发。只打包切片本体(合集另论);fail-open。
+    // Pacote por plataforma: uma pasta por plataforma, com o vídeo em link físico, a
+    // capa recortada na proporção daquela plataforma e o texto adaptado aos limites dela,
+    // pronto para pegar e publicar. Só os clipes em si são empacotados (o compilado é
+    // outra história); é fail-open.
     let packSummaries: PackSummary[] = [];
     if (options.publishPack && options.publishPack.length > 0 && results.length > 0) {
       const packInputs = results
@@ -1621,7 +1725,7 @@ export async function exportClips(
           return { file: r.path, coverFile: r.coverPath, title: r.title, publish: spec.publish };
         });
       packSummaries = await buildPublishPacks(outDir, packInputs, options.publishPack, async (src, dest, spec) => {
-        // 封面适配:裁到平台画幅(上偏 1/3 保人脸)再缩放到推荐像素
+        // Adaptação da capa: recortada na proporção da plataforma (deslocada um terço para cima, preservando os rostos) e depois redimensionada para os pixels recomendados
         return execFileAsync(
           resolveFfmpegPath(),
           ["-hide_banner", "-v", "error", "-i", src, "-vf", coverFilter(spec), "-frames:v", "1", "-q:v", "2", "-y", dest],
@@ -1630,11 +1734,13 @@ export async function exportClips(
       }, Boolean(options.aigcLabel)).catch(() => []);
     }
 
-    // 留证包(v0.14 可选):每条切片截源片前后各 3 分钟流复制留档——2026-07
-    // 起授权审核要求留存片段前后 ≥3 分钟原始录屏。流复制不重编码,秒级完成;
-    // 单条失败跳过,绝不拖垮导出。
+    // Pacote de evidências (opcional, v0.14): cada clipe guarda, por cópia direta do
+    // fluxo, os 3 minutos da origem antes e depois — desde julho de 2026 a revisão de
+    // autorização exige a guarda de pelo menos 3 minutos de gravação original antes e
+    // depois do trecho. A cópia direta não recodifica e termina em segundos; a falha de
+    // um clipe é pulada e nunca derruba a exportação.
     if (options.evidencePack && results.length > 0) {
-      const evDir = join(outDir, "留证");
+      const evDir = join(outDir, "evidencias");
       await mkdir(evDir, { recursive: true }).catch(() => {});
       for (const r of results) {
         const range = snappedRange.get(r.id);
@@ -1642,7 +1748,7 @@ export async function exportClips(
         const start = range?.startSec ?? spec?.startSec;
         const end = range?.endSec ?? spec?.endSec;
         if (start === undefined || end === undefined) continue;
-        const dest = join(evDir, basename(r.path).replace(/\.mp4$/, "-前后3分钟.mp4"));
+        const dest = join(evDir, basename(r.path).replace(/\.mp4$/, "-3min-antes-e-depois.mp4"));
         await execFileAsync(
           resolveFfmpegPath(),
           [
@@ -1657,9 +1763,11 @@ export async function exportClips(
       }
     }
 
-    // AI 封面双档(v0.14):只给原版生成(变体的封面差异化已有响度峰机制,
-    // 逐版生成是翻倍花费);合集(id 0)/横屏副本(负 id)不生成。并行出图,
-    // 单张失败静默——封面是加分项,绝不拖垮导出。
+    // Capa por IA em dois níveis (v0.14): gerada só para as originais (a diferenciação
+    // da capa das versões já tem o mecanismo dos picos de volume, e gerar versão por
+    // versão dobraria o custo); o compilado (id 0) e a cópia horizontal (id negativo) não
+    // geram. As imagens saem em paralelo, e a falha de uma fica em silêncio — a capa é um
+    // bônus e nunca derruba a exportação.
     const aiCoverByClip = new Map<number, string>();
     if (options.aiCover && results.length > 0) {
       const ac = options.aiCover;
@@ -1668,7 +1776,7 @@ export async function exportClips(
           .filter((r) => r.id > 0 && !clips.find((c) => c.id === r.id)?.variantOf)
           .map(async (r) => {
             const spec = clips.find((c) => c.id === r.id);
-            const outPath = r.path.replace(/\.mp4$/, ".封面AI.jpg");
+            const outPath = r.path.replace(/\.mp4$/, ".capa-ia.jpg");
             const ok = await generateAiCover({
               tier: ac.tier,
               title: r.title,
@@ -1714,14 +1822,14 @@ export async function exportClips(
         compilation: compilationFile,
         snapToShots: Boolean(options.snapToShots),
         preciseAlign: Boolean(options.alignWords),
-        // 双语字幕回执:目标语言;实际每条烧了几行见 clips[].render.translatedLines
+        // Comprovante da legenda bilíngue: o idioma alvo; quantas linhas cada clipe de fato queimou está em clips[].render.translatedLines
         translateLang: options.translateLang ?? null,
         subtitleFile: Boolean(options.subtitleFile),
         timeline: Boolean(options.timeline),
         aigcLabel: Boolean(options.aigcLabel),
         qa: options.qa !== false,
         qaRepair: options.qa !== false && options.qaRepair !== false,
-        // 品牌预设回执:用了什么色/档位/水印,矩阵管线可核对品牌一致性
+        // Comprovante da predefinição da marca: qual cor, qual nível e qual marca d'água foram usados, para uma esteira de várias contas conferir a consistência da marca
         brand: options.brand
           ? {
               highlightColor: options.brand.highlightColor ?? null,
@@ -1732,7 +1840,7 @@ export async function exportClips(
                 : null,
             }
           : null,
-        // 发布包回执:打了哪些平台的包、各有几条标题被截断
+        // Comprovante do pacote de publicação: para quais plataformas foi empacotado e quantos títulos foram cortados em cada uma
         publishPack:
           packSummaries.length > 0
             ? packSummaries.map((p) => ({ platform: p.platform, name: p.name, clipCount: p.clipCount, truncatedTitles: p.truncatedTitles }))
@@ -1744,13 +1852,13 @@ export async function exportClips(
       clips: results.map((r) => {
         const spec = clips.find((c) => c.id === r.id);
         const range = snappedRange.get(r.id);
-        // 变形度评分(v0.14):按实际发生的变形项算,低分 = 接近「裁一刀直接发」
+        // Nota de transformação (v0.14): calculada pelos itens de transformação que de fato aconteceram; nota baixa significa perto de "um corte e publica"
         const render = renderByClip.get(r.id);
         const transform: TransformScore | null = render ? transformScore(transformInputsFromRender(render, options)) : null;
         return {
           file: basename(r.path),
           cover: r.coverPath ? basename(r.coverPath) : null,
-          // AI 生成封面(v0.14 双档):与抓帧封面并存,由用户挑着用
+          // Capa gerada por IA (os dois níveis da v0.14): existe junto da capa tirada de um quadro, e a pessoa escolhe qual usar
           aiCover: aiCoverByClip.has(r.id) ? basename(aiCoverByClip.get(r.id)!) : null,
           title: r.title,
           durationSec: Number(r.durationSec.toFixed(3)),
@@ -1759,23 +1867,23 @@ export async function exportClips(
           colorInspectionFailed: Boolean(r.colorInspectionFailed),
           sourceStartSec: range?.startSec ?? spec?.startSec ?? null,
           sourceEndSec: range?.endSec ?? spec?.endSec ?? null,
-          // 多片段拼接的段清单(单段切片为 null)——矩阵管线核对成片由哪几处拼成
+          // A lista de trechos da costura (null num clipe de trecho único) — permite a uma esteira de várias contas conferir de quais pontos o vídeo foi montado
           sourcePieces:
             piecesByClip.get(r.id)?.map((p) => ({
               startSec: Number(p.startSec.toFixed(3)),
               endSec: Number(p.endSec.toFixed(3)),
             })) ?? null,
           keywords: spec?.keywords ?? [],
-          // 一片多版:变体标注它是哪条原版的第几版(原版两个字段都是 null)
+          // Várias versões: a versão registra de qual original ela é e que número tem (na original os dois campos são null)
           variantOf: spec?.variantOf ?? null,
           variant: spec?.variant ?? null,
           removedFillers: removedFillersByClip.get(r.id) ?? [],
           render: render ?? null,
-          // 变形度(0-100)与档位:warn = 有搬运判定风险(Reels 视觉指纹/抖音信息熵口径)
+          // Nota de transformação (0-100) e o nível: warn significa risco de ser julgado reupload (pelo critério da impressão digital visual do Reels ou da entropia de informação do Douyin)
           transform: transform ? { score: transform.score, level: transform.level } : null,
-          // 出片质检报告:pass/warn + 告警清单(黑屏/静音/响度/时长/半词)
+          // Relatório da verificação de qualidade: pass ou warn mais a lista de avisos (tela preta, silêncio, volume, duração, palavra partida)
           qa: r.qa ?? null,
-          // 发布文案(标题/话题/简介),同内容也落在 mp4 旁的 .post.txt
+          // Texto de publicação (título, hashtags, descrição), cujo mesmo conteúdo também fica no .post.txt ao lado do mp4
           publish: spec?.publish ?? null,
           ...(spec?.meta ?? {}),
         };
@@ -1783,10 +1891,12 @@ export async function exportClips(
     };
     await writeFile(join(outDir, "clips.json"), JSON.stringify(metadata, null, 2), "utf8").catch(() => {});
 
-    // 分发台账(v0.14):逐条「成片↔源区间↔导出时间」记录 + 发布侧留空列,
-    // 对上 2026-07 授权审核「一视频一条分发记录」的台账要求。零成本常开。
+    // Registro de distribuição (v0.14): um registro por clipe ligando "vídeo final ↔
+    // intervalo da origem ↔ data da exportação" mais as colunas do lado da publicação em
+    // branco, atendendo à exigência de "um registro de distribuição por vídeo" da revisão
+    // de autorização de julho de 2026. Custa zero e fica sempre ligado.
     const ledgerRows: LedgerRow[] = results
-      .filter((r) => r.id > 0) // 合集(id 0)与横屏副本(负 id)不进台账
+      .filter((r) => r.id > 0) // o compilado (id 0) e a cópia horizontal (id negativo) não entram no registro
       .map((r) => {
         const spec = clips.find((c) => c.id === r.id);
         const range = snappedRange.get(r.id);
@@ -1805,20 +1915,27 @@ export async function exportClips(
         };
       });
     if (ledgerRows.length > 0) {
-      await writeFile(join(outDir, "分发台账.csv"), buildLedgerCsv(ledgerRows), "utf8").catch(() => {});
+      await writeFile(join(outDir, "registro-de-distribuicao.csv"), buildLedgerCsv(ledgerRows), "utf8").catch(() => {});
     }
 
-    // 多画幅:整条管线用 vertical:false 递归再跑一遍到「横屏/」子目录——
-    // 横屏字幕布局/封面/回执全部自动正确;失败静默,绝不拖垮已出的竖屏版。
-    // 进度事件续接主循环(current 偏移 N,total 沿用翻倍后的 totalUnits)。
+    // Duas proporções: a esteira inteira roda de novo, recursivamente, com
+    // vertical:false, para a subpasta `horizontal/` — assim o layout da legenda
+    // horizontal, a capa e o comprovante saem todos corretos sozinhos; a falha é
+    // silenciosa e nunca derruba a versão vertical já pronta.
+    // Os eventos de progresso continuam os do laço principal (current deslocado em N, e
+    // total seguindo os totalUnits já dobrados).
     if (alsoLandscape) {
       const subResults = await exportClips(
         inputPath,
         clips,
         join(outDir, "horizontal"),
-        // 标题贴片/悬念句大字是竖屏短视频形态,横屏版去掉(标题交给平台标题字段);
-        // 字幕沿用横屏布局(底部小号),封面/回执/SRT 在子目录各自成套
-        // publishPack 只在主目录打一次(横屏版在包 manifest 的备注里指路)
+        // A cartela de título e a frase de suspense em letras grandes são uma forma de
+        // vídeo curto vertical, então a versão horizontal dispensa (o título vai para o
+        // campo de título da plataforma);
+        // a legenda segue o layout horizontal (menor, no rodapé), e a capa, o comprovante e
+        // o SRT formam um conjunto próprio na subpasta
+        // o publishPack é montado uma única vez, na pasta principal (a versão horizontal é
+        // indicada na observação do manifesto do pacote)
         { ...options, vertical: false, alsoLandscape: false, faceTrack: false, compilation: false, timeline: false, titleCard: false, openingHook: false, publishPack: undefined, seriesPack: false },
         onProgress
           ? (p) => onProgress({ ...p, current: p.current + clips.length, total: totalUnits })
@@ -1828,9 +1945,9 @@ export async function exportClips(
         if (signal?.aborted) throw e;
         return [] as ExportedClip[];
       });
-      // 横屏版并入结果:id 取负避免与竖屏版/合集(id 0)相撞
+      // A versão horizontal entra no resultado: o id fica negativo para não colidir com a versão vertical nem com o compilado (id 0)
       for (const r of subResults) {
-        results.push({ ...r, id: -Math.abs(r.id) - 1, title: `${r.title}(横屏)` });
+        results.push({ ...r, id: -Math.abs(r.id) - 1, title: `${r.title} (horizontal)` });
       }
     }
 
