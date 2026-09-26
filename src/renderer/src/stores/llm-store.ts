@@ -1,6 +1,6 @@
 /**
- * LLM connection settings (persisted to localStorage).
- * Presets: Atlas Cloud (recommended default), Ollama local, custom.
+ * As configurações de conexão com o LLM (guardadas no localStorage).
+ * Presets: Atlas Cloud (o padrão recomendado), Ollama local e personalizado.
  */
 import { create } from "zustand";
 import type { LlmConfig } from "../../../shared/api-types";
@@ -10,12 +10,12 @@ const STORAGE_KEY = "hotclip-llm";
 const PREFILTER_KEY = "hotclip-prefilter";
 const VISION_KEY = "hotclip-vision";
 
-/** 两级漏斗第一级的本地端点设置(默认 Ollama + qwen3:4b,默认关)。 */
+/** As configurações do endpoint local do primeiro nível do funil (por padrão Ollama + qwen3:4b, desligado). */
 export interface PrefilterSettings {
   enabled: boolean;
   baseUrl: string;
   model: string;
-  /** 云端端点的 API Key(本地 Ollama 留空即可)。 */
+  /** A API Key do endpoint na nuvem (num Ollama local pode ficar em branco). */
   apiKey?: string;
 }
 
@@ -25,7 +25,7 @@ export const PREFILTER_DEFAULTS: PrefilterSettings = {
   model: "qwen3:4b",
 };
 
-/** 视觉爆点信号的端侧 VL 端点设置(默认 Ollama + qwen3.5:4b,默认关)。 */
+/** As configurações do endpoint VL local do sinal visual de estouro (por padrão Ollama + qwen3.5:4b, desligado). */
 export const VISION_DEFAULTS: PrefilterSettings = {
   enabled: false,
   baseUrl: "http://localhost:11434/v1",
@@ -45,7 +45,7 @@ function loadLocalEndpoint(key: string, defaults: PrefilterSettings): PrefilterS
       };
     }
   } catch {
-    /* 回落默认 */
+    /* volta ao padrão */
   }
   return { ...defaults };
 }
@@ -54,16 +54,17 @@ export interface LlmPreset {
   id: string;
   label: string;
   baseUrl: string;
-  /** 出厂建议模型。模型 id 会随厂商换代失效——UI 上的「拉取模型」才是准的。 */
+  /** O modelo sugerido de fábrica. O id de um modelo vence quando o fornecedor troca de geração — o «buscar modelos» da interface é que está certo. */
   model: string;
-  /** 申请 key 的地址;本地端点为空。 */
+  /** O endereço para pedir uma chave; num endpoint local fica vazio. */
   keyUrl: string;
 }
 
 /**
- * 供应商预设。base_url 都对着各家官方文档核过(2026-08);模型只是起点——
- * 厂商换代很快(deepseek-chat 已于 2026-07-24 下线),所以 UI 提供「拉取模型」
- * 直接问端点要真实清单,不指望这里的名字长期有效。
+ * Os presets dos fornecedores. As base_url foram todas conferidas na documentação oficial de cada um
+ * (08/2026); o modelo é só um ponto de partida — os fornecedores trocam de geração rápido (o deepseek-chat
+ * saiu do ar em 24/07/2026), então a interface oferece «buscar modelos» para perguntar a lista real ao
+ * endpoint, sem contar que o nome daqui continue válido por muito tempo.
  */
 export const LLM_PRESET_LIST: LlmPreset[] = [
   {
@@ -75,36 +76,36 @@ export const LLM_PRESET_LIST: LlmPreset[] = [
   },
   {
     id: "deepseek",
-    label: "DeepSeek 官方",
+    label: "DeepSeek (oficial)",
     baseUrl: "https://api.deepseek.com/v1",
     model: "deepseek-v4-flash",
     keyUrl: "https://platform.deepseek.com/api_keys",
   },
   {
     id: "dashscope",
-    label: "阿里云百炼(通义千问)",
+    label: "Alibaba Cloud Bailian (Qwen)",
     baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     model: "qwen-plus",
     keyUrl: "https://bailian.console.aliyun.com/",
   },
   {
     id: "zhipu",
-    label: "智谱 GLM",
-    // 智谱的兼容路径就到 v4 为止,后面直接接 /chat/completions(不带 /v1)
+    label: "Zhipu GLM",
+    // O caminho de compatibilidade da Zhipu vai só até v4, e depois vem /chat/completions direto (sem /v1)
     baseUrl: "https://open.bigmodel.cn/api/paas/v4",
     model: "glm-4.7",
     keyUrl: "https://open.bigmodel.cn/usercenter/apikeys",
   },
   {
     id: "moonshot",
-    label: "月之暗面 Kimi",
+    label: "Moonshot Kimi",
     baseUrl: "https://api.moonshot.cn/v1",
     model: "kimi-k2.5",
     keyUrl: "https://platform.moonshot.cn/console/api-keys",
   },
   {
     id: "siliconflow",
-    label: "硅基流动",
+    label: "SiliconFlow",
     baseUrl: "https://api.siliconflow.cn/v1",
     model: "deepseek-ai/DeepSeek-V3",
     keyUrl: "https://cloud.siliconflow.cn/account/ak",
@@ -125,19 +126,19 @@ export const LLM_PRESET_LIST: LlmPreset[] = [
   },
   {
     id: "ollama",
-    label: "Ollama(本地)",
+    label: "Ollama (local)",
     baseUrl: "http://localhost:11434/v1",
     model: "qwen3:8b",
     keyUrl: "",
   },
 ];
 
-/** 按 baseUrl 认出当前选的是哪家(用户改过 baseUrl 就认不出,返回 undefined)。 */
+/** Reconhece, pela baseUrl, qual fornecedor está escolhido (se a pessoa mudou a baseUrl, não dá para reconhecer e volta undefined). */
 export function presetForBaseUrl(baseUrl: string): LlmPreset | undefined {
   return LLM_PRESET_LIST.find((p) => p.baseUrl === baseUrl);
 }
 
-/** 兼容旧引用:仍以 atlas 为默认。 */
+/** Compatibilidade com as referências antigas: a atlas continua sendo o padrão. */
 export const LLM_PRESETS = { atlas: LLM_PRESET_LIST[0] } as const;
 
 function load(): LlmConfig {
@@ -150,7 +151,7 @@ function load(): LlmConfig {
       }
     }
   } catch {
-    /* fall through to defaults */
+    /* segue para os padrões */
   }
   return { baseUrl: LLM_PRESETS.atlas.baseUrl, apiKey: "", model: LLM_PRESETS.atlas.model };
 }
@@ -171,7 +172,7 @@ export const useLlmStore = create<LlmState>((set, get) => ({
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     } catch {
-      /* persistence is best-effort */
+      /* a persistência é feita na medida do possível */
     }
     set({ config });
   },
@@ -181,7 +182,7 @@ export const useLlmStore = create<LlmState>((set, get) => ({
     try {
       localStorage.setItem(PREFILTER_KEY, JSON.stringify(prefilter));
     } catch {
-      /* persistence is best-effort */
+      /* a persistência é feita na medida do possível */
     }
     set({ prefilter });
   },
@@ -191,13 +192,13 @@ export const useLlmStore = create<LlmState>((set, get) => ({
     try {
       localStorage.setItem(VISION_KEY, JSON.stringify(vision));
     } catch {
-      /* persistence is best-effort */
+      /* a persistência é feita na medida do possível */
     }
     set({ vision });
   },
 }));
 
-/** Ready = enough fields to attempt a call (Ollama needs no key). */
+/** Pronto = há campos suficientes para tentar uma chamada (o Ollama não precisa de chave). */
 export function isLlmReady(config: LlmConfig): boolean {
   const needsKey = !isLocalBaseUrl(config.baseUrl);
   return Boolean(config.baseUrl && config.model && (!needsKey || config.apiKey));

@@ -1,10 +1,12 @@
 /**
- * 工作台时间轴:标尺 + 缩略图胶片带 + 响度/运动/弹幕热度曲线 + 候选段 + 播放头。
- * 八路信号里最会"说话"的三条曲线画在这里——候选段落在曲线的峰上,
- * 「为什么选这段」从一段文字变成一眼可见的形状。
+ * A linha de tempo da bancada: a régua + a tira de miniaturas + as curvas de volume, de movimento e de calor
+ * do chat + os trechos candidatos + a cabeça de reprodução.
+ * Das oito trilhas de sinal, as três curvas que mais «falam» são desenhadas aqui — os trechos candidatos caem
+ * nos picos das curvas, e o «por que este trecho foi escolhido» deixa de ser um texto e passa a ser uma forma
+ * que se vê de relance.
  *
- * 交互:点轨道跳播;点候选段聚焦该候选并跳到它的起点。
- * 数据 fail-open:曲线/缩略图哪路没有就不画哪路,时间轴本体永远可用。
+ * Interação: um clique na trilha salta a reprodução; um clique num trecho candidato o põe em foco e salta para o início dele.
+ * Os dados falham em aberto: a curva ou a miniatura que não existe simplesmente não é desenhada, e a linha de tempo em si funciona sempre.
  */
 import { useEffect, useMemo, useState } from "react";
 import { getApi } from "../../api/provider";
@@ -18,14 +20,14 @@ function formatTick(sec: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}` : `${m}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** 曲线数组 → SVG 面积路径(0..1 值,viewBox 高 H)。 */
+/** Array da curva → o caminho de área em SVG (valores de 0 a 1, com a altura H do viewBox). */
 function areaPath(values: number[], width: number, height: number): string {
   if (values.length === 0) return "";
   const pts = values.map((v, i) => `${((i / (values.length - 1)) * width).toFixed(1)},${(height - v * height).toFixed(1)}`);
   return `M0,${height} L${pts.join(" ")} L${width},${height} Z`;
 }
 
-/** 标尺刻度:按时长挑一个整齐的间隔(5min/10min/…),位置按真实比例摆。纯函数。 */
+/** As marcas da régua: um intervalo redondo é escolhido conforme a duração (5min, 10min, …) e a posição segue a proporção real. Função pura. */
 export function tickMarks(durationSec: number): Array<{ sec: number; frac: number }> {
   if (!(durationSec > 0)) return [];
   const steps = [30, 60, 300, 600, 1200, 1800, 3600];
@@ -85,7 +87,7 @@ export function Timeline({
 
   return (
     <div className="shrink-0 rounded-xl border border-line/60 bg-panel/60 px-2.5 pt-1.5 pb-2.5">
-      {/* 标尺:刻度按真实时间比例绝对定位(space-between 会把末刻度推到 100% 处说谎) */}
+      {/* A régua: as marcas são posicionadas em absoluto pela proporção real do tempo (o space-between empurraria a última marca para 100% e mentiria) */}
       <div className="relative h-4 select-none">
         {ticks.map(({ sec, frac: f }) => (
           <span
@@ -98,7 +100,7 @@ export function Timeline({
         ))}
       </div>
       <div className="relative h-[104px] cursor-pointer" onClick={seekFromEvent}>
-        {/* 缩略图胶片带 */}
+        {/* A tira de miniaturas */}
         <div className="absolute inset-x-0 top-0 flex h-[46px] overflow-hidden rounded-md border border-line/50 bg-panel-2">
           {(data?.thumbs?.length ? data.thumbs : Array.from({ length: 8 }, () => "")).map((b64, i) => (
             <div
@@ -108,7 +110,7 @@ export function Timeline({
             />
           ))}
         </div>
-        {/* 信号热度曲线:响度(橙)+ 运动(青)+ 弹幕(粉) */}
+        {/* As curvas de calor dos sinais: volume (laranja) + movimento (ciano) + chat (rosa) */}
         <svg
           className="absolute inset-x-0 top-[50px] h-[44px] w-full"
           viewBox={`0 0 ${W} ${H}`}
@@ -118,7 +120,7 @@ export function Timeline({
           {motionPath && <path d={motionPath} fill="rgba(34,211,238,0.12)" stroke="rgba(34,211,238,0.72)" strokeWidth="1" />}
           {dmPath && <path d={dmPath} fill="rgba(244,114,182,0.18)" stroke="rgba(244,114,182,0.75)" strokeWidth="1" />}
         </svg>
-        {/* 候选段:落在曲线峰上的发光切口;判弃的暗一档虚线 */}
+        {/* Os trechos candidatos: os recortes brilhantes sobre os picos das curvas; o descartado fica um tom mais escuro e tracejado */}
         {(candidates ?? []).map((c) => {
           const left = frac(c.startSec) * 100;
           const width = Math.max(0.5, (frac(c.endSec) - frac(c.startSec)) * 100);
@@ -153,7 +155,7 @@ export function Timeline({
             </button>
           );
         })}
-        {/* 播放头 */}
+        {/* A cabeça de reprodução */}
         <div
           style={{ left: `${frac(currentSec) * 100}%` }}
           className="pointer-events-none absolute top-[-6px] bottom-0 w-[2px] bg-flame"
@@ -161,7 +163,7 @@ export function Timeline({
           <div className="absolute -top-1 -left-[4px] h-2 w-2.5 bg-flame [clip-path:polygon(0_0,100%_0,50%_100%)]" />
         </div>
       </div>
-      {/* 图例 */}
+      {/* A legenda das cores */}
       <div className="mt-1.5 flex items-center gap-3 text-[10px] text-mut/70">
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-[3px] bg-[rgba(255,154,61,0.7)]" />

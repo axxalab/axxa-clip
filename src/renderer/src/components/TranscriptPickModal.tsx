@@ -1,9 +1,12 @@
 /**
- * 文稿选段弹窗(文字剪视频):整篇逐句稿铺开,点句子选中/取消,选好直接成片。
- * - 不相邻的句子自动拼接(复用 pieces 机器:跳剪/字幕/EDL/质检全对齐)
- * - 多人对话(diarize)开启后按说话人筛选——「只看嘉宾说的」一眼挑完
- * - 搜台词定位记忆里的那句话;选中集不随筛选丢失
- * 纯 UI:成片规则(合段/上限)全在 shared/pick.ts,两边共享一份代码。
+ * Janela de escolha de trechos pelo texto (editar vídeo escrevendo): a transcrição inteira é aberta, um
+ * clique marca ou desmarca a frase, e o que foi escolhido vira vídeo direto.
+ * - As frases não vizinhas são coladas sozinhas (reaproveitando a máquina de pieces: corte seco, legenda,
+ *   EDL e verificação de qualidade ficam todos alinhados)
+ * - Com a conversa de várias pessoas (diarize) ligada, dá para filtrar por falante — «só o que a convidada
+ *   disse» se escolhe num relance
+ * - A busca na fala localiza aquela frase da memória; o conjunto marcado não se perde ao filtrar
+ * Só interface: as regras do vídeo (união de pedaços, teto) estão todas em shared/pick.ts, num código só para os dois lados.
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { LuTextSelect, LuX, LuSearch, LuCheck, LuPlus, LuEraser } from "react-icons/lu";
@@ -16,7 +19,7 @@ import { ModalShell } from "./ui";
 import { indexTranscript, searchTranscript } from "../../../shared/transcript-search";
 import { VirtualTranscriptList } from "./workbench/VirtualTranscriptList";
 
-/** 说话人徽标配色:按 speaker id 轮转,与人无关只求区分。 */
+/** As cores do selo de falante: alternadas pelo id do falante, sem relação com a pessoa, só para distinguir. */
 const SPK_COLORS = [
   "text-sky-400 border-sky-400/40",
   "text-emerald-400 border-emerald-400/40",
@@ -43,7 +46,7 @@ export function TranscriptPickModal({
 }: {
   transcript: Transcript;
   initialSegmentIds?: readonly number[];
-  /** 选段成片:段清单(时间序)+ 覆盖文本 + 默认标题。 */
+  /** Vídeo a partir da escolha: a lista de pedaços (na ordem do tempo) + o texto coberto + o título padrão. */
   onAdd: (pieces: ClipPiece[], text: string, title: string) => void;
   onClose: () => void;
 }): React.JSX.Element {
@@ -58,10 +61,10 @@ export function TranscriptPickModal({
   const [selected, setSelected] = useState<Set<number>>(() => new Set(transcript.segments.filter((segment) => initialSegmentIds.includes(segment.id)).map((segment) => segment.id)));
   const [query, setQuery] = useState("");
   const [focusedSentence, setFocusedSentence] = useState<number | null>(null);
-  /** null = 全部说话人。 */
+  /** null = todos os falantes. */
   const [speakerFilter, setSpeakerFilter] = useState<number | null>(null);
 
-  // 说话人清单:≥2 人才值得筛(单人筛选没有意义)
+  // A lista de falantes: filtrar só vale a partir de 2 pessoas (com uma só não faz sentido)
   const speakers = useMemo(() => {
     const ids = new Set<number>();
     for (const s of transcript.segments) if (s.speaker !== undefined) ids.add(s.speaker);
@@ -91,13 +94,13 @@ export function TranscriptPickModal({
 
   const add = (): void => {
     if (verdict !== "ok") return;
-    // 默认标题取第一句开头(标题在候选卡上随时可改)
+    // O título padrão sai do começo da primeira frase (o título pode ser mudado a qualquer momento no cartão do candidato)
     const first = transcript.segments.find((seg) => selected.has(seg.id));
     const title = (first?.text ?? "").trim().slice(0, 24) || t("pickButton");
     onAdd(pieces, piecesText(transcript, pieces), title);
   };
 
-  // 选空/正常都显示统计;违规时把原因写在统计位上(按钮同时禁用)
+  // Vazio ou normal, a estatística sempre aparece; quando algo é inválido, o motivo entra no lugar da estatística (e o botão fica desabilitado junto)
   const problem =
     verdict === "tooShort" ? t("pickTooShort")
     : verdict === "tooLong" ? t("pickTooLong")
@@ -139,7 +142,7 @@ export function TranscriptPickModal({
           </button>
         </div>
 
-        {/* 搜索 + 说话人筛选 */}
+        {/* Busca + filtro de falante */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <LuSearch className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-mut" />
@@ -180,7 +183,7 @@ export function TranscriptPickModal({
           )}
         </div>
 
-        {/* 逐句稿:点句选中/取消 */}
+        {/* A transcrição: um clique marca ou desmarca a frase */}
         <div className="mt-3 flex min-h-0 flex-1 flex-col">
           {visible.length === 0 && (
             <p className="py-8 text-center text-sm text-mut">{t("pickNoMatch")}</p>
@@ -226,7 +229,7 @@ export function TranscriptPickModal({
           </VirtualTranscriptList>
         </div>
 
-        {/* 状态 + 动作 */}
+        {/* Estado + ações */}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-line pt-3">
           <span className={`text-[12px] font-semibold ${problem ? "text-amber-400" : "text-mut"}`}>
             {problem ?? t("pickStat", { sents: selected.size, pieces: pieces.length, sec: Math.round(durationSec) })}

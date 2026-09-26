@@ -1,8 +1,8 @@
 import { LocalSpeechConnection } from "./LocalSpeechConnection";
 /**
- * Wizard step 2: engine picker → transcription progress → sentence transcript.
- * Transcript quality gates everything downstream, so the engine choice is an
- * explicit first-class step (speed vs accuracy vs cloud), remembered per user.
+ * Passo 2 do assistente: a escolha do motor → o progresso da transcrição → a transcrição frase a frase.
+ * A qualidade da transcrição condiciona tudo o que vem depois, então a escolha do motor é um passo
+ * explícito e de primeira classe (velocidade vs precisão vs nuvem), lembrado por pessoa.
  */
 import { useEffect, useRef, useState } from "react";
 import {
@@ -49,7 +49,7 @@ const STAGE_KEY: Record<TranscribeProgressEvent["stage"], string> = {
   finalizing: "stageFinalizing",
 };
 
-/** catalog id → i18n name/desc keys (unknown ids fall back to raw id). */
+/** id do catálogo → as chaves de i18n de nome e descrição (um id desconhecido cai no id cru). */
 const ENGINE_TEXT: Record<string, { name: string; desc: string }> = {
   sensevoice: { name: "engineSensevoiceName", desc: "engineSensevoiceDesc" },
   paraformer: { name: "engineParaformerName", desc: "engineParaformerDesc" },
@@ -58,7 +58,7 @@ const ENGINE_TEXT: Record<string, { name: string; desc: string }> = {
   elevenlabs: { name: "engineElevenlabsName", desc: "engineElevenlabsDesc" },
 };
 
-/** Transcript.engine ids reported by backends → catalog id. */
+/** Os ids de Transcript.engine que os backends informam → o id do catálogo. */
 function catalogIdOf(engineReported: string): string {
   return engineReported.replace(/-local$/, "");
 }
@@ -75,12 +75,12 @@ export function TranscribeView({
   filePath: string;
   onBack: () => void;
   onDone?: (t: Transcript) => void;
-  /** 逐句稿纠错后的回传(仅更新状态,不推进向导)。 */
+  /** O retorno depois da correção da transcrição (só atualiza o estado, sem avançar o assistente). */
   onEdited?: (t: Transcript) => void;
   onFindHighlights?: () => void;
-  /** Already-produced transcript (returning from a later phase) — skip work. */
+  /** Uma transcrição já produzida (ao voltar de uma etapa posterior) — o trabalho é pulado. */
   cached?: Transcript | null;
-  /** 托管 mode: skip the engine picker and start with the remembered engine. */
+  /** Modo de ponta a ponta: a escolha do motor é pulada e tudo começa com o motor lembrado. */
   autoStart?: boolean;
 }): React.JSX.Element {
   const t = useT("transcribe");
@@ -96,17 +96,18 @@ export function TranscribeView({
   const [progress, setProgress] = useState<TranscribeProgressEvent>({ fraction: 0, stage: "preparing" });
   const [transcript, setTranscript] = useState<Transcript | null>(cached ?? null);
   const [error, setError] = useState<string | null>(null);
-  /** 原始错误细节:归因不明时展示,用户反馈 issue 才有诊断线索。 */
+  /** O detalhe original do erro: mostrado quando a causa não está clara, e é a única pista de diagnóstico quando a pessoa abre uma issue. */
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
-  /** 逐句稿纠错:当前编辑中的句 id。 */
+  /** Correção da transcrição: o id da frase que está sendo editada. */
   const [editingSeg, setEditingSeg] = useState<number | null>(null);
-  /** 热词词表管理弹窗。 */
+  /** A janela de gestão do vocabulário de termos. */
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  /** 刚提取出的「错→对」候选:提示应用到全片并加入词表。 */
+  /** O candidato «errado → certo» recém-extraído: leva a oferecer a aplicação em todo o material e a entrada no vocabulário. */
   const [pending, setPending] = useState<{ entry: GlossaryEntry; count: number } | null>(null);
 
-  // ASR 错字当场改:替换句文本并按字符宽度重建该句词级时间轴。
-  // 两个 setState 平级调用——绝不能在 updater 里更新父组件(渲染期非法)。
+  // O erro de escrita do ASR é corrigido ali mesmo: o texto da frase é substituído e a linha de tempo por palavra
+  // daquela frase é reconstruída pela largura dos caracteres.
+  // Os dois setState são chamados no mesmo nível — nunca se atualiza o componente-mãe dentro de um updater (é ilegal durante a renderização).
   const commitSegEdit = (segId: number, value: string): void => {
     setEditingSeg(null);
     if (!transcript) return;
@@ -115,13 +116,13 @@ export function TranscribeView({
     if (next !== transcript) {
       setTranscript(next);
       onEdited?.(next);
-      // 术语纠错闭环:这次修改若是「错词→对词」,提示一键全片替换+入词表
+      // O ciclo da correção de termo: se esta mudança é um «termo errado → termo certo», surge a oferta de substituir em todo o material com um clique e de entrar no vocabulário
       const entry = diffReplacement(prevText, value);
       setPending(entry ? { entry, count: countGlossaryHits(next, [entry]) } : null);
     }
   };
 
-  // 应用到全片(标记被改句)并把词条持久化进词表——下次转写自动生效
+  // Aplica em todo o material (marcando as frases alteradas) e guarda a entrada no vocabulário — na próxima transcrição ela já vale
   const confirmPending = (): void => {
     if (!pending || !transcript) return;
     const { transcript: fixed, replaced } = applyGlossaryToTranscript(transcript, [pending.entry]);
@@ -143,8 +144,8 @@ export function TranscribeView({
   useEffect(() => {
     if (cached) return;
     if (autoStart) {
-      // StrictMode may mount/clean up/mount effects. Start after that cycle so
-      // the cleanup cannot leave an automatically started job permanently busy.
+      // O StrictMode pode montar, limpar e montar os effects. O início vem depois desse ciclo, para a limpeza
+      // não deixar uma tarefa iniciada sozinha ocupada para sempre.
       const timer = setTimeout(() => {
         if (!autoStarted.current) { autoStarted.current = true; start(); }
       }, 0);
@@ -180,8 +181,8 @@ export function TranscribeView({
       .catch((e: unknown) => {
         if (request !== generation.current) return;
         if (/cancelled|AbortError/.test(String(e))) { setPaused(true); return; }
-        // 真实失败原因透传:没音轨/模型下载失败给对症提示,其余附上
-        // 原始错误细节——曾经一律提示「确认音轨」,误导用户反复转码(issue #2)
+        // A causa real da falha é repassada: sem trilha de áudio ou download do modelo falhando geram o aviso certo, e o resto
+        // vem com o detalhe original do erro — antes tudo dizia «confira a trilha de áudio», levando a pessoa a transcodificar sem parar (issue #2)
         const { kind, detail } = parseTranscribeError(e instanceof Error ? e.message : String(e));
         const msgKey =
           kind === "no-audio"
@@ -206,7 +207,7 @@ export function TranscribeView({
 
   const pct = Math.round(progress.fraction * 100);
   const isDownload = progress.stage === "downloading-model";
-  // download + extract both report real bytes — the bar tracks them directly
+  // O download e a descompactação informam os dois os bytes reais — a barra os acompanha direto
   const isByteStage = isDownload || progress.stage === "extracting-model";
   const bytePct =
     isByteStage && progress.totalBytes ? Math.round(((progress.downloadedBytes ?? 0) / progress.totalBytes) * 100) : 0;
@@ -424,7 +425,7 @@ export function TranscribeView({
             </div>
           </div>
 
-          {/* 术语纠错闭环:改一处 → 全片替换 + 入词表 */}
+          {/* O ciclo da correção de termo: corrige num lugar → substitui em todo o material + entra no vocabulário */}
           {pending && (
             <div className="card mt-4 flex flex-wrap items-center gap-3 rounded-xl border !border-ember/40 bg-ember/5 px-4 py-3">
               <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed">

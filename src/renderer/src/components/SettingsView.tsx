@@ -1,11 +1,13 @@
 import { LocalSpeechConnection } from "./LocalSpeechConnection";
 /**
- * 设置中心:左导航 + 分区内容,原先散落七处的配置合并到这里,任何时刻可达。
- *  - AI 模型:LLM 供应商/初筛/视觉(从爆点页的配置门整体搬来,不再"进不去爆点页就改不了")
- *  - 转写引擎:默认引擎 + 云端 Key(不再"转写完就锁死")
- *  - 导出与存储:模型位置/导出位置/画质/默认字幕(原 SettingsModal)
- *  - 品牌样式/热词词表/录播监听:入口
- *  - 语言
+ * Central de configurações: a navegação à esquerda + o conteúdo por seção; o que antes estava espalhado por
+ * sete lugares foi reunido aqui, e é alcançável a qualquer momento.
+ *  - Modelos de IA: o fornecedor de LLM / a triagem / a visão (trazidos inteiros do portão de configuração da
+ *    página de estouros, para acabar com o «se não entro na página de estouros, não consigo mudar»)
+ *  - Motor de transcrição: o motor padrão + a chave da nuvem (nada mais de «transcreveu e travou»)
+ *  - Exportação e armazenamento: o lugar dos modelos / o lugar da exportação / a qualidade / a legenda padrão (o antigo SettingsModal)
+ *  - Estilo da marca / vocabulário de termos / vigia de gravações: as entradas
+ *  - Idioma
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -167,7 +169,7 @@ function ExperimentCard({ experiment }: { experiment: PerformanceExperiment }): 
   );
 }
 
-/** Local audience-outcome feedback: import → explain what was learned → manage memory. */
+/** O retorno local do resultado com o público: importar → explicar o que foi aprendido → gerir a memória. */
 function PerformanceSection(): React.JSX.Element {
   const t = useT("performance");
   const [summary, setSummary] = useState<PerformanceSummary | null>(null);
@@ -439,7 +441,7 @@ function PerformanceSection(): React.JSX.Element {
 
 const inputCls = "mt-1 w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-[13px] outline-none focus:border-ember/60";
 
-/** AI 模型分区(LLM + 初筛 + 视觉,从旧配置门整体搬来)。 */
+/** A seção de modelos de IA (LLM + triagem + visão, trazida inteira do antigo portão de configuração). */
 function AiSection(): React.JSX.Element {
   const t = useT("highlights");
   const { config, setConfig, prefilter, setPrefilter, vision, setVision } = useLlmStore();
@@ -463,7 +465,7 @@ function AiSection(): React.JSX.Element {
     setModelLoading(false);
   }, [config.baseUrl, config.apiKey]);
 
-  // 连接自检:必败配置(Ollama 没跑/Key 错/模型没拉)当场给指引(issue #6)
+  // Autochecagem da conexão: a configuração que falha na certa (Ollama fora do ar, chave errada, modelo não baixado) recebe a orientação ali mesmo (issue #6)
   const check = useCallback(async (): Promise<void> => {
     setChecking(true);
     const res = await getApi().listLlmModels(config.baseUrl, config.apiKey ?? "");
@@ -605,7 +607,7 @@ function AiSection(): React.JSX.Element {
         </div>
       </div>
 
-      {/* 两级漏斗:本地小模型初筛 */}
+      {/* O funil de dois níveis: a triagem pelo modelo pequeno local */}
       <div className="rounded-xl border border-dashed border-line p-3.5">
         <div className="flex items-center justify-between">
           <span className="text-[12.5px] font-bold">{t("prefilterTitle")}</span>
@@ -626,7 +628,7 @@ function AiSection(): React.JSX.Element {
         )}
       </div>
 
-      {/* 视觉信号 + 全场扫描 */}
+      {/* Sinal visual + varredura completa */}
       <div className="rounded-xl border border-dashed border-line p-3.5">
         <div className="flex items-center justify-between">
           <span className="text-[12.5px] font-bold">{t("visionTitle")}</span>
@@ -663,7 +665,7 @@ function AiSection(): React.JSX.Element {
   );
 }
 
-/** 转写引擎分区:默认引擎 + 云端 Key。 */
+/** A seção do motor de transcrição: o motor padrão + a chave da nuvem. */
 function AsrSection(): React.JSX.Element {
   const t = useT("transcribe");
   const tw = useT("workbench");
@@ -723,7 +725,7 @@ function AsrSection(): React.JSX.Element {
   );
 }
 
-/** 导出与存储分区(原 SettingsModal 的四节)。 */
+/** A seção de exportação e armazenamento (as quatro partes do antigo SettingsModal). */
 function StorageSection(): React.JSX.Element {
   const t = useT("settings");
   const { prefs, setPref } = useRenderPrefs();
@@ -749,7 +751,7 @@ function StorageSection(): React.JSX.Element {
       await getApi().moveModelsDir(dir);
       await loadModels();
     } catch (e) {
-      // 搬家失败必须说清楚——用户最怕的是「模型是不是被弄丢了」
+      // Uma mudança de pasta que falha precisa ser dita com clareza — o medo maior da pessoa é «os modelos foram perdidos?»
       setMoveError(e instanceof Error ? e.message : String(e));
     } finally {
       setMoving(false);
@@ -1131,7 +1133,7 @@ export function SettingsView(): React.JSX.Element {
     { key: "lang", label: t("navLang"), Icon: LuLanguages },
   ];
 
-  /** 入口型分区:说明 + 打开按钮(品牌/词表/录播共用形态)。 */
+  /** A seção do tipo entrada: a explicação + o botão de abrir (a mesma forma para marca, vocabulário e gravações). */
   const entry = (desc: string, label: string, open: () => void): React.JSX.Element => (
     <div className="flex flex-col gap-3">
       <p className="text-[12.5px] leading-relaxed text-mut">{desc}</p>
