@@ -14,7 +14,7 @@ import type { MediaSignals } from "../signals";
 import type { FaceBox } from "../reframe/yunet";
 
 describe("planEmotionFrameTimes", () => {
-  it("无信号时均匀铺满,间隔与上限成立", () => {
+  it("sem sinal, a amostragem é espalhada por igual, respeitando a distância e o teto", () => {
     const times = planEmotionFrameTimes(3600, undefined);
     expect(times.length).toBe(EMOTION_MAX_FRAMES);
     for (let i = 1; i < times.length; i++) {
@@ -22,23 +22,23 @@ describe("planEmotionFrameTimes", () => {
     }
   });
 
-  it("信号窗口内 2s 步进采样(比全片均匀更密)", () => {
+  it("dentro da janela de sinal a amostragem tem passo de 2s (mais densa que a uniforme do vídeo inteiro)", () => {
     const signals: MediaSignals = {
       loudPeaks: [{ startSec: 100, endSec: 110 }],
       cutDense: [],
     };
     const times = planEmotionFrameTimes(3600, signals);
     const inWindow = times.filter((t) => t >= 100 && t <= 110);
-    expect(inWindow.length).toBeGreaterThanOrEqual(3); // 10s 窗口 / 3s 间隔
+    expect(inWindow.length).toBeGreaterThanOrEqual(3); // janela de 10s / distância de 3s
   });
 
-  it("时长无效返回空", () => {
+  it("duração inválida devolve vazio", () => {
     expect(planEmotionFrameTimes(0.5, undefined)).toEqual([]);
   });
 });
 
 describe("grayFaceTensor", () => {
-  const SIZE = 64; // 用小帧测试(inputSize 参数化)
+  const SIZE = 64; // testado com quadro pequeno (o inputSize é parametrizado)
 
   function frame(fill: [number, number, number]): Uint8Array {
     const buf = new Uint8Array(SIZE * SIZE * 3);
@@ -50,7 +50,7 @@ describe("grayFaceTensor", () => {
     return buf;
   }
 
-  it("输出 64×64,纯白帧≈255,纯黑帧≈0", () => {
+  it("a saída é 64×64, o quadro branco dá ≈255 e o preto ≈0", () => {
     const box: FaceBox = { x: 16, y: 16, w: 32, h: 32, score: 0.9 };
     const white = grayFaceTensor(frame([255, 255, 255]), SIZE, box);
     expect(white.length).toBe(FER_INPUT * FER_INPUT);
@@ -59,9 +59,9 @@ describe("grayFaceTensor", () => {
     expect(black[FER_INPUT * 32 + 32]).toBe(0);
   });
 
-  it("BT.601 灰度权重:绿色比蓝色亮", () => {
+  it("os pesos de cinza do BT.601: o verde fica mais claro que o azul", () => {
     const box: FaceBox = { x: 16, y: 16, w: 32, h: 32, score: 0.9 };
-    // BGR 帧:纯绿 vs 纯蓝
+    // Quadro BGR: verde puro vs azul puro
     const green = grayFaceTensor(frame([0, 255, 0]), SIZE, box)[2080];
     const blue = grayFaceTensor(frame([255, 0, 0]), SIZE, box)[2080];
     expect(green).toBeGreaterThan(blue);
@@ -69,7 +69,7 @@ describe("grayFaceTensor", () => {
     expect(blue).toBeCloseTo(0.114 * 255, 0);
   });
 
-  it("脸框贴边时外扩不越界(不抛错,值有限)", () => {
+  it("com a caixa do rosto na borda, o esticar não passa do limite (sem lançar erro, com valores finitos)", () => {
     const box: FaceBox = { x: 0, y: 0, w: 20, h: 20, score: 0.9 };
     const out = grayFaceTensor(frame([128, 128, 128]), SIZE, box);
     for (const v of out) expect(Number.isFinite(v)).toBe(true);
@@ -77,24 +77,24 @@ describe("grayFaceTensor", () => {
 });
 
 describe("softmax / emotionPeakScore", () => {
-  it("softmax 归一且保序", () => {
+  it("o softmax normaliza e preserva a ordem", () => {
     const p = softmax([1, 3, 2]);
     expect(p.reduce((a, b) => a + b, 0)).toBeCloseTo(1);
     expect(p[1]).toBeGreaterThan(p[2]);
     expect(p[2]).toBeGreaterThan(p[0]);
   });
 
-  it("大数值不溢出", () => {
+  it("número grande não estoura", () => {
     const p = softmax([1000, 999]);
     expect(p[0]).toBeGreaterThan(p[1]);
     expect(Number.isFinite(p[0])).toBe(true);
   });
 
-  it("峰值分取笑/惊/怒最大值,忽略中性/悲伤", () => {
-    //           中性  开心 惊讶 悲伤 愤怒 厌恶 恐惧 轻蔑
+  it("a nota do pico usa o maior valor entre riso, susto e raiva, ignorando o neutro e a tristeza", () => {
+    //          neutro alegre surpreso triste raivoso enojado com-medo desdenhoso
     expect(emotionPeakScore([0.9, 0.05, 0.02, 0, 0.03, 0, 0, 0])).toBeCloseTo(0.05);
     expect(emotionPeakScore([0.1, 0.2, 0.6, 0, 0.1, 0, 0, 0])).toBeCloseTo(0.6);
-    expect(emotionPeakScore([0, 0, 0, 1, 0, 0, 0, 0])).toBe(0); // 纯悲伤不算爆点
+    expect(emotionPeakScore([0, 0, 0, 1, 0, 0, 0, 0])).toBe(0); // tristeza pura não conta como estouro
   });
 });
 
@@ -106,12 +106,12 @@ describe("collectEmotionSignal", () => {
     return {
       extractFrame: async () => okFrame,
       detectFaces: async () => [face],
-      scoreEmotion: async () => [0.1, 0.8, 0.05, 0, 0.05, 0, 0, 0], // 开心 0.8
+      scoreEmotion: async () => [0.1, 0.8, 0.05, 0, 0.05, 0, 0, 0], // alegre 0,8
       ...overrides,
     };
   }
 
-  it("正常路径:人脸+高兴 → 圈出表情峰值时段", async () => {
+  it("caminho normal: rosto + alegria → os trechos de pico de expressão são cercados", async () => {
     const outcome = await collectEmotionSignal({
       videoPath: "/v.mp4",
       durationSec: 300,
@@ -124,7 +124,7 @@ describe("collectEmotionSignal", () => {
     expect(outcome!.stats.peakCount).toBe(outcome!.emotionPeaks.length);
   });
 
-  it("全程无人脸(风景/游戏素材) → null", async () => {
+  it("nenhum rosto em todo o material (paisagem, jogo) → null", async () => {
     const outcome = await collectEmotionSignal({
       videoPath: "/v.mp4",
       durationSec: 300,
@@ -134,7 +134,7 @@ describe("collectEmotionSignal", () => {
     expect(outcome).toBeNull();
   });
 
-  it("全是中性表情 → 有统计但零峰值(不给假信号)", async () => {
+  it("expressão neutra do começo ao fim → há estatística, mas nenhum pico (nada de sinal falso)", async () => {
     const outcome = await collectEmotionSignal({
       videoPath: "/v.mp4",
       durationSec: 300,
@@ -145,7 +145,7 @@ describe("collectEmotionSignal", () => {
     expect(outcome!.emotionPeaks).toEqual([]);
   });
 
-  it("抽帧全失败 → null", async () => {
+  it("a extração de quadros falha em tudo → null", async () => {
     const outcome = await collectEmotionSignal({
       videoPath: "/v.mp4",
       durationSec: 300,
@@ -155,7 +155,7 @@ describe("collectEmotionSignal", () => {
     expect(outcome).toBeNull();
   });
 
-  it("单帧推理失败跳过,不影响整体", async () => {
+  it("a inferência que falha num quadro é pulada, sem atrapalhar o conjunto", async () => {
     let n = 0;
     const outcome = await collectEmotionSignal({
       videoPath: "/v.mp4",
@@ -163,7 +163,7 @@ describe("collectEmotionSignal", () => {
       modelsRoot: "/tmp/x",
       deps: deps({
         scoreEmotion: async () => {
-          if (++n % 4 === 0) throw new Error("单帧失败");
+          if (++n % 4 === 0) throw new Error("falha num quadro");
           return [0.2, 0.7, 0.05, 0, 0.05, 0, 0, 0];
         },
       }),
@@ -172,7 +172,7 @@ describe("collectEmotionSignal", () => {
     expect(outcome!.stats.facesScored).toBeLessThan(outcome!.stats.framesTotal);
   });
 
-  it("预算耗尽带着已得结果收工", async () => {
+  it("com o orçamento esgotado, encerra com o que já tem", async () => {
     let calls = 0;
     const outcome = await collectEmotionSignal({
       videoPath: "/v.mp4",

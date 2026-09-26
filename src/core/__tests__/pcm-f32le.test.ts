@@ -1,7 +1,9 @@
 /**
- * ASR 音频输入链(issue #4 重构):ffmpeg 出 raw f32le → Node 读入 Float32Array。
- * 换掉 sherpa readWave(原生层在 Windows 上打不开中文临时路径)后,样本的
- * 字节序/对齐/截断处理全在我们手里——这里用真 ffmpeg 钉死端到端字节正确性。
+ * A cadeia de entrada de áudio do ASR (a refatoração da issue #4): o ffmpeg entrega raw f32le e o Node lê num
+ * Float32Array.
+ * Depois de trocar o readWave do sherpa (cuja camada nativa não abre um caminho temporário com acento no
+ * Windows), a ordem dos bytes, o alinhamento e o truncamento das amostras ficaram todos na nossa mão — e aqui
+ * o ffmpeg de verdade prega a correção byte a byte, de ponta a ponta.
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "fs/promises";
@@ -25,17 +27,17 @@ afterEach(async () => {
 });
 
 describe("readF32leSamples", () => {
-  it("按小端 float32 读入,尾部不足 4 字节的残片丢弃", async () => {
+  it("lê em float32 little-endian, e o resto de menos de 4 bytes no fim é descartado", async () => {
     const path = join(base, "samples.f32le");
     const f32 = Float32Array.from([0, 0.5, -0.5, 1]);
-    // 结尾多写 3 个字节模拟被截断的写入
+    // 3 bytes a mais no fim simulam uma escrita truncada
     await writeFile(path, Buffer.concat([Buffer.from(f32.buffer), Buffer.from([1, 2, 3])]));
 
     const samples = await readF32leSamples(path);
     expect(Array.from(samples)).toEqual([0, 0.5, -0.5, 1]);
   });
 
-  it("空文件读出零样本", async () => {
+  it("arquivo vazio dá zero amostras", async () => {
     const path = join(base, "empty.f32le");
     await writeFile(path, Buffer.alloc(0));
     expect((await readF32leSamples(path)).length).toBe(0);
@@ -43,7 +45,7 @@ describe("readF32leSamples", () => {
 });
 
 describe("extractPcmF32le16k", () => {
-  it("真 ffmpeg 端到端:1 秒 440Hz 正弦 → 16000 个样本,幅值区间正确", async () => {
+  it("ffmpeg de verdade, de ponta a ponta: 1 segundo de senoide a 440Hz → 16000 amostras, com a faixa de amplitude correta", async () => {
     const ffmpeg = resolveFfmpegPath();
     const src = join(base, "tone.wav");
     await execFileAsync(ffmpeg, [
@@ -56,16 +58,16 @@ describe("extractPcmF32le16k", () => {
     await extractPcmF32le16k(ffmpeg, src, out);
     const samples = await readF32leSamples(out);
 
-    // 重采样边缘允许极小偏差,但必须落在 16k 采样率的 1 秒附近
+    // A borda da reamostragem admite um desvio mínimo, mas tem de ficar perto de 1 segundo a 16k
     expect(Math.abs(samples.length - 16000)).toBeLessThan(64);
     let peak = 0;
     for (const s of samples) peak = Math.max(peak, Math.abs(s));
-    // lavfi sine 源固定振幅 1/8≈0.125:峰值应贴近它——过低说明样本错位,过高说明幅值爆了
+    // A fonte sine do lavfi tem amplitude fixa de 1/8≈0,125: o pico tem de ficar perto disso — abaixo indica amostra fora de lugar, e acima indica amplitude estourada
     expect(peak).toBeGreaterThan(0.1);
     expect(peak).toBeLessThanOrEqual(0.15);
   });
 
-  it("多音轨素材显式读取 HotClip 选择的音轨", async () => {
+  it("num material de várias trilhas, a trilha escolhida pelo HotClip é lida explicitamente", async () => {
     const ffmpeg = resolveFfmpegPath();
     const src = join(base, "two-audio.mka");
     await execFileAsync(ffmpeg, [
