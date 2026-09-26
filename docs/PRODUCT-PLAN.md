@@ -1,295 +1,295 @@
-# HotClip 产品规划（2026H2）
+# Planejamento de produto do HotClip (segundo semestre de 2026)
 
-> 基于 2026-07 四路调研整合：商业/开源竞品格局、用户真实痛点、2025-2026 前沿技术可行性、GitHub 头部同类项目逐仓拆解。所有论断在文末来源报告中有出处。
+> Consolidado a partir das quatro frentes de pesquisa de 2026-07: cenário dos concorrentes comerciais e abertos, dores reais de quem usa, viabilidade das tecnologias de fronteira de 2025-2026 e desmontagem repositório por repositório dos principais projetos do gênero no GitHub. Todas as afirmações têm fonte nos relatórios citados no fim.
 
 ---
 
-## 一、定位（一句话，全网统一复读）
+## 1. Posicionamento (uma frase, repetida igual em todo canto)
 
-> **你的视频不出你的电脑——开源免费的本地 AI 切片工作台：AI 提爆点、你 10 秒定稿、一键出片直发全网。**
+> **Seu vídeo não sai do seu computador — a bancada local de cortes com IA, aberta e gratuita: a IA acha o pico, você fecha em 10 segundos, e sai pronto para publicar em tudo com um clique.**
 >
-> 英文版（GEO 共识信号，所有渠道统一措辞）：
+> Versão em inglês (sinal de consenso para os buscadores de IA, mesma redação em todos os canais):
 > **HotClip — free, open-source, local-first Opus Clip alternative. Desktop app, no uploads, no credits, no watermark.**
 
-三个支点：
-1. **信任反面**：CapCut 2025.6 霸王条款事件 + SaaS「积分月清零/退订删项目」的敌意设计，让「本地、不上传、真免费」有真实情绪土壤。
-2. **场景卡位**：长视频/直播回放（2–8 小时）恰是按源分钟计费最疼的场景。
-3. **形态独占**：开源阵营全是 CLI/Gradio/自部署，**没有第二个开箱即用的桌面应用**；且无人同时具备「取景+卡拉OK字幕+跳剪+口头禅+响度+回执」这条完整制作链。
+Três pés:
+1. **O avesso da confiança**: o episódio dos termos abusivos do CapCut em 2025.6 + o desenho hostil do SaaS («o crédito zera todo mês, cancelou, apagou o projeto») dão terreno emocional real para «local, não envia nada, grátis de verdade».
+2. **Posição no cenário**: vídeo longo e gravação de live (de 2 a 8 horas) é justamente onde a cobrança por minuto de origem dói mais.
+3. **Forma exclusiva**: o campo aberto é todo CLI, Gradio ou auto-hospedado, **não existe um segundo aplicativo de desktop que funcione na hora**; e ninguém mais tem ao mesmo tempo a cadeia completa de «enquadramento + legenda animada + corte seco + vício de linguagem + volume + recibo».
 
-## 二、竞品格局速览
+## 2. Cenário competitivo em resumo
 
-| 阵营 | 关键事实 | 对 HotClip 的含义 |
+| Campo | Fato-chave | O que significa para o HotClip |
 |---|---|---|
-| OpusClip | SoftBank 注资，转型「AI 增长 Agent 平台」；ClipAnything 多模态找片段；官方已出 MCP/Claude Skill | 行业方向标：Agent 化 + 多模态是主线；纯文本选片差距会拉大 |
-| Vizard / Klap | 免费档慷慨获客（60min/月）但水印+项目3天过期 | 「无期限、无水印」要持续放大声量 |
-| Munch | **已放弃自助 SaaS 转人工代剪** | 无差异化的中间位会死；HotClip 靠开源+本地站稳两极之外的位置 |
-| 剪映/CapCut | 智能长转短免费可用，但云端+ToS 信任危机+核心功能进会员 | 中文侧最大对手也是最好的反衬素材 |
-| 度加/智影/闪剪 | 快剪（气口/语气词）已是标配；矩阵混剪是企业刚需 | 单点功能不是护城河，「本地+透明+免费」组合才是 |
-| 开源（FunClip 5.9k / ShortGPT 7.7k / bilive 3.2k / autoclip 6k） | 全部无桌面端；bilive 证明「录→切→自动投稿」闭环是刚需 | 桌面形态独占；发布闭环是开源侧最大空白 |
+| OpusClip | aporte do SoftBank, virando «plataforma de agente de crescimento com IA»; ClipAnything acha trecho com multimodal; já tem MCP e Claude Skill oficiais | bússola do setor: agente + multimodal é a linha principal; a distância de quem escolhe só por texto vai aumentar |
+| Vizard / Klap | faixa grátis generosa para captar (60 min por mês), mas com marca-d'água e projeto expirando em 3 dias | «sem prazo, sem marca-d'água» precisa ser gritado sem parar |
+| Munch | **desistiu do SaaS self-service e virou edição feita à mão** | a posição do meio sem diferencial morre; o HotClip se firma fora dos dois extremos pelo código aberto e pelo local |
+| CapCut | o corte automático de longo para curto é grátis, mas é na nuvem, com crise de confiança nos termos e as funções centrais indo para a assinatura | o maior rival do lado chinês também é o melhor material de contraste |
+| Ferramentas de corte rápido do mercado chinês | corte rápido (respiração e vício de linguagem) já é padrão; mixagem em rede é necessidade corporativa | função isolada não é fosso; o fosso é a combinação «local + transparente + grátis» |
+| Código aberto (FunClip 5,9k / ShortGPT 7,7k / bilive 3,2k / autoclip 6k) | nenhum tem aplicativo de desktop; o bilive prova que o ciclo «gravar → cortar → publicar sozinho» é necessidade real | a forma de desktop é exclusiva; o ciclo de publicação é o maior vazio do lado aberto |
 
-**已被追平、不再是卖点**（README 里降权为「及格线」）：人脸跟随 9:16、卡拉OK字幕、开场钩子、剪填充词。
-**真护城河**：本地+开源+桌面、无积分焦虑、制作链完整度、切点可审计（证据链+clips.json 回执）。
+**O que já foi alcançado e não é mais argumento de venda** (no README, rebaixado para «linha de aprovação»): 9:16 seguindo o rosto, legenda animada, gancho de abertura, remoção de palavra de preenchimento.
+**Fosso de verdade**: local + aberto + desktop, sem a angústia dos créditos, cadeia de produção completa, ponto de corte auditável (cadeia de provas + recibo no clips.json).
 
-## 三、用户痛点优先级（附产品应对）
+## 3. Prioridade das dores de quem usa (com a resposta do produto)
 
-| 级别 | 痛点 | 应对 |
+| Nível | Dor | Resposta |
 |---|---|---|
-| P0 | AI 选片不可信（「20 条只有 2-3 条能发」，修 AI 产出比自己剪还慢） | **候选审阅台**：拖拽微调边界、按语义句扩展、一键重生成——把「全托管」升级为「全托管+快速干预」 |
-| P1 | 计费敌意（按源分钟扣积分、积分清零、退订删项目） | 已解决；营销持续放大 |
-| P2 | 隐私/版权恐慌（商单/NDA 素材不敢上传） | 已解决；官网/README 用 CapCut ToS 事件做对照 |
-| P3 | 多平台发布/排期 | 浏览器自动化发布（Electron 内嵌 Chromium 天然优势）+ TikTok/YouTube 官方 API |
-| P4 | 直播录播 7×24 无人值守 | watch 文件夹/对接录播姬生态 + 弹幕热度信号 |
-| P5-P8 | 翻译字幕、B-roll、品牌模板、矩阵吞吐 | 见路线图 |
+| P0 | não dá para confiar na escolha da IA («de 20 cortes, só 2 ou 3 dá para publicar», e consertar a saída da IA demora mais do que editar à mão) | **mesa de revisão dos candidatos**: arrastar para ajustar a borda, esticar até a frase semântica, regerar com um clique — transformando «tudo automático» em «tudo automático + intervenção rápida» |
+| P1 | hostilidade da cobrança (crédito descontado por minuto de origem, crédito que zera, cancelou e o projeto some) | resolvido; o marketing continua amplificando |
+| P2 | pânico com privacidade e direitos (material de cliente ou sob NDA que ninguém ousa enviar) | resolvido; o site e o README usam o episódio dos termos do CapCut como contraste |
+| P3 | publicação e agendamento em várias plataformas | publicação por automação de navegador (o Chromium embutido no Electron é vantagem natural) + APIs oficiais do TikTok e do YouTube |
+| P4 | gravação de live 24 horas por dia sem ninguém olhando | pasta monitorada / integração com o ecossistema de gravadores + sinal de calor dos comentários ao vivo |
+| P5-P8 | legenda traduzida, B-roll, modelo de marca, vazão em rede | ver o roteiro |
 
-## 四、产品路线图
+## 4. Roteiro do produto
 
-### v0.5 —「选得准、批量稳」（补短板）
-- **候选切片审阅台**（P0 痛点，影响极高/成本低，clips.json 基础已具备）
-- **镜头边界检测 TransNetV2/AutoShot（ONNX）**：切点吸附镜头边界 + 镜头节奏进爆点打分（3-4 人日，收益立现）
-- **样式模板/品牌预设**：字幕样式/钩子/logo/安全区一次配置全局复用（竞品付费墙功能）
-- **端侧小 LLM 两级漏斗**：Qwen3-4B（Ollama）初筛 → 云端精排，LLM 成本降一个量级，强化本地叙事
+### v0.5 — «escolher certo, rodar em lote com firmeza» (tapando buracos)
+- **Mesa de revisão dos cortes candidatos** (dor P0, impacto altíssimo e custo baixo, a base do clips.json já existe)
+- **Detecção de borda de plano TransNetV2/AutoShot (ONNX)**: o ponto de corte encaixa na borda do plano + o ritmo dos planos entra na nota do pico (3 a 4 dias de trabalho, ganho imediato)
+- **Modelo de estilo / predefinição de marca**: estilo de legenda, gancho, logo e área segura configurados uma vez e reaproveitados em tudo (função atrás do paywall nos concorrentes)
+- **Funil de dois níveis com um LLM pequeno na máquina**: Qwen3-4B (Ollama) na triagem → refino na nuvem, custo de LLM uma ordem de grandeza menor, reforçando a narrativa local
 
-### v0.6 —「看得见画面、说得出外语」（追平前沿）
-- **视觉爆点信号**：Qwen3-VL 4B/8B 端侧抽帧（Apache 2.0）+ 可选 Gemini Flash 云端精判（视频 $0.0155/分钟级）
-- **人脸表情峰值信号**（复用现有 face-track 管线；⚠️ 避开 InsightFace 非商用权重与 AGPL 的 YOLO-face，用 YuNet/emotion-ferplus）
-- **多语言翻译字幕**（先中↔英烧录，双语定位天然合拍）
-- **英文 ASR 升级**：Parakeet TDT 0.6B v3 ONNX（CPU 快过 whisper-turbo，CC-BY-4.0）；跟踪 Qwen3-ASR + ForcedAligner 改善逐字对齐
+### v0.6 — «enxergar a imagem, falar outra língua» (alcançando a fronteira)
+- **Sinal de pico visual**: Qwen3-VL 4B/8B na máquina com extração de quadros (Apache 2.0) + Gemini Flash opcional na nuvem para o julgamento fino (na casa de US$ 0,0155 por minuto de vídeo)
+- **Sinal de pico de expressão facial** (reaproveitando o pipeline de rastreio de rosto que já existe; ⚠️ evitando os pesos não comerciais do InsightFace e o YOLO-face sob AGPL, usando YuNet/emotion-ferplus)
+- **Legenda traduzida em vários idiomas** (começando pela queima do par principal, já que a localização bilíngue combina naturalmente)
+- **Atualização do ASR em inglês**: Parakeet TDT 0.6B v3 em ONNX (mais rápido que o whisper-turbo em CPU, CC-BY-4.0); acompanhar o Qwen3-ASR + ForcedAligner para melhorar o alinhamento palavra a palavra
 
-### v0.7 —「切完直接发」（发布闭环，开源侧最大空白）
-- **多平台发布**：Electron 内嵌浏览器自动化（抖音/B站/视频号/快手/小红书，参考 social-auto-upload；明示封号风险）+ TikTok Content Posting API / YouTube Data API
-- **平台规格预设 + 平台标题/hashtag 生成**（clips.json 已有素材）
-- 剪映草稿导出（原规划保留）
+### v0.7 — «cortou, publicou» (o ciclo de publicação, o maior vazio do lado aberto)
+- **Publicação em várias plataformas**: automação de navegador embutida no Electron (as principais redes de vídeo curto, com referência no social-auto-upload; deixando claro o risco de banimento) + TikTok Content Posting API / YouTube Data API
+- **Predefinição por plataforma + geração de título e hashtag por plataforma** (o clips.json já tem o insumo)
+- Exportar rascunho para o CapCut (mantido do plano original)
 
-### v0.8 —「被 Agent 调用、吃下直播」（第二曲线）
-- **HotClip MCP Server（本地 stdio）**：「给我这个 4 小时录播，切 10 条爆点」→ Claude 直接驱动本地管线。OpusClip 已趟路，「本地 MCP 切片器」是空白位，开发者传播杠杆最大
-- **录播监听模式**：watch 文件夹，回放落盘即自动全托管（对接 bilive/录播姬生态）
-- **弹幕/聊天热度爆点信号**：导入 B 站/Twitch 弹幕与语义分析融合打分（中文直播场景无人做好，差异化尖刀）
+### v0.8 — «ser chamado por agente, engolir a live» (segunda curva)
+- **Servidor MCP do HotClip (stdio local)**: «pega essa gravação de 4 horas e tira 10 picos» → o Claude dirige o pipeline local direto. O OpusClip já abriu o caminho, e o «cortador MCP local» é uma vaga vazia, com a maior alavanca de divulgação entre desenvolvedores
+- **Modo de monitoramento de gravação**: pasta monitorada, e assim que a gravação cai no disco, tudo roda sozinho (integrando com o ecossistema de gravadores)
+- **Sinal de pico pelo calor dos comentários ao vivo**: importar os comentários e fundir com a análise semântica na nota (ninguém faz isso bem no cenário de live em chinês, é a ponta de lança da diferenciação)
 
-### 暂缓
-图生视频 B-roll（成本/可控性差）、口型同步（等 dubbing 场景成立，届时选 MIT 的 MuseTalk）、直播实时切片（sherpa-onnx streaming 已验证可行，属第二曲线后段）。
-低成本可顺手做：Real-ESRGAN-ncnn-vulkan 超分（官方便携可执行文件，spawn 即用，2-3 人日）、Pexels B-roll（API 免费商用）。
+### Adiado
+B-roll de imagem para vídeo (custo e controle ruins), sincronia labial (esperar o cenário de dublagem se firmar e então escolher o MuseTalk, que é MIT), corte em tempo real durante a live (o streaming do sherpa-onnx já se mostrou viável, mas é o trecho final da segunda curva).
+Barato e dá para fazer de passagem: superresolução com Real-ESRGAN-ncnn-vulkan (executável portátil oficial, é só dar spawn, 2 a 3 dias), B-roll do Pexels (API grátis para uso comercial).
 
-## 五、增长规划（SEO / GEO / 渠道）
+## 5. Planejamento de crescimento (SEO / buscadores de IA / canais)
 
-### 5.1 已执行（2026-07-08）
-- ✅ repo description 换为英文主导竞品狙击型（306 字符，含 "Opus Clip alternative / local / no watermark" + 中文尾注）
-- ✅ homepage 指向 `releases/latest`
-- ✅ topics 调整为 20 个：换入 `ai` `video-editing` `subtitles` `speech-recognition` `local-first` `desktop-app`，换出低流量中文平台词（保留 `douyin` 代表中文身份）
+### 5.1 Já executado (2026-07-08)
+- ✅ a descrição do repositório virou um texto em inglês mirando os concorrentes (306 caracteres, com «Opus Clip alternative / local / no watermark»)
+- ✅ a homepage aponta para `releases/latest`
+- ✅ os tópicos foram ajustados para 20: entraram `ai`, `video-editing`, `subtitles`, `speech-recognition`, `local-first` e `desktop-app`, e saíram termos de plataforma de baixo tráfego
 
-### 5.2 待手动执行（需要仓库管理员确认）
-- **删 5 个 CI 残留草稿 release**（electron-builder 自动创建，附件与正式版重复）：
+### 5.2 A executar à mão (depende de quem administra o repositório)
+- **Apagar os 5 rascunhos de release que sobraram da CI** (criados automaticamente pelo electron-builder, com anexos repetidos da versão oficial):
   `for id in 349290690 349161774 349150406 349080462 348953914; do gh api -X DELETE repos/xixihhhh/hotclip/releases/$id; done`
-- **上传社交预览图**（Settings → Social preview，1280×640，<1MB）：左侧竖屏成片截图 + 右侧「本地免费 · 无水印 · 长视频→爆款竖屏」。**被拆解的全部竞品（含 9.6 万星的 MoneyPrinterTurbo）都没做这件事**，10 分钟拿下独占。
+- **Subir a imagem de pré-visualização social** (Settings → Social preview, 1280×640, menos de 1 MB): à esquerda a captura de um corte vertical, à direita «local e grátis · sem marca-d'água · vídeo longo → vertical viral». **Nenhum dos concorrentes desmontados (nem o MoneyPrinterTurbo, com 96 mil estrelas) fez isso**, então são 10 minutos para ficar sozinho nessa.
 
-### 5.3 README 改造清单
+### 5.3 Lista de reforma do README
 
-**P0（本周，直接影响转化）**
-1. **30-60 秒实操 demo mp4** 放「界面预览」之前（README 编辑框直拖 mp4 → user-attachments 页内播放器）。视频工具 README 最大单一杠杆：前三屏没有「动的成片」，一切文字承诺都不可信。
-2. **成片效果表格**：`<table>` 并排 2-3 个竖屏成片 `<video>`（中文播客金句/带货直播高能/中英混说），用户买的是「切出来的片什么样」不是界面。
-3. **补徽章行**（当前一个没有）：release + downloads + platform + license + stars(social)，放标题正下方；忌堆砌。
-4. **What's New 段**：最近 3 版一句话更新链 release——4 天 7 个版本的活跃度完全没被看见。
+**P0 (nesta semana, afeta a conversão direto)**
+1. **Demo de 30 a 60 segundos em mp4** antes da «prévia da interface» (é só arrastar o mp4 na caixa de edição do README e ele toca na página). É a maior alavanca isolada do README de uma ferramenta de vídeo: sem «um corte se mexendo» nas três primeiras telas, nenhuma promessa em texto é crível.
+2. **Tabela com o resultado dos cortes**: uma `<table>` com 2 ou 3 `<video>` verticais lado a lado (frase de efeito de podcast, momento forte de live de venda, fala misturando idiomas), porque quem chega compra «como fica o corte», não a interface.
+3. **Linha de selos** (hoje não tem nenhum): release + downloads + plataforma + licença + estrelas, logo abaixo do título; sem exagerar.
+4. **Seção do que há de novo**: uma frase por versão nas últimas 3, com link para a release — a atividade de 7 versões em 4 dias não está sendo vista por ninguém.
 
-**P1（两周内，发现性与社区）**
-5. **双语拆分文件**：README.md 中文 + README.en.md 英文，第 2 行 `简体中文 | English`（学 FunClip/MPT；现单文件混排把前三屏拉成六屏，语言切换藏在第 11 行）。
-6. 英文正文显式点名 "alternative to OpusClip, Klap, Vizard"（SamurAIGPT 靠 description+正文竞品词吃了两年被动流量）。
-7. **开 Discussions + 置顶 issue**：①安装求助直达 ②Roadmap 投票（把「规划中」搬过去让用户投票，冷启动期每个投票者都是留存用户）；配 bug/feature issue 模板。
-8. 社区入口：微信群二维码（中文切片人群在微信不在 Discord）+ 邮箱；Star History 图 + demo 后加一句求星 CTA。
+**P1 (em duas semanas, descoberta e comunidade)**
+5. **Separar os idiomas em arquivos**: README.md em pt-BR e README.en.md em inglês, com `Português | English` na segunda linha (como fazem o FunClip e o MPT; hoje o arquivo único misturado estica as três primeiras telas para seis, e a troca de idioma está escondida na linha 11).
+6. Citar nominalmente no texto em inglês «alternative to OpusClip, Klap, Vizard» (o SamurAIGPT viveu dois anos de tráfego passivo só com os nomes dos concorrentes na descrição e no corpo).
+7. **Abrir as Discussions + fixar issues**: ① ajuda de instalação direto ② votação do roteiro (mudar o «planejado» para lá e deixar as pessoas votarem; na fase de arranque, cada voto é alguém que fica); com modelos de issue de bug e de funcionalidade.
+8. Porta de entrada da comunidade: QR code do grupo de mensagens (o público de cortes em chinês está no mensageiro, não no Discord) + e-mail; gráfico de Star History + um pedido de estrela logo depois do demo.
 
-**P2（一个月内）**
-9. **GitHub Pages 落地页**：一页纸（demo 视频+三步流程+下载按钮），改绑 homepage；加 JSON-LD SoftwareApplication + FAQ schema；顺手放 llms.txt（不指望有效果）。
-10. 官网两个对比页：`/alternatives/opus-clip`（英）+「AI 切片工具对比」（中）——竞品全做了 alternatives 页，开源身份在 "free/open source/local" 修饰词长尾上碾压。
-11. **国内网盘镜像**（夸克/百度）：国内裸连 GitHub Release 常失败，中文桌面工具的隐形流失大头（学 MPT）。
-12. 上游生态互链：sherpa-onnx/SenseVoice/FireRedASR/pyannote 致谢表格；向上游仓库提 "who's using" PR 反向导流。
-13. 示例素材包：5 分钟 CC 授权视频 +「3 分钟出第一条片」引导（ClipsAI 死于让用户先凑素材才能看到效果）。
-14. FAQ 加「HotClip vs OpusClip?」「需要联网吗?」条目，报错类 FAQ 贴**完整报错原文**（搜索直接命中）。
+**P2 (em um mês)**
+9. **Página de destino no GitHub Pages**: uma página só (vídeo de demo + fluxo em três passos + botão de download), com a homepage apontando para lá; acrescentar JSON-LD de SoftwareApplication + schema de FAQ; e, de passagem, o llms.txt (sem esperar efeito).
+10. Duas páginas de comparação no site: `/alternatives/opus-clip` (em inglês) + «comparação de ferramentas de corte com IA» (em português) — os concorrentes todos fizeram página de alternativas, e a identidade aberta atropela na cauda longa dos qualificadores «free / open source / local».
+11. **Espelho em serviço de nuvem local**: a conexão direta com o GitHub Releases falha bastante em alguns países, e essa é a maior perda invisível de uma ferramenta de desktop (aprendendo com o MPT).
+12. Ligação cruzada com o ecossistema de origem: tabela de agradecimento a sherpa-onnx, SenseVoice, FireRedASR e pyannote; abrir PR de «who's using» nos repositórios de origem para trazer tráfego de volta.
+13. Pacote de material de exemplo: um vídeo de 5 minutos sob licença CC + um guia de «seu primeiro corte em 3 minutos» (o ClipsAI morreu por exigir que a pessoa arrumasse material antes de ver o resultado).
+14. Acrescentar no FAQ os itens «HotClip vs OpusClip?» e «precisa de internet?», e, nos de erro, colar **o texto completo do erro** (para bater direto na busca).
 
-**避坑（竞品血泪）**：第一屏不放赞助/返利；README 不膨胀成运维手册（autoclip 868 行无一图）；徽章用动态 shields 不写死数字；commit 节奏本身是最强营销信号，宁慢勿断。
+**Ciladas a evitar (o sangue dos concorrentes)**: não colocar patrocínio nem afiliado na primeira tela; não inchar o README até virar manual de operação (o autoclip tem 868 linhas e nenhuma imagem); usar selos dinâmicos do shields, nunca número fixo; e o ritmo dos commits é, em si, o sinal de marketing mais forte — melhor devagar do que interrompido.
 
-### 5.4 GEO 行动清单（AI 引擎推荐 = 新的排名第一）
+### 5.4 Plano de ação para os buscadores de IA (ser recomendado pela IA = o novo primeiro lugar)
 
-核心机制是**共识信号**：同一定位在多个独立来源反复出现，AI 才敢推荐。llms.txt 实测无效（AI 爬虫命中率 0.1%），不投入。
+O mecanismo central é o **sinal de consenso**: só quando o mesmo posicionamento aparece repetido em várias fontes independentes é que a IA se arrisca a recomendar. O llms.txt não funcionou na prática (0,1% de acerto dos rastreadores de IA), então não investimos nele.
 
-| 动作 | 时间 | 说明 |
+| Ação | Prazo | Observação |
 |---|---|---|
-| 提交 opensourcealternative.to / alternativeto.net / openalternative.co | 本周 | 目录页是 AI 回答 "alternative" 类问题的高频引用源 |
-| PR 进 awesome 清单 | 本周 | `awesome-free-opusclip-alternatives`（已存在！）、awesome-electron、awesome-ai-video 等 3+ |
-| Reddit 回答式渗透 | 持续 | r/NewTubers、r/podcasting、r/videoediting、r/selfhosted、r/opensource；90/10 规则+利益披露；Perplexity 24h 内即可引用 Reddit 新帖 |
-| 知乎 3-5 答 + 1 专栏 | 2 周内 | **知乎即中文 GEO**（Kimi/豆包 RAG 主要中文语料源）；把自己放进客观对比 |
-| 每月 GEO KPI 实测 | 持续 | 用 "best free opus clip alternative" /「开源 AI 切片工具」问 ChatGPT/Perplexity/Kimi/豆包，记录出现率 |
+| Submeter a opensourcealternative.to / alternativeto.net / openalternative.co | esta semana | as páginas de diretório são fonte muito citada quando a IA responde perguntas do tipo «alternativa a» |
+| PR nas listas awesome | esta semana | `awesome-free-opusclip-alternatives` (já existe!), awesome-electron, awesome-ai-video e mais 3 |
+| Presença em formato de resposta no Reddit | contínuo | r/NewTubers, r/podcasting, r/videoediting, r/selfhosted, r/opensource; regra 90/10 + declarar o interesse; o Perplexity cita um post novo do Reddit em até 24 h |
+| 3 a 5 respostas + 1 artigo em fórum de perguntas e respostas | em 2 semanas | é o principal corpus dos buscadores de IA em chinês; colocar-se dentro de uma comparação objetiva |
+| Medir o indicador dos buscadores de IA todo mês | contínuo | perguntar «best free opus clip alternative» e o equivalente em português ao ChatGPT, Perplexity e assistentes locais, e anotar a taxa de aparição |
 
-### 5.5 渠道发布节奏（Trending 冲刺）
+### 5.5 Ritmo de lançamento por canal (arrancada para o Trending)
 
-GitHub Trending 看 **star 加速度**而非总量 → 把流量脉冲压进同一个 48-72 小时窗口：
+O Trending do GitHub olha a **aceleração das estrelas**, não o total → então o pulso de tráfego é espremido na mesma janela de 48 a 72 horas:
 
-**冲刺窗口（建议 v0.5 发布时）**：Show HN（周二-四 8-10AM PT，标题 "Show HN: HotClip – open-source local alternative to OpusClip"，5 分钟内跟工程师口吻 founder comment）+ Product Hunt + V2EX 分享创造 + B站实测视频 + 即刻/微博，同 48h 打出。
-**中文长线**：B站 3-5 分钟「白嫖版 OpusClip」实测（中文开源第一涨星引擎）→ 少数派 Matrix 投稿 → 小众软件自荐 → 小红书「不用买会员的 AI 切片」教程（切片副业人群）。
-**英文长线**：dev.to/daily.dev 技术长文（如「为什么 LLM 不该猜时间戳——逐字反向对齐架构」，HN 二次传播素材）；Hugging Face Space 轻量 demo（贴转写→出爆点+打分）回链 GitHub。
+**Janela de arrancada (sugestão: no lançamento da v0.5)**: Show HN (terça a quinta, 8 às 10 da manhã no Pacífico, título «Show HN: HotClip – open-source local alternative to OpusClip», com um comentário do autor em tom de engenheiro em até 5 minutos) + Product Hunt + fóruns de desenvolvedores + vídeo de teste em plataforma de vídeo + redes sociais, tudo nas mesmas 48 h.
+**Longo prazo em português**: vídeo de teste de 3 a 5 minutos «a versão de graça do OpusClip» → artigo em blog de produtividade → indicação em sites de software → tutorial «corte com IA sem precisar assinar nada» nas redes de conteúdo (público que corta como renda extra).
+**Longo prazo em inglês**: artigo técnico longo no dev.to e no daily.dev (por exemplo «por que um LLM não deveria adivinhar marca de tempo — a arquitetura de alinhamento reverso palavra a palavra», material para uma segunda onda no HN); demo leve em um Hugging Face Space (cola a transcrição → sai o pico com nota) linkando de volta para o GitHub.
 
-### 5.6 目标关键词（承载页对应）
+### 5.6 Palavras-chave alvo (com a página que as sustenta)
 
-- 英文核心：`opus clip alternative free` `open source opus clip alternative`（官网 alternatives 页+topic）、`ai clip generator free no watermark`（官网首页）、`long video to shorts ai`（README H1 已占）、`local video transcription no upload`（**蓝海**：local/privacy/no-upload 角度无竞品占位）
-- 中文核心：「AI切片工具 免费」「直播切片工具」（知乎/B站）、「OpusClip 免费替代」（知乎+官网）、「长视频转短视频 AI」（B站标题）、「本地 AI 剪辑 不上传」（V2EX/少数派）、「切片带货 工具 免费」（小红书）
+- Centrais em inglês: `opus clip alternative free`, `open source opus clip alternative` (página de alternativas e tópico), `ai clip generator free no watermark` (página inicial), `long video to shorts ai` (já ocupada pelo H1 do README), `local video transcription no upload` (**oceano azul**: nenhum concorrente ocupa o ângulo local/privacidade/sem upload)
+- Centrais em português: «ferramenta de corte com IA grátis», «ferramenta para cortar live», «alternativa grátis ao OpusClip», «vídeo longo para vídeo curto com IA», «edição com IA local sem upload», «ferramenta grátis de corte para vender»
 
-## 六、节奏与 KPI
+## 6. Ritmo e indicadores
 
-| 时间 | 里程碑 | KPI |
+| Prazo | Marco | Indicador |
 |---|---|---|
-| 本周 | README P0 四项 + 社交预览图 + 目录站/awesome 提交 + 删草稿 release | 元数据全就位 |
-| 2 周 | README 双语拆分 + Discussions/模板 + 知乎/B站首批内容 | 首批外部反链 5+ |
-| 1 个月 | v0.5（审阅台+镜头检测+模板）+ GitHub Pages 官网 | 500 stars（Trending 冲刺窗口） |
-| 3 个月 | v0.6（视觉爆点+翻译字幕）+ 对比页 SEO 收录 | 2k stars；GEO 实测 4 引擎出现 ≥2 |
-| 6 个月 | v0.7 发布闭环 + v0.8 MCP/直播 | 5k stars（对标 FunClip/autoclip 量级）；「本地 MCP 切片器」心智占位 |
+| esta semana | os quatro itens P0 do README + imagem social + submissão aos diretórios e às listas awesome + apagar os rascunhos de release | metadados todos no lugar |
+| 2 semanas | README separado por idioma + Discussions e modelos + primeiro conteúdo nos canais | 5 ou mais links externos iniciais |
+| 1 mês | v0.5 (mesa de revisão + detecção de plano + modelos) + site no GitHub Pages | 500 estrelas (janela de arrancada no Trending) |
+| 3 meses | v0.6 (pico visual + legenda traduzida) + páginas de comparação indexadas | 2 mil estrelas; aparecer em pelo menos 2 dos 4 buscadores de IA medidos |
+| 6 meses | v0.7, o ciclo de publicação, + v0.8, MCP e live | 5 mil estrelas (mesma ordem do FunClip e do autoclip); ocupar a mente como «o cortador MCP local» |
 
 ---
 
-## 七、2026-08 复盘：对齐真实切片工作流（本节为最新结论，与前文冲突处以本节为准）
+## 7. Retrospectiva de 2026-08: alinhar com o fluxo real de quem corta (esta seção é a conclusão mais recente; onde houver conflito com o que vem antes, vale esta)
 
-### 7.1 调研更新（2026-08-05）
+### 7.1 Atualização da pesquisa (2026-08-05)
 
-**国际侧（OpusClip 2026-07 一个月连发 10 项）**：Bad Takes 重录清理（已追平）、AI 音效自动放置、AI 生成 B-roll、25 语配音克隆、爆款精剪预设（口播→带动态背景/动效的包装成片）、自动标题贴片品牌模板、安卓端、MCP/Skill Agent 化。方向明确：**选段之后的「成片包装」与 Agent 化**。Submagic 同向：emoji/关键词字幕、七种 zoom 运镜、音效、一键去静音。而 OpusClip 2026 口碑依旧是「**20 条只有 2-3 条能发**」+ 处理挂起 + 积分敌意（Trustpilot 22% 一星）——我们押的「选片可信+本地」两个点持续被验证。
+**Lado internacional (10 lançamentos do OpusClip em um mês, 2026-07)**: limpeza de tomadas ruins (já alcançado), colocação automática de efeito sonoro, B-roll gerado por IA, clonagem de voz em 25 idiomas, predefinição de acabamento viral (locução → corte embalado com fundo animado e efeitos), modelo de marca com selo de título automático, versão para Android e agentificação via MCP/Skill. A direção é clara: **a «embalagem do corte final», depois da escolha, e a agentificação**. A Submagic vai no mesmo sentido: legenda com emoji e palavra-chave, sete movimentos de zoom, efeitos sonoros e remoção de silêncio com um clique. E a reputação do OpusClip em 2026 continua sendo «**de 20 cortes, só 2 ou 3 dá para publicar**» + processamento pendurado + hostilidade aos créditos (22% de uma estrela no Trustpilot) — ou seja, as duas cartas em que apostamos, escolha confiável e local, seguem sendo validadas.
 
-**国内侧（真实切片手的完整链路）**：拿授权（55 分成/机构抽成后约 30%；精选联盟 2026-04 起最低佣金 5%）→ 获取回放/录屏 → 切片 → **多版本** → **多账号多平台分发**（30 账号 × 5 平台手动要 2-3 小时/天，「40+ 平台群发」工具成刚需赛道；行业共识已从「内容为王」转「**效率为王**」）→ 挂车变现。同时平台侧 2026-07 起**收紧切片/二创授权审核**：要求留存原始录屏（片段前后各 ≥3 分钟）、授权协议五要素（授权方/被授权账号/可否剪辑/投流权限/平台范围）、逐条分发台账；抖音判原创看「**信息熵变化/表达主体性**」——简单抽帧/镜像/变速已被明确判搬运。
+**Lado nacional (a jornada completa de quem corta de verdade)**: conseguir a licença (divisão meio a meio, ficando com uns 30% depois da comissão da agência; a comissão mínima nos programas de afiliados caiu para 5% a partir de 2026-04) → pegar a gravação ou gravar a tela → cortar → **várias versões** → **distribuir em várias contas e plataformas** (30 contas × 5 plataformas à mão dá de 2 a 3 horas por dia, e a ferramenta de «disparo para mais de 40 plataformas» virou um setor de necessidade real; o consenso do mercado saiu de «conteúdo é rei» para «**eficiência é rei**») → monetizar com o link de venda. E, do lado das plataformas, a partir de 2026-07 **a revisão de licença para corte e recriação apertou**: exige guardar a gravação original (pelo menos 3 minutos antes e depois do trecho), os cinco elementos do contrato de licença (quem licencia, qual conta é licenciada, se pode editar, permissão de impulsionamento e alcance de plataformas) e um livro-caixa de distribuição item a item; o julgamento de originalidade olha «**mudança de entropia de informação / autoria da expressão**» — extração de quadros, espelhamento e mudança de velocidade já são classificados claramente como reaproveitamento.
 
-### 7.2 诊断：起点没跑偏，终点画早了
+### 7.2 Diagnóstico: o começo não saiu torto, mas o fim foi desenhado cedo demais
 
-定位（本地+选片可审计）仍是对的；但项目把力气全花在「切得好」，而 2026 用户的时间大头在「**切完之后**」：多版本、多账号分发、合规留证。用户要买的是「从回放到发出去」，我们交付到「文件夹里有 mp4」为止——右半程整段缺失。
+O posicionamento (local + escolha auditável) continua certo; mas o projeto gastou toda a força em «cortar bem», enquanto o grosso do tempo de quem usa em 2026 está **depois do corte**: várias versões, distribuição em várias contas, prova de conformidade. O que a pessoa quer comprar é «da gravação até publicado», e nós entregamos até «tem um mp4 na pasta» — a metade final está inteira faltando.
 
-### 7.3 修订路线（取代第四节中未开工部分的优先级）
+### 7.3 Roteiro revisado (substitui a prioridade da parte ainda não iniciada da seção 4)
 
-核心只有两件事：**素材效果**（成片拿得出手）与**流程**（切完直接能发）。
+No fundo são só duas coisas: **o resultado do material** (o corte ser apresentável) e **o fluxo** (cortou, dá para publicar).
 
-- **P0 发布准备闭环**（流程——把已有件组装到最后一公里）：①**平台发布包**——每平台一个文件夹，按平台规格自动适配（小红书 3:4 封面 1080×1440、标题长度、话题数上限），视频+封面+文案齐套落位；②**一片多版**——同一切片生成差异化变体（不同开场钩子/标题/封面帧/文案角度），走「增量价值」而非像素去重，天然多账号可用
-- **P1 成片包装追平**（素材效果）：音效自动放置（笑点/转折点）、BGM 自动闪避人声、Pexels 免费 B-roll、封面大字标题
-- **P2 剪映草稿导出**（借剪映的精修与发布生态）→ 之后再评估浏览器直发自动化（封号风险，明示）
-- **明确不做**：像素级去重（抽帧/镜像/参数微调过检测）——平台已明确判违规，帮不了用户长久；授权台账/举证包——与「素材效果+流程」主线无关，暂缓不做
-
----
-
-## 八、2026-08 效果专项二轮调研：修订路线图（与第七节冲突处以本节为准）
-
-> 完整调研见 [RESEARCH-2026-08-CLIP-QUALITY.md](./RESEARCH-2026-08-CLIP-QUALITY.md)（四路并行：国际竞品/中文生态/付费 AI 盘点/剪辑工艺与前沿）。
-
-### 8.1 诊断修正
-
-定位（本地+免费+可审计+审阅台）被竞品口碑反向验证是对的；**偏差在力量分配**：信号种类堆到八路，但「成片包装层」（声音设计/节奏/字幕默认审美）和「流程右半程」（精修→分发→合规）投入不足——前者是 2026 年「即发布感」的主要来源，后者是中文切片手已定型的三段式工作流（AI 初剪→剪映精修→矩阵分发）的后两段。
-
-预期校准：全自动爆款率行业天花板 ~20%，单人口播命中 85-92%、多人对话 52-74%。目标不是「全自动 100% 能发」，是**可发布率显著高于竞品 + 每条 review 成本 2 分钟以内**。
-
-北极星原则：①「少而完整」——可发布率优先于条数；②本地免费档全链路可跑，云端按量档增强效果（Atlas 一个 key 覆盖，UI 明示单条成本）；③爆款分只做排序不做绝对承诺；④审美/毫秒参数进配置+A/B，不写死。
-
-### 8.2 版本节奏
-
-**v0.11「成片会呼吸」——声音设计 + 节奏 + 字幕审美（效果 P0，全本地零成本）✅ 2026-08-05 已落地**（sound-design.ts 音效合成+打点+BGM 闪避 / gaps 情绪禁删守卫 / genre 停顿分档 / subtitle「动态极简」 / qa 节奏信号 / autozoom 强调点接通峰值事件；BGM 为用户自备文件混音，不内置曲库避许可证）
-1. SFX 打点引擎：内置精选 CC0 音效包，规则放置（whoosh=硬切帧/pop=字幕上屏帧/riser=payoff 前 1-2s/ding=笑点），每条 ≤3 个，可关——查证确认「放哪一帧」无学术方案无成熟 API，规则做好即是竞争力
-2. BGM：内置 seamless loop CC0 曲库 + sidechain ducking（低于人声 15-20dB），可选 MiniMax Music 云端档
-3. 静音/停顿阈值按品类分档（0.3-1.2s）+ 情绪/笑声事件前后 1s 禁删（接既有 voice-emotion/audio-peaks 信号）
-4. 字幕默认审美升级「动态极简」：2-4 词块卡点、关键词品牌色（每句 ≤1 词）、中间 60% 安全区 + 平台遮挡区规避
-5. QA 新增节奏信号：视觉事件间隔 >5s 告警 → 建议 autozoom 补刀
-
-**v0.12「挑得准、开场炸」——选段升级（效果 P0，云端可选档首次接入）**
-> 进度 2026-08-05:✅ 爆点闪现(flash-forward,含与高潮前置的优先级协作)/✅ 钩子兑付校验进 QA/✅ **精准切点**(FunClip 拆解产出的新增项:候选段 Paraformer 二遍对齐修词级时间戳,真模型冒烟通过)/✅ **VLM 候选段复核**(highlight/review-vision.ts:每条候选一张接触表一次调用,画面分回流排序、看点进 reason、货不对板标警告;复用视觉信号同一 OpenAI 兼容端点,本地 Ollama 免费、视觉设置新增 API Key 字段即可切 Atlas 云端档——原计划的「云端付费档」以零新增基建方式落地)/✅ 顺手修复桌面端 denoise/coldOpen/compilation/alsoLandscape 四个死开关(从未接进导出 handler)。待做:开头/结尾独立选段(HIVE)、Seed-ASR 云端精转档;loop 结尾暂缓(音频可循环性难保证,收益存疑)。
-> 进度 2026-08-05 补:✅ **字幕现代化**(用户反馈「卡拉OK卖点 low」+ 点名调研 Remotion,三路调研全文见 RESEARCH 五点六节):默认样式 karaoke→keyword(中文主流=短句+关键词换色);pop 升级为「阻尼弹入+块内当前词品牌色点亮」(2026 逐词字幕主流形态,libass 帧级验证通过);老卡拉OK降至倒数第二档保留,对外文案全面改「动态字幕」;**Remotion 不引**(≥4 人即按终端用户渲染量计费+强制遥测,截图式渲染慢 libass 一个量级),自家离屏 Chromium 引擎即本地版 Remotion,后续只抄模板。
-1. VLM 候选段复核：候选 30-90s 抽帧喂 MiMo V2.5/Qwen3-VL-Plus（几分钱/条），品类判别+画面描述回流选段——补齐弱语音品类（跳舞/萌宠/户外/游戏）
-2. flash-forward cold open 变体：0.3-1s 闪现最炸瞬间→切回（coldopen 扩展；全网仅 0.04% 切片有 visual hook，差异化机会）
-3. 开头/结尾独立选段（HIVE 范式）：opening/ending 作为独立信号进 prompt/管线
-4. 钩子兑付校验进 QA：钩子承诺的实体/数字必须出现在转写中
-5. 云端 ASR 精转档（Seed-ASR 2.0，$0.002/请求；词级对齐本地补）
-6. <30s 片可选 loop 结尾
-
-**v0.13「切完直接发、发了合规」——流程右半程**
-1. 完成发布包 + 一片多版（工作区在做；变体维度加 flash-forward 版 vs 直入版）
-2. Seedream 5.0 封面云端档（$0.032/张，中文大字直接出成品）接入 cover
-3. 文案对齐 2026 算法：CTA 转「收藏/看合集」、标题字幕埋搜索关键词、快手 90s 限制进 platform-specs
-4. 合集/系列组织：同场切片自动归主题合集（搜索权重翻倍红利）
-5. 轻量合规包（修正第七节「不做」：留证零成本且无工具覆盖）：AIGC 标注提醒（用 AI 配音/AI 封面时）、clips.json 记录源区间 ±3min 可选导出、分发台账 CSV
-6. 剪映草稿导出（观望转正，写方向，按版本分支）——「AI 初剪→剪映精修」两段式使其价值持续上升
-7. 评估：口播点评槽位（用户补录 5s 出镜点评自动拼入，直接对齐「表达主体性」原创判定）
-
-### 8.3 明确不做（口碑/红线反向验证）
-AI B-roll（全行业口碑最差的重投入功能）、Virality 绝对分展示（只做排序/分档）、深度去重混剪/绿幕伪在场/去 AI 标识（封号红线）、Sora 2（API 将下线）、整场直播全量喂 VLM。
-
-### 8.4 竞品盯梢
-鲸剪 WhaleClip（中文长转短 + CLI/MCP 卖点撞车，128 元/月）；Captions/Mirage（把节奏/运镜/注意力做成专用模型的唯一玩家，方向标）；Reap（$9.99 含 MCP server，公开 outcome 指标）。
+- **P0, ciclo de preparo da publicação** (fluxo — montar o que já existe até o último quilômetro): ① **pacote de publicação por plataforma** — uma pasta por plataforma, adaptada automaticamente às especificações (capa 3:4 em 1080×1440, tamanho do título, teto de hashtags), com vídeo, capa e texto no lugar; ② **várias versões de um corte** — gerar variantes diferentes do mesmo corte (gancho de abertura, título, quadro de capa e ângulo do texto diferentes), pelo caminho do «valor acrescentado» e não da fuga de duplicata por pixel, o que já serve naturalmente para várias contas
+- **P1, alcançar na embalagem do corte** (resultado do material): colocação automática de efeito sonoro (piada, virada), trilha abaixando sozinha na voz, B-roll grátis do Pexels, título grande na capa
+- **P2, exportar rascunho para o CapCut** (pegando carona no acabamento e no ecossistema de publicação dele) → depois avaliar a automação de publicação direta pelo navegador (risco de banimento, declarado)
+- **Claramente fora**: falsa originalidade no nível do pixel (extrair quadro, espelhar, mexer em parâmetro para enganar a detecção) — a plataforma já classifica como infração e isso não ajuda ninguém a longo prazo; livro-caixa de licença e pacote de prova — não tem relação com a linha principal de «resultado do material + fluxo», fica adiado
 
 ---
 
-## 九、2026-08-09 三轮调研：用户流程校准与选段技术翻案（与第八节冲突处以本节为准）
+## 8. Segunda rodada da pesquisa dedicada a resultado, 2026-08: roteiro revisado (onde houver conflito com a seção 7, vale esta)
 
-> 全文见 [RESEARCH-2026-08-ROUND3.md](./RESEARCH-2026-08-ROUND3.md)（四路并行：用户全链路/国际竞品增量/付费视频 AI/爆款工艺与平台算法）。
+> A pesquisa completa está em [RESEARCH-2026-08-CLIP-QUALITY.md](./RESEARCH-2026-08-CLIP-QUALITY.md) (quatro frentes em paralelo: concorrentes internacionais / ecossistema em chinês / levantamento de IA paga / ofício da edição e fronteira).
 
-### 9.1 诊断（三句话）
+### 8.1 Correção do diagnóstico
 
-1. **定位没偏且被趋势加强**：行业两头挤压（TikTok Smart Split 免费抽轻度用户、Mosaic 类 agent 平台拿 B 端），HotClip 的免费无计量/本地/中文直播三点恰好躲开；「AI slop 疲劳」硬数据坐实「审阅台+人工掌控」叙事顺风。
-2. **用户画像校准**：带货切片散户在消失（授权收紧/去中间化/月入<1000），真正甜蜜区是**拥有素材的人**（主播团队/商家自播/知识口播博主/游戏切片作者）——只有他们对质量有付费意义。对外叙事改「**帮主播和口播博主切自己**」。
-3. **选段技术翻案**：「整场喂视频模型」按 2026-08 价格已从不可行降到**每场 ¥0.7-12**（qwen3-vl-flash ¥0.3-0.7/doubao-seed-1.6 ¥1.6/Gemini 3.5 Flash $1.6，分段 10min 低清 0.5-1fps 保音轨），二轮「不可行」结论作废。证据水位支持「上线做 A/B」不支持「推倒重来」：做**第九路信号**并入融合层，付费档吸收 VLM 九宫格复核；八路+文本 LLM 仍是免费档底盘。
+O posicionamento (local + grátis + auditável + mesa de revisão) está certo e é validado pelo avesso pela reputação dos concorrentes; **o desvio está na distribuição de esforço**: oito trilhas de sinal empilhadas, mas pouco investimento na «camada de embalagem do corte» (desenho de som, ritmo, estética padrão da legenda) e na «metade final do fluxo» (acabamento → distribuição → conformidade) — a primeira é a principal fonte da «sensação de pronto para publicar» em 2026, e a segunda são as duas últimas etapas do fluxo de três passos que já se firmou entre quem corta em chinês (corte inicial com IA → acabamento no CapCut → distribuição em rede).
 
-### 9.2 版本节奏（取代 8.2 中 v0.13 未开工部分）
+Calibragem de expectativa: o teto do setor para viralização totalmente automática é de uns 20%; uma pessoa falando sozinha acerta de 85% a 92%, conversa entre várias pessoas de 52% a 74%. A meta não é «100% automático e publicável», é **taxa de publicáveis bem acima da dos concorrentes + custo de revisão abaixo de 2 minutos por corte**.
 
-**v0.13「整场看完、敢扔」——选段质变 + 质量门（效果主线，付费档首次成主角）**
-1. 全场视频选段第九路信号：ffmpeg 切 10min 段 → 低清 0.5-1fps 保音轨 → 并行喂 video-native 模型 → 文本汇总层融合弹幕/转写排序。档位：国内 qwen3-vl-flash / doubao-seed-1.6，国际 Gemini 3.5 Flash，零成本试水 GLM-4.6V-Flash（免费）；UI 明示每场成本；**A/B 必跑**（铁律）
-2. 质量门三档：规则层（句边界完整性——开头不悬空接续词、结尾落完整句；说话人重叠超阈值降权）→ LLM 零上下文可懂性二审（「不看直播能懂吗、结尾像结尾吗」）→ **建议发/需人审/弃**，默认只导出前两档；对齐「AI 出片 30-45% 是废片、发废片代价是账号级」的 2026 现实
-3. prompt 选段/排除主题：自然语言「要什么/不要什么」注入选段（对齐 OpusClip Contextual Prompting，真缺口——Bad Takes 我们已有 retakes.ts，竞品报告误判已核实）
-4. 主播口令打点：回放中检测「这段剪下来」类口令为强选段信号（voice-activated clipping，2026 新趋势）
-5. 带货三段式叙事模板：痛点→演示→价格 的 pieces 拼接模板，按品类切换默认叙事
+Princípios de estrela-guia: ① «poucos e inteiros» — a taxa de publicáveis vem antes da quantidade; ② a faixa local e grátis roda a cadeia inteira, e a faixa paga na nuvem melhora o resultado (uma chave do Atlas cobre tudo, e a interface mostra o custo por corte); ③ a nota de viralização só ordena, nunca promete em termos absolutos; ④ estética e parâmetros em milissegundo entram como configuração + A/B, nunca fixos no código.
 
-**v0.14「发得出去、活得下来」——分发生存 + 合规（吸收原 v0.13 流程右半程）**
-1. 变形度评分：现有变形能力（竖屏重排/字幕/autozoom/flash-forward/SFX）汇总打分，低于阈值黄牌「搬运判定风险」（Reels 视觉指纹 70% 阈值/YouTube inauthentic 三振）；账号内模板受控微扰（同号不同片字幕位/色板/SFX 不重样，反量产指纹）
-2. AI 标注开关：按平台生成合规标注文案（2026-07 新规三次违规封号，刚需）
-3. 收藏/搜索导向：实用密度信号（步骤/清单/数字/金句加分）、标题搜索词句式、CTA 收藏/合集（原计划保留，权重依据已更新为收藏率 >40%+7 天慢推流）
-4. 一稿多版 + 发布包完成（原计划保留；变体维度加 flash-forward 版 vs 直入版）
-5. 轻量合规包：±3min 留证 + 分发台账 CSV（原计划保留）
-6. 单场限产提示（默认 3-5 条防自我蚕食）+ 7 天数据回看提醒（慢推流第 4-7 天补收藏引导）
-7. 包装云端档：封面双档（Seedream $0.032 走量 + Nano Banana Pro $0.134 中文大字）、版权安全 BGM（ElevenLabs Music，每条 ¥1-2 消除下架风险）
-8. 说话人标签字幕（对谈静音观看理解度）+ 静音删除「保留呼吸口」选项（AI 味抑制）
-9. 剪映草稿导出（观望转正保留，写方向按版本分支）
+### 8.2 Ritmo das versões
 
-**v0.15「无人值守产线、被 agent 调用」——第二曲线**
-1. watch folder：回放落盘自动进切片队列（Descript S3 pipeline 的本地版，本地工具主场）
-2. 录播姬/blrec/DouyinLiveRecorder webhook 联动（原 P0 遗留项，@bililive-tools/* LGPL 可依赖）——「监控开播→自动录→自动出候选」全链路
-3. 本地 MCP server：「免费+本地+隐私」的 agent 剪辑入口是当前市场空位（MCP 已成行业标配）
-4. 本地版结果反哺：用户标记「发了/爆了」回流校准信号权重（Reap outcome 思路本地化）
-5. 梗槽位（评估）：情绪峰值/反差/弹幕爆点标「可玩梗点」+用户自维护梗素材库，玩什么留给人
-6. 云 ASR 可选档 Seed-ASR 2.0（¥0.8/h 买说话人分离+方言，连麦场次升级选项）
+**v0.11 «o corte respira» — desenho de som + ritmo + estética da legenda (P0 de resultado, tudo local e sem custo) ✅ entregue em 2026-08-05** (sound-design.ts com síntese e colocação de efeito e abaixamento da trilha / guarda de proibição de remoção em emoção no gaps / faixas de pausa por categoria no genre / «minimalismo animado» no subtitle / sinal de ritmo no qa / ponto de ênfase do autozoom ligado ao evento de pico; a trilha é mixada a partir de um arquivo da própria pessoa, sem biblioteca embutida, para evitar problema de licença)
+1. Motor de colocação de efeito: pacote CC0 selecionado embutido, colocado por regra (whoosh no quadro do corte seco, pop no quadro em que a legenda sobe, riser de 1 a 2 s antes da entrega, ding na piada), no máximo 3 por corte, com chave para desligar — a apuração confirmou que «em que quadro colocar» não tem solução acadêmica nem API madura, então fazer bem a regra já é vantagem competitiva
+2. Trilha: biblioteca CC0 embutida de loops sem emenda + ducking por sidechain (15 a 20 dB abaixo da voz), com a faixa MiniMax Music opcional na nuvem
+3. Limiar de silêncio e de pausa por categoria (0,3 a 1,2 s) + proibição de remover 1 s antes e depois de um evento de emoção ou de risada (ligado aos sinais de emoção na voz e de pico de áudio que já existem)
+4. Estética padrão da legenda atualizada para o «minimalismo animado»: bloco de 2 a 4 palavras no tempo, palavra-chave na cor da marca (no máximo 1 por frase), área segura dos 60% centrais + desvio das áreas cobertas pela plataforma
+5. Novo sinal de ritmo no controle de qualidade: aviso quando o intervalo entre eventos visuais passa de 5 s → sugerir um zoom automático para reforçar
 
-### 9.3 明确不做（三轮增补）
+**v0.12 «escolhe certo, abre explodindo» — evolução da seleção (P0 de resultado, primeira entrada da faixa opcional na nuvem)**
+> Progresso em 2026-08-05: ✅ flash do pico (flash-forward, inclusive a ordem de prioridade com o gancho na frente) / ✅ conferência de gancho honrado no controle de qualidade / ✅ **ponto de corte preciso** (item novo que veio da desmontagem do FunClip: segunda passada de alinhamento do trecho candidato com o Paraformer para corrigir a marca de tempo por palavra, teste de fumaça com modelo real aprovado) / ✅ **revisão do trecho candidato por VLM** (highlight/review-vision.ts: uma folha de contato e uma chamada por candidato, a nota da imagem volta para a ordenação, o ponto de interesse entra no motivo e a divergência vira aviso; reaproveita o mesmo endpoint compatível com OpenAI do sinal visual, é grátis com o Ollama local, e basta preencher o campo de chave de API nas configurações de visão para usar a faixa do Atlas na nuvem — a «faixa paga na nuvem» que estava planejada saiu sem nenhuma infraestrutura nova) / ✅ de passagem, corrigidas quatro chaves mortas no aplicativo (denoise, coldOpen, compilation e alsoLandscape, que nunca tinham sido ligadas ao handler de exportação). Falta: escolha independente do começo e do fim (HIVE) e a faixa de transcrição de precisão do Seed-ASR na nuvem; o fim em loop fica adiado (é difícil garantir que o áudio feche em loop, e o ganho é duvidoso).
+> Complemento em 2026-08-05: ✅ **modernização da legenda** (o usuário comentou que «karaokê é um argumento brega» e pediu a pesquisa sobre o Remotion; as três frentes estão na seção 5.6 da pesquisa): o estilo padrão sai de karaoke para keyword (o padrão do chinês é frase curta + palavra-chave trocando de cor); o pop virou «entrada amortecida + acendimento da palavra atual na cor da marca dentro do bloco» (a forma predominante da legenda palavra a palavra em 2026, verificada quadro a quadro no libass); o karaokê antigo desceu para penúltima opção; todo o texto público passou a dizer «legenda animada»; **o Remotion não entra** (a partir de 4 pessoas é cobrado pelo volume de render do usuário final + telemetria obrigatória, e a renderização por captura de tela é uma ordem de grandeza mais lenta que o libass) — o nosso motor de Chromium fora da tela já é o Remotion local, e daqui em diante só copiamos modelos.
+1. Revisão do trecho candidato por VLM: quadros de 30 a 90 s do candidato alimentam o MiMo V2.5 ou o Qwen3-VL-Plus (alguns centavos por corte), com julgamento de categoria e descrição de imagem voltando para a seleção — fechando o buraco das categorias de fala fraca (dança, bichos, ar livre, jogo)
+2. Variante de abertura fria com flash-forward: 0,3 a 1 s do momento mais explosivo → volta (extensão do coldopen; só 0,04% dos cortes na internet têm gancho visual, é uma chance de diferenciação)
+3. Escolha independente do começo e do fim (padrão HIVE): abertura e fecho entram como sinais próprios no prompt e no pipeline
+4. Conferência de gancho honrado no controle de qualidade: a coisa ou o número que o gancho promete tem de aparecer na transcrição
+5. Faixa de transcrição de precisão na nuvem (Seed-ASR 2.0, US$ 0,002 por requisição; o alinhamento por palavra fica com o local)
+6. Fim em loop opcional para cortes de menos de 30 s
 
-沿用 8.3，新增：自建多平台群发/矩阵管理（红海+灰色+连坐）、像素级伪原创（做表达层变体不做规避检测）、卷电影级调色、授权撮合、TwelveLabs（贵 6-10 倍无国内付款）、GPT-5.x 视频选段（无原生 API）、Qwen-Omni 音频档（贵 ASR 10 倍）、第三方运镜 SaaS（本地 CV 已够）。
+**v0.13 «cortou, publicou; publicou, em conformidade» — a metade final do fluxo**
+1. Terminar o pacote de publicação + várias versões de um corte (o espaço de trabalho está em andamento; acrescentar a dimensão de variante «versão com flash-forward vs versão direta»)
+2. Ligar ao cover a faixa de capa Seedream 5.0 na nuvem (US$ 0,032 por imagem, sai pronta com letra grande)
+3. Alinhar o texto ao algoritmo de 2026: a chamada para ação vira «salva / vê a coletânea», título e legenda enterram palavras-chave de busca, e o limite de 90 s de uma das plataformas entra no platform-specs
+4. Organização em coletânea e série: os cortes da mesma transmissão se agrupam por tema automaticamente (aproveitando o bônus do peso de busca dobrado)
+5. Pacote leve de conformidade (corrigindo o «não fazer» da seção 7: guardar prova sai de graça e nenhuma ferramenta cobre): lembrete de rotular conteúdo de IA (ao usar narração ou capa de IA), o clips.json registrando o intervalo de origem com exportação opcional de ±3 min e um CSV de livro-caixa de distribuição
+6. Exportar rascunho para o CapCut (sai da observação e entra como direção, em um ramo por versão) — o fluxo de dois passos «corte inicial com IA → acabamento no CapCut» faz o valor disso só subir
+7. Avaliar: vaga de comentário falado (a pessoa grava 5 s de comentário em vídeo e o sistema emenda sozinho, alinhando direto com o critério de «autoria da expressão»)
 
----
+### 8.3 Claramente fora (validado pelo avesso por reputação e por linha vermelha)
+B-roll de IA (a função de investimento pesado com pior reputação do setor), exibir nota absoluta de viralização (só ordenação e faixas), mixagem para fugir de duplicata, fundo verde fingindo presença, remoção do selo de IA (linha vermelha de banimento), Sora 2 (a API vai sair do ar) e jogar a live inteira no VLM.
 
-## 十、2026-08-19 UI 改版：从三步向导到项目工作台（设计稿已定稿）
-
-用户判定现 UI「不适合专业操作工具」（着陆页式向导是没有设计稿随手长出来的）。设计稿三画板已确认方向（工作台/出片方案/设置中心），视觉基准 = README 主视觉海报：纯黑舞台 + 火焰橙辉光，**辉光只给关键元素**（时间轴候选段/竖屏成片卡/主按钮/信号曲线/选中行），营销大标语退出工作区。
-
-### 10.1 现状诊断（六个结构性问题）
-
-① 居中 672px 单列 + 营销卡片 = 着陆页基因；② 主流程看不到视频画面与时间轴；③ 线性向导 vs 非线性工作（回退丢候选/转写后引擎锁死/选文件后录播监听入口消失）；④ HighlightsView 1485 行四职责混杂 + 33 出片开关铺 1/3 屏（开关里混着循环档/文件选择器/弹窗入口三种语义）；⑤ 6 个控件改动静默重跑检测；⑥ 无设计系统（9 个色 token、字号 10-17px 无级散落、三种开关视觉并存）。
-
-### 10.2 迁移路线（渐进式，每步可发版，不推倒重来）——**M1-M4 已于 2026-08-19 一次性落地**（用户「全部一起开工」；README 截图已同步换新）
-
-**M1 骨架与状态地基**
-1. `stores/session-store.ts`：file/transcript/candidates/检测参数/导出态出 App.tsx——候选进 store，回退不再丢
-2. AppShell 三栏布局（顶栏管线状态 chips 替代三步条 + 左栏项目/素材/录播监听常驻 + 中央/右栏插槽）；视图态 `import | workbench | settings` 替代 step/phase
-3. 设计 token 补课：字阶 11/12/13/15/18、语义色进 @theme、统一 Switch/Chip/Segmented 三件套（消灭三种开关语言）
-
-**M2 时间轴与预览（核心新组件，工作量最大）**
-4. `Timeline.tsx`：标尺 + 缩略图胶片带（ffmpeg 抽帧，复用接触表抽帧管线）+ 波形（复用审阅台 canvas 波形路径）+ 弹幕/响度热度曲线（信号采集已有数据，IPC 需从「峰值区间」补传「逐窗曲线」）+ 发光候选段 + 播放头
-5. `<video>` 源画面预览（file:// 直播放,点候选即 seek）+ 竖屏成片预览卡；候选肥卡片改密排表格行,详情移右栏 Inspector;审阅台弹窗保留（逐词拖拽后续再融进时间轴）
-
-**M3 出片方案与显式重检**
-6. 出片方案预设：render-prefs 加命名方案 {id,name,prefs}，内置默认出片/带货全家桶/极简省时；33 开关收进六组抽屉（画面/剪辑/音频/字幕/发布物料/多版分发），循环档改 Segmented
-7. 检测参数（品类/点题/商品词/时长档/对谈/参考）移右栏「检测参数」区 + 显式「重新检测」按钮——废除静默重跑
-8. 设置中心：SettingsModal + LLM/初筛/视觉门 + ASR 引擎 + 品牌 + 词表 + 录播监听合并为左导航设置页（内容组件机械搬移）
-
-**M4 一致性打磨**
-9. 模态统一 portal + Esc + 焦点陷阱；ExportView 的 `window.location.reload()` 重试改状态化导出队列；i18n highlights 命名空间(225 key)按新视图拆分；工作区撤 stage 辉光/hero（导入空态可留）
-
-### 10.3 风险与铁律
-
-- mock provider（api/provider.ts）每阶段保持浏览器预览可用；auto 托管路径与 CLI/MCP 不受影响（纯渲染层改造）
-- issue #3 布局教训继续生效：OptChip nowrap/操作栏实心背景/rise-in 用 backwards
-- 设计稿 Artifact：claude.ai/code/artifact/bb63f48b-5261-45d8-b612-17b0f4c31e22
+### 8.4 Concorrentes a acompanhar
+WhaleClip (longo para curto em chinês + CLI/MCP batendo nos mesmos argumentos, 128 por mês); Captions/Mirage (o único que transformou ritmo, movimento de câmera e atenção em modelo dedicado, serve de bússola); Reap (US$ 9,99 com servidor MCP incluído e métricas de resultado públicas).
 
 ---
 
-*调研来源：四份完整报告（竞品与用户需求 / 前沿技术 / SEO·GEO 增长 / GitHub 竞品仓库拆解）生成于 2026-07-08，关键出处已内联；2026-08-05 增补第七节（OpusClip changelog / 国内切片链路与平台新规检索）与第八节（效果专项二轮调研，全文见 RESEARCH-2026-08-CLIP-QUALITY.md）；2026-08-09 增补第九节（三轮调研：用户流程校准+选段技术翻案，全文见 RESEARCH-2026-08-ROUND3.md）；2026-08-19 增补第十节（UI 改版路线）。*
+## 9. Terceira rodada de 2026-08-09: calibragem do fluxo do usuário e revisão da técnica de seleção (onde houver conflito com a seção 8, vale esta)
+
+> O texto completo está em [RESEARCH-2026-08-ROUND3.md](./RESEARCH-2026-08-ROUND3.md) (quatro frentes em paralelo: jornada do usuário / novidades dos concorrentes internacionais / IA paga de vídeo / ofício da viralização e algoritmo das plataformas).
+
+### 9.1 Diagnóstico (em três frases)
+
+1. **O posicionamento não está torto e a tendência o reforça**: o setor se apertou nas duas pontas (o Smart Split grátis do TikTok leva o usuário leve, e as plataformas de agente tipo Mosaic ficam com o corporativo), e os três pontos do HotClip — grátis e sem medição, local e a live em chinês — escapam exatamente disso; os dados duros da «fadiga de lixo de IA» confirmam o vento a favor da narrativa de «mesa de revisão + controle humano».
+2. **Calibragem do perfil**: o cortador avulso de vídeo de venda está sumindo (licenciamento apertando, desintermediação, renda mensal abaixo de mil), e a zona doce de verdade é **quem tem o material** (equipe do apresentador, comerciante que transmite, criador de locução, autor de cortes de jogo) — só eles têm razão econômica para pagar por qualidade. A narrativa pública passa a ser «**ajudar quem apresenta e quem faz locução a cortar a si mesmo**».
+3. **Revisão da técnica de seleção**: «entregar a transmissão inteira ao modelo de vídeo» saiu de inviável para **R$ 0,7 a 12 por transmissão** com os preços de 2026-08 (qwen3-vl-flash de R$ 0,3 a 0,7, doubao-seed-1.6 a R$ 1,6, Gemini 3.5 Flash a US$ 1,6, em partes de 10 min, baixa resolução, 0,5 a 1 fps, preservando a trilha de áudio), então a conclusão de «inviável» da segunda rodada está revogada. O nível de prova sustenta «colocar no ar e fazer A/B», não «derrubar e recomeçar»: entra como **nona trilha de sinal** na camada de fusão, e na faixa paga absorve a revisão em folha de nove quadros do VLM; as oito trilhas + o LLM de texto continuam sendo a base da faixa grátis.
+
+### 9.2 Ritmo das versões (substitui a parte não iniciada da v0.13 em 8.2)
+
+**v0.13 «viu tudo, tem coragem de descartar» — salto na seleção + portão de qualidade (linha principal de resultado, primeira vez em que a faixa paga é protagonista)**
+1. Nona trilha de sinal pela seleção sobre o vídeo inteiro: ffmpeg corta em partes de 10 min → baixa resolução, 0,5 a 1 fps, preservando a trilha de áudio → alimenta em paralelo um modelo nativo de vídeo → a camada de texto funde com os comentários ao vivo e a transcrição e ordena. Faixas: nacional com qwen3-vl-flash ou doubao-seed-1.6, internacional com Gemini 3.5 Flash, e GLM-4.6V-Flash (grátis) para experimentar sem custo; a interface mostra o custo por transmissão; **o A/B é obrigatório** (regra de ferro)
+2. Portão de qualidade em três faixas: camada de regras (integridade da borda da frase — a abertura não fica solta em conectivo, o fim fecha a frase; sobreposição de locutores acima do limiar perde peso) → segunda leitura de compreensibilidade sem contexto por LLM («dá para entender sem ter visto a live? o final parece um final?») → **recomendar publicar / precisa de olho humano / descartar**, exportando por padrão só as duas primeiras; alinhado à realidade de 2026 de que «de 30 a 45% do que a IA entrega é refugo, e publicar refugo custa no nível da conta»
+3. Seleção por prompt e exclusão de temas: injetar na seleção, em linguagem natural, «o que eu quero / o que eu não quero» (alinhado ao Contextual Prompting do OpusClip, que é lacuna real — as tomadas ruins nós já temos no retakes.ts, e o erro do relatório sobre concorrentes já foi conferido)
+4. Comando falado de quem apresenta: detectar na gravação frases do tipo «corta esse trecho aqui» como sinal forte de seleção (clipping ativado por voz, tendência nova de 2026)
+5. Modelo narrativo de três etapas da venda: um modelo de junção de pieces no formato dor → demonstração → preço, trocando a narrativa padrão conforme a categoria
+
+**v0.14 «consegue publicar e sobreviver» — sobrevivência na distribuição + conformidade (absorve a metade final do fluxo da antiga v0.13)**
+1. Nota de transformação: somar a capacidade de transformação que já temos (recomposição vertical, legenda, zoom automático, flash-forward, efeitos) em uma nota, com cartão amarelo abaixo do limiar avisando «risco de ser classificado como reaproveitamento» (limiar de 70% da impressão digital visual do Reels, três strikes do «inautêntico» do YouTube); e perturbação controlada do modelo dentro da conta (posição da legenda, paleta e efeitos diferentes entre os cortes da mesma conta, contra a impressão digital da produção em massa)
+2. Chave de rotulagem de IA: gerar o texto de conformidade conforme a plataforma (a norma de 2026-07 bane a conta na terceira infração, é necessidade real)
+3. Orientação a salvar e a buscar: sinal de densidade prática (passo a passo, lista, número, frase de efeito somam pontos), título no formato de termo de busca, chamada para ação de salvar e ver a coletânea (mantido do plano, com o peso atualizado para a taxa de salvos acima de 40% + alcance lento de 7 dias)
+4. Várias versões de um texto + pacote de publicação concluído (mantido; acrescentar a dimensão «versão com flash-forward vs versão direta»)
+5. Pacote leve de conformidade: prova de ±3 min + CSV de livro-caixa de distribuição (mantido)
+6. Aviso de limite de produção por transmissão (3 a 5 cortes por padrão, contra a autocanibalização) + lembrete de revisar os dados em 7 dias (reforçar o convite a salvar entre o 4º e o 7º dia)
+7. Faixa de embalagem na nuvem: capa em duas faixas (Seedream a US$ 0,032 para volume + Nano Banana Pro a US$ 0,134 para letra grande), trilha segura em direitos (ElevenLabs Music, de R$ 1 a 2 por corte, elimina o risco de o vídeo sair do ar)
+8. Legenda com rótulo de quem fala (compreensão de conversa assistida sem som) + opção de «preservar a respiração» na remoção de silêncio (contendo o cheiro de IA)
+9. Exportar rascunho para o CapCut (mantido em observação, escrito como direção, em ramo por versão)
+
+**v0.15 «linha de produção sem supervisão, chamada por agente» — segunda curva**
+1. Pasta monitorada: a gravação cai no disco e entra sozinha na fila de cortes (a versão local do pipeline com S3 do Descript, casa de uma ferramenta local)
+2. Integração por webhook com os gravadores de live (item P0 que ficou pendente; as bibliotecas LGPL de ferramentas de gravação dão para depender) — a cadeia completa «monitorar a live → gravar sozinho → sair o candidato sozinho»
+3. Servidor MCP local: a porta de entrada de edição por agente que seja «grátis + local + privado» é a vaga vazia do mercado hoje (o MCP já virou padrão do setor)
+4. Resultado realimentando a versão local: a pessoa marca «publiquei / viralizou» e isso volta para calibrar o peso dos sinais (a ideia de resultado da Reap, feita localmente)
+5. Vaga de piada (em avaliação): marcar o «ponto onde dá para brincar» no pico de emoção, no contraste e no pico dos comentários + uma biblioteca de piadas cuidada pela pessoa; o que brincar fica com ela
+6. Faixa opcional de ASR na nuvem com Seed-ASR 2.0 (R$ 0,8 por hora, comprando separação de locutores e robustez a sotaque, opção de melhoria para transmissões com convidados)
+
+### 9.3 Claramente fora (acréscimo da terceira rodada)
+
+Vale a 8.3, e acrescentamos: construir nosso próprio disparo em massa e administração de rede de contas (mercado saturado + zona cinza + banimento em conjunto), falsa originalidade no nível do pixel (fazemos variação na camada da expressão, não fuga da detecção), entrar na disputa de correção de cor de cinema, intermediação de licenças, TwelveLabs (de 6 a 10 vezes mais caro e sem pagamento nacional), GPT-5.x para escolher trechos (sem API nativa), faixa de áudio do Qwen-Omni (10 vezes o custo do ASR) e SaaS de movimento de câmera de terceiros (a visão computacional local já basta).
+
+---
+
+## 10. Reforma da interface em 2026-08-19: do assistente de três passos à bancada de projeto (o desenho está fechado)
+
+O usuário concluiu que a interface de então «não serve para uma ferramenta profissional» (o assistente em estilo de página de destino nasceu sem desenho nenhum). As três pranchas do desenho já confirmaram a direção (bancada / opções de exportação / central de configurações), com a base visual sendo o cartaz principal do README: palco preto puro + brilho laranja de chama, e o **brilho só nos elementos-chave** (trecho candidato na linha do tempo, cartão do corte vertical, botão principal, curva de sinal, linha selecionada), com os slogans de marketing saindo da área de trabalho.
+
+### 10.1 Diagnóstico da situação (seis problemas estruturais)
+
+① coluna única de 672px centralizada + cartão de marketing = gene de página de destino; ② o fluxo principal não mostra a imagem do vídeo nem a linha do tempo; ③ assistente linear contra trabalho não linear (voltar perde os candidatos, o motor trava depois da transcrição, a entrada do monitoramento de gravação some depois de escolher o arquivo); ④ a HighlightsView tem 1485 linhas com quatro responsabilidades misturadas + 33 chaves de exportação ocupando um terço da tela (e entre as chaves se misturam três semânticas: faixa de loop, seletor de arquivo e abertura de caixa de diálogo); ⑤ mexer em 6 controles refaz a detecção em silêncio; ⑥ não há sistema de design (9 tokens de cor, corpos de letra de 10 a 17px espalhados sem escala, três visuais de chave convivendo).
+
+### 10.2 Caminho de migração (gradual, com release a cada passo, sem derrubar tudo) — **M1 a M4 entregues de uma vez em 2026-08-19** (o usuário pediu «começa tudo junto»; as capturas do README já foram trocadas)
+
+**M1, esqueleto e base de estado**
+1. `stores/session-store.ts`: arquivo, transcrição, candidatos, parâmetros de detecção e estado de exportação saem do App.tsx — os candidatos vão para o store e voltar não perde mais nada
+2. Layout de três colunas no AppShell (chips de estado do pipeline na barra superior no lugar da barra de três passos + coluna esquerda fixa com projeto, material e monitoramento de gravação + encaixes no centro e na coluna direita); o estado de vista vira `import | workbench | settings` no lugar de passo e fase
+3. Tokens de design em dia: escala de letra 11/12/13/15/18, cores semânticas dentro do @theme, e o trio unificado Switch/Chip/Segmented (acabando com as três linguagens de chave)
+
+**M2, linha do tempo e pré-visualização (o componente novo central, o maior volume de trabalho)**
+4. `Timeline.tsx`: régua + tira de filme com miniaturas (quadros pelo ffmpeg, reaproveitando o pipeline da folha de contato) + forma de onda (reaproveitando o caminho em canvas da mesa de revisão) + curva de calor dos comentários e do volume (a coleta de sinais já tem os dados, e o IPC precisa passar a «curva janela a janela» além do «intervalo de pico») + trecho candidato brilhando + cabeça de reprodução
+5. Pré-visualização da imagem de origem com `<video>` (tocando direto por file://, e clicar no candidato dá seek) + cartão de pré-visualização do corte vertical; o cartão gordo do candidato vira linha de tabela densa, com o detalhe indo para o Inspector na coluna direita; a caixa de diálogo da mesa de revisão fica (o arraste palavra a palavra se funde à linha do tempo depois)
+
+**M3, opções de exportação e redetecção explícita**
+6. Predefinições de exportação: o render-prefs ganha conjuntos nomeados {id, name, prefs}, com os embutidos «padrão», «kit completo de vendas» e «mínimo e rápido»; as 33 chaves se recolhem em seis gavetas (imagem, edição, áudio, legenda, material de publicação, distribuição em várias versões) e a faixa de loop vira Segmented
+7. Os parâmetros de detecção (categoria, tema, palavra de produto, faixa de duração, conversa, referência) vão para a área «parâmetros de detecção» na coluna direita + um botão explícito de «detectar de novo» — acabando com a repetição silenciosa
+8. Central de configurações: o SettingsModal + LLM, pré-filtragem e portão de visão + motor de ASR + marca + glossário + monitoramento de gravação viram uma página de configurações com navegação à esquerda (os componentes de conteúdo são movidos mecanicamente)
+
+**M4, acabamento de consistência**
+9. Modais unificados com portal + Esc + armadilha de foco; o `window.location.reload()` da ExportView vira uma fila de exportação com estado; o espaço de nomes highlights da i18n (225 chaves) é dividido conforme as vistas novas; a área de trabalho tira o brilho de palco e o hero (o estado vazio da importação pode ficar)
+
+### 10.3 Riscos e regras de ferro
+
+- o provedor simulado (api/provider.ts) mantém a pré-visualização no navegador funcionando em cada etapa; o caminho automático e a CLI e o MCP não são afetados (é só a camada de renderização)
+- a lição de layout da issue #3 continua valendo: nowrap no OptChip, fundo sólido na barra de ações, rise-in com backwards
+- Artifact do desenho: claude.ai/code/artifact/bb63f48b-5261-45d8-b612-17b0f4c31e22
+
+---
+
+*Fontes da pesquisa: quatro relatórios completos (concorrentes e necessidades do usuário / tecnologia de fronteira / crescimento por SEO e buscadores de IA / desmontagem dos repositórios concorrentes no GitHub) produzidos em 2026-07-08, com as fontes principais citadas ao longo do texto; em 2026-08-05 foram acrescentadas a seção 7 (changelog do OpusClip, jornada nacional dos cortes e busca pelas novas regras das plataformas) e a seção 8 (segunda rodada dedicada a resultado, texto completo em RESEARCH-2026-08-CLIP-QUALITY.md); em 2026-08-09 foi acrescentada a seção 9 (terceira rodada: calibragem do fluxo do usuário + revisão da técnica de seleção, texto completo em RESEARCH-2026-08-ROUND3.md); em 2026-08-19 foi acrescentada a seção 10 (roteiro da reforma da interface).*
