@@ -10,7 +10,7 @@ import {
 } from "../sound-design";
 
 describe("planSfxCues", () => {
-  it("拼接缝 whoosh + 情绪峰 ding + 钩子 pop,按时间序返回", () => {
+  it("whoosh na emenda + ding no pico de emoção + pop no gancho, devolvidos na ordem do tempo", () => {
     const cues = planSfxCues({
       durationSec: 30,
       seamsSec: [12],
@@ -21,7 +21,7 @@ describe("planSfxCues", () => {
     expect(cues.map((c) => c.atSec)).toEqual([0.05, 12, 20]);
   });
 
-  it("超出上限的打点被丢弃(结构缝优先)", () => {
+  it("a marcação que passa do teto é descartada (a emenda estrutural tem prioridade)", () => {
     const cues = planSfxCues({
       durationSec: 60,
       seamsSec: [10, 20, 30, 40],
@@ -32,29 +32,29 @@ describe("planSfxCues", () => {
     expect(cues.every((c) => c.type === "whoosh")).toBe(true);
   });
 
-  it("违反最小间距的打点被丢弃而不是挪位置", () => {
+  it("a marcação que viola a distância mínima é descartada, e não movida de lugar", () => {
     const cues = planSfxCues({
       durationSec: 30,
       seamsSec: [10],
-      peakEventsSec: [10.5], // 距 whoosh 仅 0.5s < 最小间距
+      peakEventsSec: [10.5], // a 0,5s do whoosh, abaixo da distância mínima
     });
     expect(cues).toHaveLength(1);
     expect(cues[0].type).toBe("whoosh");
     expect(SFX_MIN_SPACING_SEC).toBeGreaterThan(0.5);
   });
 
-  it("贴片尾的打点被丢弃;太短的片一个都不打", () => {
+  it("a marcação encostada no fim é descartada; num trecho curto demais não entra nenhuma", () => {
     expect(planSfxCues({ durationSec: 30, peakEventsSec: [29.8] })).toHaveLength(0);
     expect(planSfxCues({ durationSec: 0.5, seamsSec: [0.2] })).toHaveLength(0);
   });
 
-  it("没有任何素材时返回空", () => {
+  it("sem material nenhum, devolve vazio", () => {
     expect(planSfxCues({ durationSec: 30 })).toHaveLength(0);
   });
 });
 
 describe("buildSoundDesignArgs", () => {
-  it("音效走 adelay 到打点毫秒,视频流复制", () => {
+  it("o efeito recebe adelay até o milissegundo da marcação, e o vídeo é copiado", () => {
     const args = buildSoundDesignArgs("in.mp4", "out.mp4", {
       cues: [{ type: "ding", atSec: 12.345 }],
       sfxDir: "/sfx",
@@ -64,13 +64,13 @@ describe("buildSoundDesignArgs", () => {
     expect(graph).toContain("adelay=12345|12345");
     expect(graph).toContain("amix=inputs=2");
     expect(graph).toContain("normalize=0");
-    // 不重编视频:后处理趟画质零损失是硬承诺
+    // O vídeo não é recodificado: qualidade intacta na passada de pós-processamento é promessa dura
     expect(args.join(" ")).toContain("-map 0:v? -c:v copy");
-    // 没开响度标准化时用限幅器兜底防削波
+    // Sem a normalização de volume ligada, o limitador entra como rede de segurança contra o corte de pico
     expect(graph).toContain("alimiter");
   });
 
-  it("BGM:循环读入、衰减、对人声侧链闪避、收尾淡出", () => {
+  it("trilha: lida em laço, atenuada, esquivando da voz por cadeia lateral, com fade final", () => {
     const args = buildSoundDesignArgs("in.mp4", "out.mp4", {
       cues: [],
       bgmPath: "/music/bgm.mp3",
@@ -84,11 +84,11 @@ describe("buildSoundDesignArgs", () => {
     expect(graph).toContain("sidechaincompress");
     expect(graph).toContain("volume=-17dB");
     expect(graph).toContain("afade=t=out:st=28.800");
-    // 开了响度标准化:混完再过一遍 loudnorm 保住 -14 目标
+    // Com a normalização de volume ligada: depois da mixagem o loudnorm passa mais uma vez para segurar o alvo de -14
     expect(graph).toContain("loudnorm");
   });
 
-  it("无事可做时抛错(调用方应先用 hasSoundDesignWork 把关)", () => {
+  it("sem nada a fazer, lança erro (quem chama deve filtrar antes com hasSoundDesignWork)", () => {
     expect(() => buildSoundDesignArgs("a.mp4", "b.mp4", { cues: [], durationSec: 10 })).toThrow();
     expect(hasSoundDesignWork({ cues: [] })).toBe(false);
     expect(hasSoundDesignWork({ cues: [], bgmPath: "/x.mp3" })).toBe(true);
@@ -97,7 +97,7 @@ describe("buildSoundDesignArgs", () => {
 });
 
 describe("synthSfxArgs", () => {
-  it("三类音效各有合成配方,统一 48k 单声道 wav", () => {
+  it("cada um dos três efeitos tem a sua receita de síntese, todos em wav mono de 48k", () => {
     for (const type of SFX_TYPES) {
       const args = synthSfxArgs(type, `/tmp/${type}.wav`);
       expect(args).toContain("lavfi");
