@@ -1,28 +1,29 @@
 /**
- * 品牌预设的纯逻辑:hex 颜色 → ASS 颜色转换、字号/位置档位应用到字幕布局、
- * 参数消毒。UI 配一次,每条切片的 ASS 字幕/气泡字幕/水印全部复用。
+ * A lógica pura do preset de marca: a conversão de cor hex → ASS, a aplicação das faixas de corpo de fonte
+ * e de posição ao layout da legenda, e a limpeza dos parâmetros. A pessoa configura uma vez, e a legenda
+ * ASS, a legenda em balão e a marca d'água de cada trecho reaproveitam tudo.
  */
 import type { AssLayout } from "./subtitle";
 import { FONT_SCALE_CHOICES, type BrandStyle } from "../shared/api-types";
 
-/** 默认高亮色:火焰橙(与既有硬编码一致,未配置时输出不变)。 */
+/** A cor de destaque padrão: o laranja de chama (a mesma que já estava fixa no código, então sem configuração a saída não muda). */
 export const DEFAULT_HIGHLIGHT_HEX = "#FF6E0D";
 
 export { FONT_SCALE_CHOICES } from "../shared/api-types";
 
-/** 字幕位置三档 → 基准 marginV 的倍率(竖屏 560→420/560/700,横屏同比)。 */
+/** As três faixas de posição da legenda → o fator sobre o marginV de referência (no vertical, 560 → 420/560/700, e no horizontal na mesma proporção). */
 const POSITION_FACTOR = { low: 0.75, standard: 1, high: 1.25 } as const;
 
 const HEX_RE = /^#?([0-9a-fA-F]{6})$/;
 
-/** "#RRGGBB" 是否为合法颜色。 */
+/** Se "#RRGGBB" é uma cor válida. */
 export function isValidHex(hex: unknown): hex is string {
   return typeof hex === "string" && HEX_RE.test(hex);
 }
 
 /**
- * "#RRGGBB" → ASS 样式表颜色 "&HAABBGGRR"(注意 BGR 序)。
- * 非法输入返回 null,调用方回落默认色。
+ * "#RRGGBB" → a cor da folha de estilos do ASS, "&HAABBGGRR" (atenção à ordem BGR).
+ * Entrada inválida devolve null, e quem chama volta para a cor padrão.
  */
 export function hexToAssColor(hex: string, alphaHex = "00"): string | null {
   const m = HEX_RE.exec(hex);
@@ -31,14 +32,14 @@ export function hexToAssColor(hex: string, alphaHex = "00"): string | null {
   return `&H${alphaHex}${b}${g}${r}`.toUpperCase();
 }
 
-/** "#RRGGBB" → ASS 行内覆写形式 "&HBBGGRR&"(\c 用,无 alpha 字节)。 */
+/** "#RRGGBB" → a forma de sobrescrita dentro da linha do ASS, "&HBBGGRR&" (para o \c, sem o byte de alfa). */
 export function hexToAssInline(hex: string): string | null {
   const m = HEX_RE.exec(hex);
   if (!m) return null;
   return `&H${m[1].slice(4, 6)}${m[1].slice(2, 4)}${m[1].slice(0, 2)}&`.toUpperCase();
 }
 
-/** 向白色混合提亮(气泡字幕渐变的第二停靠色)。frac=0 原色,1 纯白。 */
+/** Clareia misturando com branco (a segunda parada do gradiente da legenda em balão). frac=0 é a cor original e 1 é branco puro. */
 export function lightenHex(hex: string, frac: number): string {
   const m = HEX_RE.exec(hex);
   if (!m) return hex;
@@ -51,8 +52,9 @@ export function lightenHex(hex: string, frac: number): string {
 }
 
 /**
- * 把品牌的字号/位置档位应用到基准布局。字号放大时每行容纳的宽度单位
- * 同比减少(否则换行会溢出安全区);位置档位只动 marginV。
+ * Aplica as faixas de corpo de fonte e de posição da marca ao layout de referência. Quando o corpo da fonte
+ * aumenta, as unidades de largura que cabem em cada linha diminuem na mesma proporção (senão a quebra de
+ * linha transbordaria a zona segura); a faixa de posição move apenas o marginV.
  */
 export function applyBrandToLayout(layout: AssLayout, brand?: BrandStyle): AssLayout {
   if (!brand) return layout;
@@ -73,8 +75,10 @@ function clampFontScale(scale: number | undefined): number {
 }
 
 /**
- * IPC 边界消毒:剔除非法字段,返回可以放心穿透管线的品牌参数。
- * 全部字段非法/缺省时返回 undefined(管线走原有默认,输出逐字节不变)。
+ * Limpeza na fronteira do IPC: os campos inválidos são descartados, e voltam os parâmetros de marca que dá
+ * para passar pela esteira sem medo.
+ * Quando todos os campos são inválidos ou ausentes, devolve undefined (a esteira usa o padrão de sempre, e a
+ * saída fica igual byte a byte).
  */
 export function sanitizeBrand(raw: unknown): BrandStyle | undefined {
   if (!raw || typeof raw !== "object") return undefined;

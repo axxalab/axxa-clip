@@ -10,7 +10,7 @@ function w(text: string, startSec: number, endSec: number): TranscriptWord {
 
 describe("computeJumpCut", () => {
   // speech 10-12s, 2s silence, speech 14-16s
-  const words = [w("前", 10, 11), w("半", 11, 12), w("后", 14, 15), w("半", 15, 16)];
+  const words = [w("primeira", 10, 11), w("parte", 11, 12), w("segunda", 14, 15), w("parte", 15, 16)];
 
   it("cuts the silence into two kept segments with padding", () => {
     const plan = computeJumpCut(words, 10, 16.5);
@@ -95,7 +95,7 @@ describe("computeJumpCut", () => {
   });
 
   it("keeps VAD-confirmed phoneme tails outside coarse ASR word edges", () => {
-    const edgeWords = [w("开", 10.2, 10.6), w("尾", 11.5, 11.8)];
+    const edgeWords = [w("começo", 10.2, 10.6), w("fim", 11.5, 11.8)];
     const plan = computeJumpCut(edgeWords, 9.5, 12.5, {
       speechSpans: [{ startSec: 9.9, endSec: 10.65 }, { startSec: 11.45, endSec: 12.2 }],
     });

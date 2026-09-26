@@ -1,60 +1,61 @@
 /**
- * Jump-cut planning: remove intra-clip silences so exported clips have the
- * tight rhythm of a human edit instead of the slack of a machine cut.
+ * Planejamento do corte seco: os silêncios de dentro do trecho são removidos, para o vídeo exportado ter o
+ * ritmo apertado de uma edição humana em vez da folga de um corte de máquina.
  *
- * Input: the clip's words (absolute source time). Silence = the gap between
- * consecutive words above a threshold. Output: the kept source segments plus
- * the same words remapped onto the compressed output timeline (for captions).
- * Pure functions — ffmpeg execution lives in cut.ts.
+ * Entrada: as palavras do trecho (em tempo absoluto da origem). Silêncio = o vão entre duas palavras
+ * seguidas acima de um limite. Saída: os pedaços preservados da origem e as mesmas palavras remapeadas na
+ * linha de tempo comprimida (para a legenda).
+ * Funções puras — a execução do ffmpeg vive em cut.ts.
  */
 import type { TranscriptWord } from "../shared/api-types";
 import { peakInRange, type PeakTrack } from "./audio-peaks";
 import { hasSpeechInRange, speechAnchorBounds, type SpeechActivitySpan } from "./speech-activity";
 
 export interface KeptSegment {
-  /** Absolute source time. */
+  /** Tempo absoluto da origem. */
   startSec: number;
   endSec: number;
 }
 
 export interface JumpCutOptions {
   /**
-   * Audio peak track for the clip. When present, a word gap is only cut if
-   * the region that would be removed is actually quiet — laughter, applause
-   * and BGM stings carry no words but must survive.
+   * A trilha de picos de áudio do trecho. Quando ela existe, um vão entre palavras só é cortado se a região
+   * a remover estiver de fato quieta — risada, palmas e efeitos da trilha não trazem palavra nenhuma e
+   * precisam sobreviver.
    */
   peaks?: PeakTrack;
-  /** Peak (0..1) above which a gap counts as "not silent" (~-28dBFS). */
+  /** O pico (de 0 a 1) acima do qual um vão conta como «não silencioso» (~-28dBFS). */
   silenceThreshold?: number;
   /**
-   * Spans that must be cut regardless of gaps or loudness — filler words and
-   * stutters are audible speech, so neither the gap rule nor the silence gate
-   * would ever remove them on their own.
+   * Os intervalos que têm de ser cortados independentemente de vão ou de volume — palavra de preenchimento e
+   * gagueira são fala audível, então nem a regra do vão nem o portão de silêncio os removeriam por conta própria.
    */
   forceCutSpans?: KeptSegment[];
-  /** Word-gap cut threshold; pass Infinity to disable gap cuts entirely. */
+  /** O limite de corte do vão entre palavras; passe Infinity para desligar o corte por vão de vez. */
   gapThresholdSec?: number;
   /**
-   * 禁删区间(绝对源时间):情绪事件(笑声/怒吼/掌声峰)前后的停顿是节目
-   * 效果——抖包袱前的憋、爆发后的余韵——删掉它们等于删掉喜剧节奏。
-   * 待删空隙与任一禁删区间相交时,这个 gap 不剪(仅约束 gap 剪,不影响
-   * forceCutSpans——语气词/重录/拼接是明确要删的内容)。
+   * Os intervalos protegidos (em tempo absoluto da origem): a pausa em volta de um evento de emoção (pico de
+   * risada, grito, palmas) é o efeito do programa — a respirada antes da piada, o que ecoa depois da explosão —
+   * e apagá-las é apagar o ritmo da comédia.
+   * Quando o vão a remover cruza qualquer intervalo protegido, aquele vão não é cortado (isto restringe só o
+   * corte por vão, e não afeta forceCutSpans — palavra de preenchimento, regravação e colagem são conteúdo que se quer apagar mesmo).
    */
   protectedSpans?: KeptSegment[];
   /**
-   * 保留呼吸口(v0.14):每个 gap 剪口在语音尾部多留这么多秒的自然停顿——
-   * 长停顿照剪,但剪完不是无缝贴死,句间还有一口气。跳剪「过瘦」是 AI 味
-   * 的来源之一(真人剪辑会给呼吸留空)。0/缺省 = 历史紧凑节奏不变。
+   * Manter o respiro (v0.14): cada emenda do corte por vão deixa esta quantidade de segundos de pausa natural
+   * no fim da fala — a pausa longa continua sendo cortada, mas o resultado não fica colado sem costura, e
+   * ainda sobra um fôlego entre as frases. Um corte seco «magro demais» é uma das fontes do gosto de IA (na
+   * edição humana se deixa espaço para respirar). 0 ou ausente = o ritmo apertado de sempre, sem mudança.
    */
   breathPadSec?: number;
   /**
-   * Trusted VAD spans. A nominally word-free/quiet gap is retained when this
-   * independent local signal still detects speech (for example an ASR miss).
+   * Os intervalos de VAD confiáveis. Um vão nominalmente sem palavra e quieto é preservado quando este sinal
+   * local independente ainda detecta fala (por exemplo, quando o ASR deixou passar).
    */
   speechSpans?: SpeechActivitySpan[];
 }
 
-/** Subtract cut spans from kept segments (interval difference). Pure. */
+/** Subtrai os intervalos cortados dos pedaços preservados (diferença de intervalos). Pura. */
 export function subtractSpans(segments: KeptSegment[], spans: KeptSegment[], minKeepSec = 0.12): KeptSegment[] {
   if (spans.length === 0) return segments;
   const out: KeptSegment[] = [];
@@ -79,38 +80,38 @@ export function subtractSpans(segments: KeptSegment[], spans: KeptSegment[], min
 
 export interface JumpCutPlan {
   segments: KeptSegment[];
-  /** Words shifted onto the output timeline (t=0 at clip start). */
+  /** As palavras deslocadas para a linha de tempo de saída (t=0 no início do trecho). */
   words: TranscriptWord[];
   /**
-   * Output-time positions where a splice happened (segment 2+ starts).
-   * Caption line breaking must break here — the silence that used to separate
-   * these sentences no longer exists on the compressed timeline.
+   * As posições, em tempo de saída, em que houve uma emenda (onde o 2º pedaço e os seguintes começam).
+   * A quebra de linha da legenda precisa quebrar aqui — o silêncio que antes separava estas frases não existe
+   * mais na linha de tempo comprimida.
    */
   breaks: number[];
-  /** Total seconds removed. */
+  /** O total de segundos removidos. */
   removedSec: number;
-  /** Output duration (sum of kept segments). */
+  /** A duração de saída (a soma dos pedaços preservados). */
   durationSec: number;
-  /** Gaps that would have been removed but trusted speech evidence retained. */
+  /** Os vãos que teriam sido removidos, mas que uma evidência de fala confiável preservou. */
   speechProtectedGaps?: number;
 }
 
-/** Word gaps longer than this get cut. */
+/** Vão entre palavras mais longo que isto é cortado. */
 const GAP_THRESHOLD_SEC = 0.6;
-/** 「保留呼吸口」的默认留白量(加在语音尾部 PAD_AFTER 之上)。 */
+/** O espaço deixado por padrão pelo «manter o respiro» (somado ao PAD_AFTER no fim da fala). */
 export const BREATH_PAD_SEC = 0.25;
-/** Breathing room kept around speech on both sides of a cut. */
+/** O espaço de respiro preservado em volta da fala, dos dois lados de um corte. */
 const PAD_BEFORE_SEC = 0.12;
 const PAD_AFTER_SEC = 0.18;
-/** Lead-in / tail padding at the clip boundaries. */
+/** A folga de entrada e de saída nas bordas do trecho. */
 const LEAD_IN_SEC = 0.15;
 const TAIL_SEC = 0.3;
-/** Default peak above which a gap is loud enough to keep (~-28dBFS). */
+/** O pico padrão acima do qual um vão está alto o bastante para ficar (~-28dBFS). */
 const SILENCE_PEAK_THRESHOLD = 0.04;
-/** Splices removing less than this are churn, not rhythm — fill them back. */
+/** Emenda que remove menos que isto é agitação, não ritmo — o vão é devolvido. */
 const MIN_CUT_SEC = 0.2;
 
-/** Merge kept segments whose separating cut is too short to be worth a splice. */
+/** Une os pedaços preservados cujo corte de separação é curto demais para valer uma emenda. */
 export function mergeShortCuts(segments: KeptSegment[], minCutSec = MIN_CUT_SEC): KeptSegment[] {
   if (segments.length < 2) return segments;
   const out: KeptSegment[] = [{ ...segments[0] }];
@@ -132,7 +133,7 @@ export function computeJumpCut(
   options: JumpCutOptions = {}
 ): JumpCutPlan {
   const { peaks, silenceThreshold = SILENCE_PEAK_THRESHOLD, forceCutSpans = [], gapThresholdSec = GAP_THRESHOLD_SEC, protectedSpans = [], breathPadSec = 0, speechSpans } = options;
-  // 呼吸口加在语音尾部:剪掉的区间相应缩短,句尾多留一口气
+  // O respiro é somado ao fim da fala: o intervalo cortado encurta na mesma medida, e o fim da frase fica com um fôlego
   const padAfter = PAD_AFTER_SEC + Math.max(0, breathPadSec);
   const inClip = words.filter((w) => w.endSec > clipStartSec && w.startSec < clipEndSec);
   if (inClip.length === 0) {
@@ -153,12 +154,12 @@ export function computeJumpCut(
     const w = inClip[i];
     const gap = w.startSec - prevEnd;
     if (gap > gapThresholdSec) {
-      // AND gate: the removed span must be word-free AND acoustically quiet.
+      // Portão E: o intervalo removido precisa estar sem palavra E acusticamente quieto.
       const removedFrom = prevEnd + padAfter;
       const removedTo = w.startSec - PAD_BEFORE_SEC;
       const quiet =
         !peaks || removedTo <= removedFrom || peakInRange(peaks, removedFrom, removedTo) < silenceThreshold;
-      // 情绪守卫:待删空隙撞上禁删区间(情绪事件 ±保护半径)就不剪
+      // Guarda de emoção: o vão a remover que encosta num intervalo protegido (o evento de emoção ± o raio de proteção) não é cortado
       const protectedGap = protectedSpans.some((p) => p.startSec < removedTo && p.endSec > removedFrom);
       const speechProtected = speechSpans !== undefined && hasSpeechInRange(speechSpans, removedFrom, removedTo);
       if (quiet && !protectedGap && speechProtected) speechProtectedGaps++;
@@ -171,15 +172,15 @@ export function computeJumpCut(
   }
   const speechEnd = speechAnchors.endSec === undefined ? -Infinity : speechAnchors.endSec + 0.12;
   segments.push({ startSec: segStart, endSec: Math.min(Math.max(prevEnd + TAIL_SEC, speechEnd), clipEndSec) });
-  // merge first, subtract after — a forced cut (filler ≈0.15s) must never be
-  // "filled back" by the short-cut smoothing pass
+  // Primeiro unir e depois subtrair — um corte forçado (uma palavra de preenchimento tem ~0,15s) nunca pode
+  // ser «devolvido» pela passada de suavização dos cortes curtos
   segments = mergeShortCuts(segments);
   segments = subtractSpans(segments, forceCutSpans);
 
   const durationSec = segments.reduce((acc, s) => acc + (s.endSec - s.startSec), 0);
   const removedSec = clipEndSec - clipStartSec - durationSec;
 
-  // Remap words onto the compressed output timeline.
+  // As palavras são remapeadas na linha de tempo comprimida da saída.
   const remapped: TranscriptWord[] = [];
   const breaks: number[] = [];
   let outOffset = 0;
@@ -192,7 +193,7 @@ export function computeJumpCut(
           text: w.text,
           startSec: outOffset + (w.startSec - seg.startSec),
           endSec: outOffset + Math.min(w.endSec, seg.endSec) - seg.startSec,
-          // 说话人标注跟着词走——丢了它,压缩时间轴上的字幕就没法按人上色/打标签
+          // A marcação de falante acompanha a palavra — sem ela, a legenda na linha de tempo comprimida não dá para colorir nem etiquetar por pessoa
           ...(w.speaker !== undefined ? { speaker: w.speaker } : {}),
           ...(w.timingSource !== undefined ? { timingSource: w.timingSource } : {}),
         });

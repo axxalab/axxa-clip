@@ -1,18 +1,19 @@
 /**
- * Windows 非 ASCII 路径救援(issue #4):中文用户名下 sherpa 原生层打不开
- * 模型文件。真正的 8.3 转换只在 win32 上发生,这里钉死的是判定口径与
- * 「非 win32 / 纯 ASCII 一律原样直通」的边界——转换逻辑绝不能误伤正常路径。
+ * Resgate de caminho não-ASCII no Windows (issue #4): sob um nome de usuário com acento, a camada nativa
+ * do sherpa não abre o arquivo do modelo. A conversão 8.3 de verdade só acontece no win32, e o que fica
+ * pregado aqui é o critério do julgamento e a fronteira do «fora do win32 ou em ASCII puro, tudo passa como
+ * está» — a lógica da conversão não pode machucar um caminho normal.
  */
 import { describe, expect, it } from "vitest";
 import { hasNonAscii, psQuote, toAnsiSafeDir } from "../win-ansi-path";
 
 describe("hasNonAscii", () => {
-  it("中文/全角字符判为非 ASCII(正是 issue #4 的用户名场景)", () => {
-    expect(hasNonAscii("C:\\Users\\楚心\\AppData\\Roaming\\hotclip\\models")).toBe(true);
-    expect(hasNonAscii("C:\\Users\\ｕｓｅｒ\\models")).toBe(true);
+  it("caractere acentuado ou de largura completa é julgado fora do ASCII (é justo o cenário do nome de usuário da issue #4)", () => {
+    expect(hasNonAscii("C:\\Users\\Conceição\\AppData\\Roaming\\hotclip\\models")).toBe(true);
+    expect(hasNonAscii("C:\\Users\\\uff55\uff53\uff45\uff52\\models")).toBe(true);
   });
 
-  it("纯 ASCII 路径(含空格与常见符号)判为安全", () => {
+  it("caminho em ASCII puro (com espaço e símbolos comuns) é julgado seguro", () => {
     expect(hasNonAscii("C:\\Program Files\\hotclip\\models")).toBe(false);
     expect(hasNonAscii("/Users/dev/Library/Application Support/hotclip")).toBe(false);
     expect(hasNonAscii("E:\\AI-tool\\hotclip_models (v2)")).toBe(false);
@@ -20,22 +21,22 @@ describe("hasNonAscii", () => {
 });
 
 describe("psQuote", () => {
-  it("单引号翻倍,整体裹进单引号字面量", () => {
+  it("a aspa simples é duplicada e tudo é embrulhado num literal de aspas simples", () => {
     expect(psQuote("C:\\a b")).toBe("'C:\\a b'");
     expect(psQuote("C:\\it's here")).toBe("'C:\\it''s here'");
   });
 });
 
 describe("toAnsiSafeDir", () => {
-  it("非 win32 平台原样返回;Windows 慢启动 PowerShell 时也能在函数预算内回退", async () => {
-    // macOS/Linux 含中文路径必须直通;Windows runner 会真实尝试 8.3
-    // 转换,其 PowerShell 冷启动偶尔超过 Vitest 默认 5 秒,测试预算需覆盖
-    // 实现层明确的 15 秒超时。
-    const dir = "/tmp/楚心/models";
+  it("fora do win32 volta como está; no Windows, mesmo com o PowerShell lento para subir, a reserva cabe no orçamento da função", async () => {
+    // No macOS e no Linux um caminho com acento tem de passar direto; a máquina Windows da CI tenta a
+    // conversão 8.3 de verdade, e o PowerShell frio às vezes passa dos 5 segundos padrão do Vitest, então o
+    // orçamento do teste precisa cobrir o tempo limite de 15 segundos declarado na implementação.
+    const dir = "/tmp/Conceição/models";
     expect(await toAnsiSafeDir(dir)).toBe(dir);
   }, 20_000);
 
-  it("纯 ASCII 路径任何平台都原样返回", async () => {
+  it("caminho em ASCII puro volta como está em qualquer plataforma", async () => {
     const dir = "C:\\Users\\dev\\hotclip\\models";
     expect(await toAnsiSafeDir(dir)).toBe(dir);
   });
