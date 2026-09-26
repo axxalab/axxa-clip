@@ -1,42 +1,42 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HotClip 爆款切片 — 免费开源 AI 直播切片工具:长视频/直播回放一键切成爆款竖屏短视频</title>
-<meta name="description" content="HotClip 是免费开源的 AI 视频切片 / 直播切片自动剪辑软件(Windows/macOS/Linux):AI 找爆点、横转竖 9:16、本地语音安全切点、可选 48k 智能人声增强、动态字幕。本地运行、无水印、不限时长。">
-<meta name="keywords" content="直播切片,AI视频切片工具,直播切片自动剪辑软件,长视频转短视频,AI剪辑软件免费,一键切片,直播回放剪辑,直播高光切片,自动加字幕,横屏转竖屏,HDR视频转SDR,口播剪辑,去气口,OpusClip 免费替代">
+<title>HotClip Cortes que Estouram — ferramenta de corte de live com IA, grátis e de código aberto: vídeo longo e gravação de live viram vídeo curto vertical viral com um clique</title>
+<meta name="description" content="O HotClip é um programa grátis e de código aberto para cortar vídeo e live com IA (Windows/macOS/Linux): a IA acha o pico, o vídeo vira 9:16, o ponto de corte é seguro pela detecção de voz local, há realce inteligente de voz em 48k opcional e legenda animada. Roda na sua máquina, sem marca-d'água e sem limite de duração.">
+<meta name="keywords" content="corte de live,ferramenta de corte de vídeo com IA,programa de corte automático de live,vídeo longo para vídeo curto,programa de edição com IA grátis,corte com um clique,edição de gravação de live,melhores momentos da live,legenda automática,horizontal para vertical,vídeo HDR para SDR,edição de locução,remover respiração,alternativa grátis ao OpusClip">
 <link rel="canonical" href="https://xixihhhh.github.io/hotclip/">
-<link rel="alternate" hreflang="zh-CN" href="https://xixihhhh.github.io/hotclip/">
+<link rel="alternate" hreflang="pt-BR" href="https://xixihhhh.github.io/hotclip/">
 <link rel="alternate" hreflang="en" href="https://xixihhhh.github.io/hotclip/en.html">
 <link rel="icon" href="icon.png">
 <link rel="preload" as="image" href="screenshots/04-highlights.png">
 <link rel="stylesheet" href="site.css">
 <script>document.documentElement.classList.add("js")</script>
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="HotClip 爆款切片">
-<meta property="og:locale" content="zh_CN">
-<meta property="og:title" content="HotClip 爆款切片 — 直播切片/长视频一键切成爆款竖屏短视频">
-<meta property="og:description" content="免费开源 · 本地运行 · 无水印 · 无积分制。AI 找爆点 + 48k 智能人声增强 + 舒适竖屏构图 + 动态逐词点亮字幕。">
+<meta property="og:site_name" content="HotClip Cortes que Estouram">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:title" content="HotClip Cortes que Estouram — live e vídeo longo viram vídeo curto vertical viral com um clique">
+<meta property="og:description" content="Grátis e de código aberto · roda na sua máquina · sem marca-d'água · sem crédito. A IA acha o pico + realce inteligente de voz em 48k + enquadramento vertical confortável + legenda animada acendendo palavra a palavra.">
 <meta property="og:image" content="https://xixihhhh.github.io/hotclip/social-preview.png">
 <meta property="og:url" content="https://xixihhhh.github.io/hotclip/">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="HotClip 爆款切片 — 直播切片/长视频一键切成爆款竖屏短视频">
-<meta name="twitter:description" content="免费开源 · 本地运行 · 无水印 · 无积分制。AI 找爆点 + 48k 智能人声增强 + 舒适竖屏构图 + 动态逐词点亮字幕。">
+<meta name="twitter:title" content="HotClip Cortes que Estouram — live e vídeo longo viram vídeo curto vertical viral com um clique">
+<meta name="twitter:description" content="Grátis e de código aberto · roda na sua máquina · sem marca-d'água · sem crédito. A IA acha o pico + realce inteligente de voz em 48k + enquadramento vertical confortável + legenda animada acendendo palavra a palavra.">
 <meta name="twitter:image" content="https://xixihhhh.github.io/hotclip/social-preview.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "HotClip",
-  "alternateName": "HotClip 爆款切片",
+  "alternateName": "HotClip Cortes que Estouram",
   "operatingSystem": "Windows, macOS, Linux",
   "applicationCategory": "MultimediaApplication",
   "softwareVersion": "0.29.0",
-  "inLanguage": ["zh-CN", "en"],
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
-  "description": "免费开源、本地运行的 AI 视频切片 / 直播切片软件:长视频、直播回放一键切成爆款竖屏短视频。AI 找爆点、弹幕热度进爆点判断、横屏转竖屏 9:16、逐词点亮动态字幕,无积分制、无水印、素材不上传。",
-  "featureList": "AI 找爆点(九路证据链,附爆款分与理由)、本地语音活动检测保护自动边界与跳剪漏词、可选 48kHz 本地智能人声增强且失败回退基础降噪、新用户 Ollama qwen3.5:4b 多模态预设、多音轨语音/响度证据和最终渲染同轨、多视频轨分析与最终渲染绑定同一选中画面、PQ/HLG 安全 SDR 分析预览、可选视觉扫描提取高置信屏显文字并校验标题/封面、跨桌面/CLI/MCP/自动化复用的本地多模态证据索引、质量排序智能封面、运动时间轴、弹幕热度进爆点判断、舒适优先横转竖 9:16 构图(单人/多人镜头锁定、按需跟随、丢失回正)、PQ/HLG 且完整受支持色彩路径的 HDR 视频自动安全转 SDR BT.709、HDR 路径不支持或色彩检查失败时分别明确提示、可选的片段级智能画面校正、冻结帧与主体出框成片质检、动态逐词点亮字幕、逐词时间来源与聚焦复核、字幕质量门、去气口剪口头禅、敏感词音频静音、项目工作区、可逆编辑与专业快捷键、重启恢复、持久自动化任务队列、有界基础渲染缓存、关键帧安全直拷、桌面健康检查、发布反馈台账、本地 A/B 实验、主题系列整理、平台发布包、SRT/双语字幕导出",
+  "inLanguage": ["pt-BR", "en"],
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" },
+  "description": "Programa grátis e de código aberto, rodando na sua máquina, para cortar vídeo e live com IA: vídeo longo e gravação de live viram vídeo curto vertical viral com um clique. A IA acha o pico, o calor dos comentários ao vivo entra no julgamento, o horizontal vira 9:16 e a legenda animada acende palavra a palavra, sem crédito, sem marca-d'água e sem enviar o seu material.",
+  "featureList": "A IA acha o pico (nove trilhas de prova, com nota e motivo), a detecção local de atividade de voz protege as bordas automáticas e as palavras que o corte seco perderia, realce inteligente de voz local em 48 kHz opcional com volta ao básico em caso de falha, predefinição multimodal Ollama qwen3.5:4b para quem chega agora, prova de voz e de volume na mesma trilha de áudio da renderização final, análise de várias trilhas de vídeo presa à mesma imagem escolhida, pré-visualização de análise SDR segura para PQ/HLG, varredura visual opcional extraindo o texto na tela com alta confiança e conferindo título e capa, índice local de provas multimodais reaproveitado pelo aplicativo, pela CLI, pelo MCP e pela automação, capa inteligente ordenada por qualidade, linha do tempo de movimento, calor dos comentários ao vivo no julgamento do pico, enquadramento 9:16 com conforto em primeiro lugar (trava de plano para uma ou várias pessoas, seguimento só quando precisa, volta ao centro quando perde), conversão automática e segura de HDR PQ/HLG com caminho de cor completo para SDR BT.709, aviso específico quando o caminho de HDR não é suportado ou a checagem de cor falha, correção inteligente de imagem por trecho opcional, controle de qualidade de quadro congelado e de assunto saindo do quadro, legenda animada acendendo palavra a palavra, origem do tempo por palavra e revisão focada, portão de qualidade da legenda, remoção de respiração e de vício de linguagem, silenciamento de palavra de risco, espaço de projetos, edição reversível com atalhos de profissional, retomada depois de reiniciar, fila de tarefas automáticas persistente, cache limitado da renderização de base, cópia direta segura por quadro-chave, diagnóstico no aplicativo, livro-caixa de retorno da publicação, teste A/B local, organização em séries por tema, pacote de publicação por plataforma e exportação de legenda SRT e bilíngue",
   "url": "https://xixihhhh.github.io/hotclip/",
   "downloadUrl": "https://github.com/xixihhhh/hotclip/releases/latest",
   "screenshot": "https://xixihhhh.github.io/hotclip/screenshots/04-highlights.png",
@@ -48,13 +48,13 @@
 {
   "@context": "https://schema.org",
   "@type": "HowTo",
-  "name": "直播切片怎么做?HotClip 三步出片",
-  "description": "用免费开源的 HotClip 把直播回放、播客、长视频一键切成爆款竖屏短视频的三个步骤。",
-  "tool": [{ "@type": "HowToTool", "name": "HotClip(免费开源,Windows/macOS/Linux)" }],
+  "name": "Como cortar uma live? O HotClip entrega em três passos",
+  "description": "Os três passos para transformar gravação de live, podcast e vídeo longo em vídeo curto vertical viral com o HotClip, grátis e de código aberto.",
+  "tool": [{ "@type": "HowToTool", "name": "HotClip (grátis e de código aberto, Windows/macOS/Linux)" }],
   "step": [
-    { "@type": "HowToStep", "position": 1, "name": "导入长视频", "text": "把播客、直播回放、课程、Vlog 拖进 HotClip(支持 MP4/MKV/MOV/FLV/TS,纯音频也可以),或粘贴 B站/YouTube 等公开视频地址;源视频落到本机后进入同一套处理流程。" },
-    { "@type": "HowToStep", "position": 2, "name": "AI 找爆点", "text": "本地逐字转写后,AI 通读全文挑出金句、冲突、高能片段,每条附爆款分、开场钩子和推荐理由,切点精确到词,看不顺眼的取消勾选即可。" },
-    { "@type": "HowToStep", "position": 3, "name": "一键出片", "text": "一键导出竖屏 9:16 成片:PQ/HLG 且原色、矩阵、范围完整受支持时自动安全转为 SDR BT.709;可选 48k 智能人声增强在完整剪辑后处理讲话原声,不可用时自动回退基础降噪。随后完成舒适构图、动态字幕、标题贴片、响度归一,并从最终成片中质量排序挑选封面。" }
+    { "@type": "HowToStep", "position": 1, "name": "Importar o vídeo longo", "text": "Arraste o podcast, a gravação da live, a aula ou o vlog para dentro do HotClip (MP4/MKV/MOV/FLV/TS, e só áudio também serve), ou cole o endereço de um vídeo público do YouTube e afins; depois que o vídeo de origem cai na sua máquina, tudo segue o mesmo fluxo." },
+    { "@type": "HowToStep", "position": 2, "name": "A IA acha o pico", "text": "Depois da transcrição local palavra a palavra, a IA lê tudo e escolhe as frases de efeito, os atritos e os trechos de alta energia, cada um com nota, gancho de abertura e motivo da recomendação, com o ponto de corte exato na palavra; o que você não gostar, é só desmarcar." },
+    { "@type": "HowToStep", "position": 3, "name": "Exportar com um clique", "text": "Um clique e sai o corte vertical 9:16: quando é PQ/HLG e as primárias, a matriz e a faixa estão completas e suportadas, a conversão para SDR BT.709 é automática e segura; o realce inteligente de voz em 48k opcional trata o som original depois da edição completa e volta ao básico se não estiver disponível. Em seguida vêm o enquadramento confortável, a legenda animada, o selo de título e a normalização de volume, e a capa é escolhida por ordem de qualidade a partir do corte final." }
   ]
 }
 </script>
@@ -63,19 +63,19 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    { "@type": "Question", "name": "有什么免费的 AI 切片软件?HotClip 是免费的吗?", "acceptedAnswer": { "@type": "Answer", "text": "HotClip 完全免费:开源(AGPL-3.0)、本地运行、无水印、无积分制、不限视频时长。可选的云端大模型按你自己的 API Key 计费,也可以接本机 Ollama 做到完全免费、完全离线。" } },
-    { "@type": "Question", "name": "直播切片怎么做?直播回放怎么剪辑成短视频?", "acceptedAnswer": { "@type": "Answer", "text": "三步:①把直播回放/播客/长视频导入 HotClip(MP4/MKV/MOV/FLV/TS);②AI 转写并自动识别高光爆点,每条附爆款分和理由,可手动取舍;③一键导出竖屏 9:16 成片,字幕已烧进画面,直接发抖音/快手/B站/视频号/小红书/TikTok。" } },
-    { "@type": "Question", "name": "HotClip 和 OpusClip、剪映智能切片有什么区别?", "acceptedAnswer": { "@type": "Answer", "text": "最大区别是素材不出你的电脑:OpusClip 等 SaaS 必须上传云端、按源视频分钟扣积分且积分月底清零,免费档带水印,国内访问也不稳;剪映的智能切片核心功能在会员里。HotClip 免费开源、全程本地处理、无水印、不限时长,每条 AI 切点都附理由可审计。" } },
-    { "@type": "Question", "name": "需要联网吗?视频会上传到云端吗?", "acceptedAnswer": { "@type": "Answer", "text": "素材永不上传。转写、字幕、切片、导出全程离线;只有 AI 找爆点这一步默认调用云端大模型(只发文字稿,用你自己的 Key),接本机 Ollama 后整条流水线 100% 离线。" } },
-    { "@type": "Question", "name": "手机拍的 HDR 视频导出会发灰吗?", "acceptedAnswer": { "@type": "Answer", "text": "PQ 或 HLG 且原色、矩阵、范围完整受支持时,HotClip 会在本机做受控色调映射并输出 TV-range SDR BT.709;MaxCLL 或 mastering 峰值可用于约束高光。色彩路径不完整或不受支持时标记未转换,色彩检查失败时单独提示;两者都跳过 SDR 域智能校正。普通 SDR 不变,无新增模型、上传或下载。" } },
-    { "@type": "Question", "name": "智能封面怎么避开黑场、模糊和转场帧?", "acceptedAnswer": { "@type": "Answer", "text": "HotClip 先用响度峰与均匀时刻提名候选,再在最终质检后的成片上本地比较清晰度、信息量、曝光、明暗跨度与短时间稳定性。黑白场和低信息帧会被淘汰,多版本取不同排名;分析失败则精确回退原来的响度峰,不影响出片。" } },
-    { "@type": "Question", "name": "支持中文视频吗?方言和粤语呢?", "acceptedAnswer": { "@type": "Answer", "text": "支持且是强项。中文识别走专用引擎(SenseVoice/Paraformer/FireRedASR2),准确率显著高于通用模型;方言、粤语、中英混说都覆盖,界面、字幕、爆点判断提示词都针对中文内容做了适配。" } },
-    { "@type": "Question", "name": "视频怎么自动加字幕?能导出 SRT 吗?", "acceptedAnswer": { "@type": "Answer", "text": "导入后自动逐字转写,关键词高亮/大字弹出/气泡特效等多款动态字幕一档切换、直接烧进画面;也可以一键导出 SRT 字幕文件给平台原生上传,开双语字幕还能整句翻译烧成第二行。" } },
-    { "@type": "Question", "name": "弹幕能参与选爆点吗?", "acceptedAnswer": { "@type": "Answer", "text": "能,而且是最硬的证据。HotClip 自动发现录播旁的弹幕文件(B 站录播姬 .xml、抖音直播录制 .jsonl 都认),弹幕密度与 SC/舰长/礼物/关注/点赞互动按档计权直接进爆点判断;单人刷屏有贡献封顶,突然爆发有额外加成。没有弹幕文件时,响度/镜头/运动/表情/语气/笑声等信号兜底。" } },
-    { "@type": "Question", "name": "剪映可以自动切割片段吗?能和剪映配合用吗?", "acceptedAnswer": { "@type": "Answer", "text": "剪映的智能切片在会员档,且只能切连续区间。HotClip 免费开源,支持把相隔十几分钟的片段拼成一条,还能把每条切片导出成剪映草稿——AI 粗剪交给 HotClip,打开剪映接着精修。" } },
-    { "@type": "Question", "name": "能自动剪掉口播里的停顿和口头禅吗?视频如何去气口?", "acceptedAnswer": { "@type": "Answer", "text": "能。「剪气口」自动删掉说话间的静音停顿,「剪口头禅」剪掉嗯/呃与结巴重复,字幕时间轴同步重映射;剪了什么逐条写进 clips.json,你始终知道 AI 动了哪里。" } },
-    { "@type": "Question", "name": "需要显卡吗?配置要求高吗?", "acceptedAnswer": { "@type": "Answer", "text": "不需要显卡。本地转写用 int8 量化的小模型,普通 CPU 就能跑;找爆点的大模型在云端或你本机的 Ollama。" } },
-    { "@type": "Question", "name": "可以切别人的直播吗?直播切片如何申请授权?", "acceptedAnswer": { "@type": "Answer", "text": "HotClip 面向你自己的内容或已获授权的切片。切别人的直播请先拿到授权(如各平台/公会的主播切片授权计划),未经授权的影视/直播搬运不受支持,也不欢迎。" } }
+    { "@type": "Question", "name": "Existe algum programa de corte com IA de graça? O HotClip é grátis?", "acceptedAnswer": { "@type": "Answer", "text": "O HotClip é totalmente grátis: código aberto (AGPL-3.0), roda na sua máquina, sem marca-d'água, sem crédito e sem limite de duração. O modelo grande na nuvem é opcional e vai na sua própria chave de API, e ligando o Ollama da sua máquina fica tudo grátis e totalmente offline." } },
+    { "@type": "Question", "name": "Como cortar uma live? Como transformar a gravação de uma live em vídeo curto?", "acceptedAnswer": { "@type": "Answer", "text": "Três passos: ① importe a gravação da live, o podcast ou o vídeo longo para o HotClip (MP4/MKV/MOV/FLV/TS); ② a IA transcreve e acha os melhores momentos sozinha, cada um com nota e motivo, e você escolhe à mão; ③ um clique exporta o corte vertical 9:16 com a legenda já gravada na imagem, pronto para publicar no Instagram, no TikTok, no YouTube Shorts e no Kwai." } },
+    { "@type": "Question", "name": "Qual a diferença entre o HotClip, o OpusClip e o corte inteligente do CapCut?", "acceptedAnswer": { "@type": "Answer", "text": "A maior diferença é que o material não sai do seu computador: o OpusClip e outros SaaS obrigam a enviar para a nuvem, descontam crédito por minuto do vídeo de origem e zeram o crédito no fim do mês, e a faixa grátis tem marca-d'água; no CapCut, o corte inteligente está na assinatura. O HotClip é grátis e de código aberto, processa tudo na sua máquina, não põe marca-d'água, não limita a duração e cada ponto de corte da IA vem com o motivo, auditável." } },
+    { "@type": "Question", "name": "Precisa de internet? O vídeo vai para a nuvem?", "acceptedAnswer": { "@type": "Answer", "text": "O material nunca é enviado. A transcrição, a legenda, o corte e a exportação rodam offline do começo ao fim; só o passo de achar o pico chama por padrão um modelo grande na nuvem (mandando apenas o texto, com a sua chave), e ligando o Ollama da sua máquina a linha inteira fica 100% offline." } },
+    { "@type": "Question", "name": "O vídeo HDR gravado no celular sai lavado na exportação?", "acceptedAnswer": { "@type": "Answer", "text": "Quando é PQ ou HLG e as primárias, a matriz e a faixa estão completas e suportadas, o HotClip faz o mapeamento de tons controlado na sua máquina e entrega SDR BT.709 em faixa de televisão; o pico de MaxCLL ou de mastering, quando existe, limita as altas luzes. Se o caminho de cor está incompleto ou não é suportado, fica marcado como não convertido, e se a checagem de cor falha há um aviso próprio; nos dois casos a correção inteligente no domínio SDR é pulada. O SDR comum não muda, e não há modelo novo, upload nem download." } },
+    { "@type": "Question", "name": "Como a capa inteligente evita cena preta, imagem borrada e quadro de transição?", "acceptedAnswer": { "@type": "Answer", "text": "O HotClip primeiro indica candidatos pelos picos de volume e por momentos uniformes, e depois, já sobre o corte final revisado, compara localmente a nitidez, a quantidade de informação, a exposição, a amplitude entre claro e escuro e a estabilidade em intervalo curto. Cena preta, cena branca e quadro com pouca informação são descartados, e as várias versões pegam posições diferentes da lista; se a análise falha, tudo volta exatamente ao pico de volume anterior, sem atrapalhar a entrega." } },
+    { "@type": "Question", "name": "Funciona com vídeo em português? E com sotaque regional?", "acceptedAnswer": { "@type": "Answer", "text": "A interface, a legenda e os prompts de julgamento do pico são todos em português do Brasil. Os motores locais que vêm no instalador (SenseVoice / Paraformer / FireRedASR2) reconhecem chinês e inglês, então, para áudio em português, use o motor de nuvem opcional (ElevenLabs) ou importe um SRT / WebVTT que você já tenha — o resto do fluxo é idêntico." } },
+    { "@type": "Question", "name": "Como colocar legenda automática no vídeo? Dá para exportar SRT?", "acceptedAnswer": { "@type": "Answer", "text": "Depois de importar, a transcrição palavra a palavra sai sozinha, e a legenda animada (destaque de palavra-chave, letra grande saltando, efeito de balão) troca em uma chave só e já é gravada na imagem; também dá para exportar o arquivo SRT com um clique para subir direto na plataforma, e, com a legenda bilíngue ligada, a frase traduzida é gravada em uma segunda linha." } },
+    { "@type": "Question", "name": "Os comentários ao vivo participam da escolha do pico?", "acceptedAnswer": { "@type": "Answer", "text": "Participam, e são a prova mais dura. O HotClip acha sozinho o arquivo de comentários ao lado da gravação (reconhece tanto .xml quanto .jsonl), e a densidade dos comentários, junto com doações, presentes, seguidas e curtidas, entra com peso por faixa direto no julgamento do pico; uma pessoa sozinha enchendo o chat tem a contribuição limitada, e uma explosão repentina ganha bônus. Sem arquivo de comentários, os sinais de volume, plano, movimento, expressão, tom de voz e risada seguram a barra." } },
+    { "@type": "Question", "name": "O CapCut corta trechos sozinho? Dá para usar junto com ele?", "acceptedAnswer": { "@type": "Answer", "text": "O corte inteligente do CapCut está na assinatura e só corta um intervalo contínuo. O HotClip é grátis e de código aberto, junta em um corte só trechos separados por dezenas de minutos e ainda exporta cada corte como rascunho do CapCut — o corte inicial fica com o HotClip, e você abre o CapCut para o acabamento." } },
+    { "@type": "Question", "name": "Dá para cortar sozinho as pausas e os vícios de linguagem da locução? Como se tira a respiração do vídeo?", "acceptedAnswer": { "@type": "Answer", "text": "Dá. O «corte de respiração» apaga sozinho as pausas silenciosas entre as falas, o «corte de vício de linguagem» tira os «ahn», os «é» e as gagueiras repetidas, e a linha do tempo da legenda é remapeada junto; tudo o que foi cortado vai item a item para o clips.json, então você sempre sabe onde a IA mexeu." } },
+    { "@type": "Question", "name": "Precisa de placa de vídeo? A exigência de máquina é alta?", "acceptedAnswer": { "@type": "Answer", "text": "Não precisa de placa de vídeo. A transcrição local usa um modelo pequeno quantizado em int8, que roda em CPU comum; o modelo grande que acha o pico fica na nuvem ou no Ollama da sua máquina." } },
+    { "@type": "Question", "name": "Dá para cortar a live de outra pessoa? Como se pede a licença?", "acceptedAnswer": { "@type": "Answer", "text": "O HotClip é para o seu próprio conteúdo ou para cortes que você já tem licença de fazer. Para cortar a live de outra pessoa, consiga a licença antes (por exemplo, os programas de licenciamento de cortes das plataformas e das agências); reaproveitar filme, série ou live sem autorização não é suportado e nem é bem-vindo aqui." } }
   ]
 }
 </script>
@@ -119,55 +119,55 @@
 
 <nav id="sitenav">
   <img src="icon.png" alt="HotClip logo">
-  <span class="name">HotClip <em>爆款切片</em></span>
+  <span class="name">HotClip <em>Cortes que Estouram</em></span>
   <span class="spacer"></span>
-  <a class="plain" href="#how">三步出片</a>
-  <a class="plain" href="#features">功能</a>
-  <a class="plain" href="#compare">对比</a>
+  <a class="plain" href="#how">Três passos</a>
+  <a class="plain" href="#features">Funções</a>
+  <a class="plain" href="#compare">Comparação</a>
   <a class="plain" href="#faq">FAQ</a>
   <a class="plain" href="en.html">English</a>
   <a class="plain" href="https://github.com/xixihhhh/hotclip">GitHub<span id="gh-stars-nav"></span></a>
-  <a class="nav-cta" href="https://github.com/xixihhhh/hotclip/releases/latest">免费下载</a>
+  <a class="nav-cta" href="https://github.com/xixihhhh/hotclip/releases/latest">Baixar grátis</a>
 </nav>
 
 <main>
 <header class="hero">
-  <span class="eyebrow"><span class="dot"></span>开源 AGPL-3.0 · 无需注册 · 下载双击即用</span>
-  <h1 id="hero-title">直播切片 · 长视频剪辑<br>一键切出<span class="hl">爆款竖屏短视频</span></h1>
-  <p class="sub">播客、直播回放、课程、Vlog 丢进来,<strong>AI 自动找爆点</strong> → <strong>横屏转竖屏 9:16</strong> + <strong>动态逐词点亮字幕</strong> → 直接发抖音 / 快手 / B站 / 视频号 / 小红书 / TikTok。<br>免费开源 · 本地运行不上传 · 无水印 · 无积分制 · 不限时长。</p>
+  <span class="eyebrow"><span class="dot"></span>Código aberto AGPL-3.0 · sem cadastro · baixou, clicou, usou</span>
+  <h1 id="hero-title">Corte de live · edição de vídeo longo<br>um clique e sai o <span class="hl">vídeo vertical que estoura</span></h1>
+  <p class="sub">Jogue aqui o podcast, a gravação da live, a aula ou o vlog: <strong>a IA acha o pico sozinha</strong> → <strong>o horizontal vira 9:16</strong> + <strong>legenda animada acendendo palavra a palavra</strong> → e você publica direto no Instagram / TikTok / YouTube Shorts / Kwai.<br>Grátis e de código aberto · roda na sua máquina e não envia nada · sem marca-d'água · sem crédito · sem limite de duração.</p>
   <div class="cta">
-    <a class="btn btn-primary" href="https://github.com/xixihhhh/hotclip/releases/latest"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg> 免费下载(Windows / macOS / Linux)</a>
-    <a class="btn btn-ghost" href="https://github.com/xixihhhh/hotclip">GitHub 源码</a>
+    <a class="btn btn-primary" href="https://github.com/xixihhhh/hotclip/releases/latest"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg> Baixar grátis (Windows / macOS / Linux)</a>
+    <a class="btn btn-ghost" href="https://github.com/xixihhhh/hotclip">Código no GitHub</a>
   </div>
-  <p class="note">不用 Python、不用 Docker、连账号都不用注册——下载安装包,双击即用</p>
+  <p class="note">Sem Python, sem Docker, sem nem precisar criar conta — baixe o instalador, clique duas vezes e use</p>
   <div class="meta-badges">
-    <span>最新版本 <b id="gh-version">v0.32.0</b></span>
+    <span>Versão mais recente <b id="gh-version">v0.32.0</b></span>
     <span>GitHub <b id="gh-stars">★</b></span>
     <span>Windows · macOS · Linux</span>
   </div>
 
-  <!-- 切片装置:一条长视频的时间轴上,火苗标记的高能段被"切"成三条竖屏成片 -->
+  <!-- O dispositivo de corte: na linha do tempo de um vídeo longo, os trechos de alta energia marcados pela chama são «cortados» em três vídeos verticais -->
   <div class="rig" aria-hidden="true">
     <div class="rig-cards">
       <div class="clip-card c1">
         <video class="clip-media" src="media/clip-1.mp4" autoplay muted loop playsinline preload="metadata" disablepictureinpicture></video>
         <span class="clip-shade" aria-hidden="true"></span>
         <div class="clip-score"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg> 95</div>
-        <div class="clip-cap"><span class="w">这段</span><span class="w">直接</span><span class="w">起飞</span></div>
+        <div class="clip-cap"><span class="w">esse trecho</span><span class="w">vai</span><span class="w">decolar</span></div>
         <span class="clip-beam"></span>
       </div>
       <div class="clip-card c2">
         <video class="clip-media" src="media/clip-2.mp4" autoplay muted loop playsinline preload="metadata" disablepictureinpicture></video>
         <span class="clip-shade" aria-hidden="true"></span>
         <div class="clip-score"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg> 88</div>
-        <div class="clip-cap"><span class="w">金句</span><span class="w">就是</span><span class="w">这句</span></div>
+        <div class="clip-cap"><span class="w">a frase</span><span class="w">de efeito</span><span class="w">é essa</span></div>
         <span class="clip-beam"></span>
       </div>
       <div class="clip-card c3">
         <video class="clip-media" src="media/clip-3.mp4" autoplay muted loop playsinline preload="metadata" disablepictureinpicture></video>
         <span class="clip-shade" aria-hidden="true"></span>
         <div class="clip-score"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg> 92</div>
-        <div class="clip-cap"><span class="w">三二一</span><span class="w">上链接</span></div>
+        <div class="clip-cap"><span class="w">três, dois, um</span><span class="w">link no ar</span></div>
         <span class="clip-beam"></span>
       </div>
     </div>
@@ -179,97 +179,97 @@
       <div class="cut" style="left:45.5%"><span class="flame"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span></div>
       <div class="cut" style="left:75%"><span class="flame"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span></div>
     </div>
-    <p class="rig-label">一条 3 小时的直播回放 → AI 圈出高能段 → 切成能直接发的竖屏成片</p>
+    <p class="rig-label">Uma gravação de live de 3 horas → a IA circula os trechos de alta energia → e sai o corte vertical pronto para publicar</p>
   </div>
 
-  <div class="marquee" role="region" aria-label="成片可直接发布的平台">
+  <div class="marquee" role="region" aria-label="Plataformas em que o corte pode ser publicado direto">
     <div class="marquee-track">
-      <span class="p">切完直接发 <b>抖音</b></span>
-      <span class="p"><b>快手</b></span>
-      <span class="p"><b>B站</b></span>
-      <span class="p"><b>视频号</b></span>
-      <span class="p"><b>小红书</b></span>
+      <span class="p">Cortou, publicou no <b>Instagram</b></span>
+      <span class="p"><b>Kwai</b></span>
+      <span class="p"><b>Facebook</b></span>
+      <span class="p"><b>X</b></span>
+      <span class="p"><b>LinkedIn</b></span>
       <span class="p"><b>TikTok</b></span>
       <span class="p"><b>YouTube Shorts</b></span>
       <span class="p"><b>Instagram Reels</b></span>
-      <span class="p"><b>播客</b>金句也能切</span>
+      <span class="p">Frase de efeito de <b>podcast</b> também vira corte</span>
     </div>
   </div>
 </header>
 
 <section id="how" class="scrolly">
-  <h2>直播切片怎么做?<span class="hl">三步出片</span></h2>
-  <p class="lead">从几小时的直播回放到能直接发布的竖屏成片,中间只有三步——往下滚动,看看每一步发生了什么。</p>
+  <h2>Como cortar uma live? <span class="hl">Em três passos</span></h2>
+  <p class="lead">De uma gravação de várias horas até o vídeo vertical pronto para publicar, são só três passos — role para baixo e veja o que acontece em cada um.</p>
   <div class="stage-wrap">
     <div class="stage-progress" aria-hidden="true">
-      <span class="sp sp-1 active">01 · 导入</span>
-      <span class="sp sp-2">02 · AI 找爆点</span>
-      <span class="sp sp-3">03 · 一键出片</span>
+      <span class="sp sp-1 active">01 · importar</span>
+      <span class="sp sp-2">02 · a IA acha o pico</span>
+      <span class="sp sp-3">03 · exportar com um clique</span>
     </div>
     <div class="stages">
       <div class="stage stage-1">
         <div class="st-copy">
-          <span class="st-k">STEP 01 · 导入</span>
-          <h3>几小时的回放,整个丢进来</h3>
-          <p>播客、直播回放、课程、Vlog——<b>纯音频也行</b>,也可粘贴 B站 / YouTube 等公开视频地址。源视频落到本机后进入同一套流程。</p>
-          <div class="st-chips"><span>MP4</span><span>MKV</span><span>MOV</span><span>FLV</span><span>纯音频</span><span>公开视频 URL</span></div>
+          <span class="st-k">PASSO 01 · importar</span>
+          <h3>Jogue a gravação inteira de várias horas aqui</h3>
+          <p>Podcast, gravação de live, aula, vlog — <b>só áudio também serve</b> —, e dá para colar o endereço de um vídeo público do YouTube e afins. Depois que o vídeo de origem cai na sua máquina, tudo segue o mesmo fluxo.</p>
+          <div class="st-chips"><span>MP4</span><span>MKV</span><span>MOV</span><span>FLV</span><span>só áudio</span><span>URL de vídeo público</span></div>
         </div>
         <div class="st-visual">
           <div class="import-tray">
             <div class="tray-icon"><svg class="ic" aria-hidden="true"><use href="#i-tray"/></svg></div>
-            <div class="tray-text">拖入文件或粘贴公开视频地址</div>
+            <div class="tray-text">Arraste o arquivo ou cole o endereço de um vídeo público</div>
           </div>
-          <span class="file-chip fc-1"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg> 直播回放.flv <small>· 3h12m</small></span>
-          <span class="file-chip fc-2"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> 播客第41期.mp3 <small>· 1h48m</small></span>
-          <span class="file-chip fc-3"><svg class="ic" aria-hidden="true"><use href="#i-cam"/></svg> 口播素材.mp4 <small>· 26m</small></span>
+          <span class="file-chip fc-1"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg> gravacao-da-live.flv <small>· 3h12m</small></span>
+          <span class="file-chip fc-2"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> podcast-ep41.mp3 <small>· 1h48m</small></span>
+          <span class="file-chip fc-3"><svg class="ic" aria-hidden="true"><use href="#i-cam"/></svg> locucao.mp4 <small>· 26m</small></span>
         </div>
       </div>
       <div class="stage stage-2">
         <div class="st-copy">
-          <span class="st-k">STEP 02 · AI 找爆点</span>
-          <h3>每条候选,都讲得出理由</h3>
-          <p>本地逐字转写后,AI 通读全文挑出金句、冲突、高能段。<b>爆款分 + 四维评审 + 推荐理由</b>,切点由逐字转写反向对齐、精确到词——不是黑盒,看不顺眼取消勾选即可。</p>
-          <div class="st-chips"><span>文本</span><span>响度</span><span>镜头</span><span>运动</span><span>表情</span><span>视觉</span><span>弹幕</span><span>语气</span><span>笑声</span></div>
+          <span class="st-k">PASSO 02 · a IA acha o pico</span>
+          <h3>Todo candidato vem com um motivo</h3>
+          <p>Depois da transcrição local palavra a palavra, a IA lê tudo e escolhe as frases de efeito, os atritos e os trechos de alta energia. <b>Nota de viralização + avaliação em quatro eixos + motivo da recomendação</b>, com o ponto de corte alinhado de volta pela transcrição, exato na palavra — não é caixa-preta, e o que você não gostar é só desmarcar.</p>
+          <div class="st-chips"><span>texto</span><span>volume</span><span>plano</span><span>movimento</span><span>expressão</span><span>visão</span><span>comentários</span><span>tom de voz</span><span>risada</span></div>
         </div>
         <div class="st-visual">
           <div class="cand-card">
             <div class="cc-top">
-              <span class="cc-title"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg> 金句时刻</span>
-              <span class="cc-score">爆款分 <b class="cc-num" data-target="92">0</b></span>
+              <span class="cc-title"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg> Momento da frase de efeito</span>
+              <span class="cc-score">nota <b class="cc-num" data-target="92">0</b></span>
             </div>
-            <p class="cc-quote">"很多人以为切片靠运气,其实爆点是有结构的——钩子、冲突、反转,一个都不能少。"</p>
+            <p class="cc-quote">«Muita gente acha que corte é sorte, mas o pico tem estrutura: gancho, atrito e virada — não pode faltar nenhum.»</p>
             <div class="cc-dims">
-              <div class="cc-dim">钩子<div class="cc-bar"><i data-w="0.88"></i></div></div>
-              <div class="cc-dim">结构<div class="cc-bar"><i data-w="0.76"></i></div></div>
-              <div class="cc-dim">价值<div class="cc-bar"><i data-w="0.92"></i></div></div>
-              <div class="cc-dim">热点<div class="cc-bar"><i data-w="0.64"></i></div></div>
+              <div class="cc-dim">gancho<div class="cc-bar"><i data-w="0.88"></i></div></div>
+              <div class="cc-dim">estrutura<div class="cc-bar"><i data-w="0.76"></i></div></div>
+              <div class="cc-dim">valor<div class="cc-bar"><i data-w="0.92"></i></div></div>
+              <div class="cc-dim">assunto do momento<div class="cc-bar"><i data-w="0.64"></i></div></div>
             </div>
-            <div class="cc-why">AI 复评:开场 3 秒有钩子,信息密度高,独立可看——建议发布</div>
+            <div class="cc-why">Revisão da IA: tem gancho nos 3 primeiros segundos, densidade de informação alta e se entende sozinho — recomendado publicar</div>
           </div>
-          <div class="cand-mini"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg> 切点 <b>00:42:17.320 → 00:42:49.860</b><br>逐字对齐 · 精确到词 · 可手动微调</div>
+          <div class="cand-mini"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg> corte <b>00:42:17.320 → 00:42:49.860</b><br>alinhado palavra a palavra · exato na palavra · ajustável à mão</div>
         </div>
       </div>
       <div class="stage stage-3">
         <div class="st-copy">
-          <span class="st-k">STEP 03 · 一键出片</span>
-          <h3>出来就是能发的成片</h3>
-          <p>PQ/HLG 且色彩路径完整受支持时先安全转成 SDR BT.709;不支持或检查失败都会保留原路径并分别提示。再用<b>舒适优先构图</b>横转竖 9:16、烧入<b>动态逐词点亮字幕</b>,加上标题贴片、去气口与 -14 LUFS 响度归一。</p>
-          <div class="st-chips"><span>抖音</span><span>快手</span><span>B站</span><span>视频号</span><span>小红书</span><span>TikTok</span></div>
+          <span class="st-k">PASSO 03 · exportar com um clique</span>
+          <h3>O que sai já dá para publicar</h3>
+          <p>Sendo PQ/HLG com o caminho de cor completo e suportado, a conversão segura para SDR BT.709 vem primeiro; se não for suportado ou a checagem falhar, o caminho original é preservado e cada caso tem seu aviso. Depois vêm o <b>enquadramento com conforto em primeiro lugar</b> do horizontal para o 9:16, a <b>legenda animada acendendo palavra a palavra</b> gravada na imagem, o selo de título, a remoção de respiração e a normalização de volume em -14 LUFS.</p>
+          <div class="st-chips"><span>Instagram</span><span>TikTok</span><span>YouTube Shorts</span><span>Kwai</span><span>Facebook</span><span>LinkedIn</span></div>
         </div>
         <div class="st-visual">
           <div class="phone">
             <video class="phone-media" src="media/clip-2.mp4" autoplay muted loop playsinline preload="metadata" disablepictureinpicture></video>
             <span class="ph-shade" aria-hidden="true"></span>
             <div class="ph-notch"></div>
-            <div class="ph-title">切片靠的不是运气</div>
-            <div class="ph-cap"><span class="w">爆点</span><span class="w">是有</span><span class="w">结构的</span></div>
+            <div class="ph-title">Corte não é sorte</div>
+            <div class="ph-cap"><span class="w">o pico</span><span class="w">tem</span><span class="w">estrutura</span></div>
             <div class="ph-wave" id="phone-wave"></div>
           </div>
           <div class="export-list">
-            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg> 封面图 JPG</span>
-            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-bubble"/></svg> SRT 字幕</span>
-            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-text"/></svg> 发布文案</span>
-            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-braces"/></svg> clips.json 回执</span>
+            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg> capa em JPG</span>
+            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-bubble"/></svg> legenda SRT</span>
+            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-text"/></svg> texto de publicação</span>
+            <span class="export-item"><svg class="ic" aria-hidden="true"><use href="#i-braces"/></svg> recibo clips.json</span>
           </div>
         </div>
       </div>
@@ -277,159 +277,159 @@
   </div>
 </section>
 
-<div class="karaoke-demo" role="region" aria-label="动态逐词点亮字幕效果演示">
-  <p class="kd-line" id="karaoke-line">爆点一开口,字幕就跟着点亮</p>
-  <p class="kd-sub">↑ 动态逐词点亮字幕 · 成片效果演示,实际直接烧录进视频画面,SRT 可导出</p>
+<div class="karaoke-demo" role="region" aria-label="Demonstração da legenda animada acendendo palavra a palavra">
+  <p class="kd-line" id="karaoke-line">O pico começa a falar e a legenda acende junto</p>
+  <p class="kd-sub">↑ Legenda animada acendendo palavra a palavra · demonstração do resultado; na prática ela é gravada direto na imagem, e o SRT dá para exportar</p>
 </div>
 
 <section id="features">
-  <h2>为什么选 <span class="hl">HotClip</span></h2>
-  <p class="lead">按分钟扣积分、必须上传云端、切点黑盒、中文识别拉胯——市面工具的坑,一次填平。</p>
+  <h2>Por que o <span class="hl">HotClip</span></h2>
+  <p class="lead">Crédito descontado por minuto, upload obrigatório para a nuvem, ponto de corte em caixa-preta — as ciladas das ferramentas do mercado, tapadas de uma vez.</p>
   <div class="bento">
     <div class="b-cell b-lg b-hotspot" data-reveal>
       <span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span>
-      <h3>AI 找爆点 · 直播高光切片</h3>
-      <p>九路证据链(文本/响度/镜头/运动/表情/视觉/弹幕/语气/笑声掌声)圈出高能时刻,多路信号同秒共振才可信;每条候选附<b>爆款分与四维评审</b>,弱片自动标「不建议发布」。爆款分是同批次排名,不是玄学。</p>
+      <h3>A IA acha o pico · melhores momentos da live</h3>
+      <p>Nove trilhas de prova (texto, volume, plano, movimento, expressão, visão, comentários ao vivo, tom de voz, risada e palmas) circulam os momentos de alta energia, e só vale quando várias trilhas ressoam no mesmo segundo; cada candidato vem com <b>nota de viralização e avaliação em quatro eixos</b>, e o corte fraco é marcado sozinho como «não recomendado publicar». A nota é uma posição dentro do mesmo lote, não adivinhação.</p>
       <div class="mini-cand" aria-hidden="true">
-        <div class="cc-top"><span><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg> 金句时刻</span><span class="cc-score">92</span></div>
+        <div class="cc-top"><span><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg> Momento da frase de efeito</span><span class="cc-score">92</span></div>
         <div class="cc-dims">
-          <div class="cc-dim">钩子<div class="cc-bar"><i data-w="0.88"></i></div></div>
-          <div class="cc-dim">结构<div class="cc-bar"><i data-w="0.76"></i></div></div>
-          <div class="cc-dim">价值<div class="cc-bar"><i data-w="0.92"></i></div></div>
-          <div class="cc-dim">热点<div class="cc-bar"><i data-w="0.64"></i></div></div>
+          <div class="cc-dim">gancho<div class="cc-bar"><i data-w="0.88"></i></div></div>
+          <div class="cc-dim">estrutura<div class="cc-bar"><i data-w="0.76"></i></div></div>
+          <div class="cc-dim">valor<div class="cc-bar"><i data-w="0.92"></i></div></div>
+          <div class="cc-dim">assunto do momento<div class="cc-bar"><i data-w="0.64"></i></div></div>
         </div>
       </div>
     </div>
     <div class="b-cell b-lg b-privacy" data-reveal>
       <span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span>
-      <h3>素材不出你的电脑</h3>
-      <p>转写、找爆点、切片、导出全在本机跑。未发布的素材、客户内容、带 NDA 的商单,不用交给任何云端服务器;接<b>本机 Ollama(qwen3.5:4b)</b> 后整条流水线 100% 离线。</p>
+      <h3>O material não sai do seu computador</h3>
+      <p>A transcrição, a busca do pico, o corte e a exportação rodam todos na sua máquina. Material ainda não publicado, conteúdo de cliente e trabalho sob NDA não precisam ser entregues a nenhum servidor na nuvem; ligando o <b>Ollama da sua máquina (qwen3.5:4b)</b>, a linha inteira fica 100% offline.</p>
       <div class="shield-wrap" aria-hidden="true">
         <span class="shield"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>
-        <div class="upload-zero">0<small>次上传 · 全程本地 · 代码可查(AGPL-3.0)</small></div>
+        <div class="upload-zero">0<small>uploads · tudo na sua máquina · código auditável (AGPL-3.0)</small></div>
       </div>
     </div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-caption"/></svg></span><h3>自动加动态字幕 · 逐词点亮</h3><p>词级时间戳驱动,语义断行不「拦腰截断」;<b>SRT 可导出</b>,双语字幕一键开。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg></span><h3>画面里的字也参与找爆点</h3><p>可选视觉扫描同一次识别清晰的产品名、价格、比分和 PPT 要点;<b>不确定就不记</b>,静态但有价值的画面也不会被能量分漏掉。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>搜到、听到、选成片</h3><p>台词和已扫描画面统一搜索,定位命中字词、<b>试听上下文、预选完整句子</b>;长稿选段流畅,确认后可撤销,估算时间明确标记。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-reframe"/></svg></span><h3>横屏转竖屏 9:16</h3><p><b>舒适优先构图</b>:能装下就真正锁住到下一镜,确有需要才平滑跟随;跳剪不穿越删掉的画面,持续漏检自动回正。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><h3>HDR 转色不靠猜</h3><p>PQ/HLG 且色彩路径完整受支持才在线性光域转成<b>TV-range SDR BT.709</b>;可用峰值参与高光约束。不支持或色彩检查失败时保留原路径、停用 SDR 域校正并分别提示。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg></span><h3>该校正才校正画面</h3><p>可选智能校正只测最终保留帧;明显偏暗、发灰或过饱和才做<b>有上限的轻调整</b>,正常素材不动、黑白不强行增艳,结果写进回执。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><h3>导完再验一遍画面</h3><p>同一趟扫描检查黑屏、长静音和<b>持续冻结</b>;复用人脸采样统计主体出框比例,全部写进回执且不冒险自动重剪。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg></span><h3>封面从最终成片里挑优</h3><p>响度峰先提名,再本地比较<b>清晰度、曝光、信息量与转场稳定性</b>;黑白场、模糊过渡帧先淘汰,多版封面保持差异,失败自动回退。</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-caption"/></svg></span><h3>Legenda animada automática · acende palavra a palavra</h3><p>Guiada pela marca de tempo de cada palavra, com quebra de linha semântica que não corta a frase no meio; <b>o SRT dá para exportar</b> e a legenda bilíngue liga com um clique.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg></span><h3>O texto na imagem também ajuda a achar o pico</h3><p>A varredura visual opcional reconhece na mesma passada o nome do produto, o preço, o placar e os tópicos do slide; <b>se ficar em dúvida, não anota</b>, e a imagem parada mas valiosa não escapa da nota de energia.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>Achou, ouviu, virou corte</h3><p>A fala e a imagem já varrida se buscam juntas, com ida até a palavra encontrada, <b>escuta do contexto e a frase inteira já marcada</b>; a seleção em transcrição longa é fluida, dá para desfazer depois de confirmar, e o tempo estimado fica marcado com clareza.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-reframe"/></svg></span><h3>Do horizontal para o 9:16</h3><p><b>Enquadramento com conforto em primeiro lugar</b>: se couber, o quadro trava de verdade até o próximo plano, e só segue suavemente quando precisa mesmo; o corte seco não atravessa a imagem removida, e a perda contínua de detecção volta o quadro ao centro sozinha.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><h3>Conversão de HDR sem adivinhação</h3><p>Só converte em luz linear para <b>SDR BT.709 em faixa de televisão</b> quando é PQ/HLG com o caminho de cor completo e suportado; o pico disponível entra na contenção das altas luzes. Sem suporte ou com a checagem de cor falhando, o caminho original fica, a correção no domínio SDR é desligada e cada caso tem seu aviso.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg></span><h3>A imagem só é corrigida quando precisa</h3><p>A correção inteligente opcional mede apenas os quadros que ficaram no corte final; só faz um <b>ajuste leve com teto</b> quando está visivelmente escuro, acinzentado ou saturado demais, não mexe em material normal, não força cor em preto e branco, e escreve o resultado no recibo.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><h3>Depois de exportar, a imagem é conferida de novo</h3><p>A mesma passada checa tela preta, silêncio longo e <b>congelamento contínuo</b>; reaproveita a amostragem de rosto para medir quanto o assunto sai do quadro, escreve tudo no recibo e não arrisca reeditar sozinha.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg></span><h3>A capa sai do corte final</h3><p>O pico de volume indica primeiro, e depois a comparação local olha <b>nitidez, exposição, quantidade de informação e estabilidade na transição</b>; cena preta, cena branca e quadro borrado de transição caem antes, as capas das várias versões ficam diferentes entre si, e a falha volta ao comportamento anterior sozinha.</p></div>
     <div class="b-cell b-wave" data-reveal>
-      <span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg></span><h3>去气口,但不吞人声</h3><p>只有无词、低峰值且本地语音检测也确认无人声才跳剪;ASR 漏词和轻声尾音会保留,失败<b>精确回退</b>,响度归一到 -14 LUFS。</p>
+      <span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg></span><h3>Tira a respiração, mas não engole a voz</h3><p>Só corta quando não há palavra, o pico é baixo e a detecção de voz local também confirma que ninguém está falando; a palavra que a transcrição perdeu e o fim de frase baixinho ficam, a falha <b>volta exatamente ao anterior</b>, e o volume é normalizado em -14 LUFS.</p>
       <div class="wave-demo" aria-hidden="true"><i></i><i></i><i></i><i class="cut-gap"></i><i></i><i></i><i class="cut-gap"></i><i></i><i></i><i></i></div>
     </div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-voice"/></svg></span><h3>48k 智能人声增强</h3><p>显式智能档按需下载约 10MB 本地模型,在完整剪辑后、音效/BGM 前清理风扇、空调与房间底噪;<b>失败自动回退基础档</b>,视频画质不重编码。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-voice"/></svg></span><h3>说话人分离</h3><p>访谈、连麦一键标注<b>谁在说话</b>(本地零上传),字幕还能按人上色。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg></span><h3>已有字幕,直接开始剪</h3><p>导入原文 <b>SRT / WebVTT</b>,保留原句时间并进入逐句稿;也可选配 Qwen3 本地语音服务,默认引擎照常可用。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>每一刀都可审计</h3><p>切点理由、剪了哪些口头禅、用了什么样式——<b>clips.json 回执</b>全记录,可否决可推翻。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg></span><h3>多工程项目工作区</h3><p>工程可切换、重命名、关闭、删除与媒体重连;源素材离线或变化<b>保留工程不丢状态</b>,删除工程不碰素材。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg></span><h3>每一步都能撤销重做</h3><p>选片、标题、切点、手动加片和逐句稿纠错共用可逆历史,随项目恢复;播放、跳播和入出点有专业快捷键。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg></span><h3>转写中断,接着识别</h3><p>本地转写按段保存,停止或重启后复用已完成进度;导出准备阶段也能取消,失败后<b>保留候选直接重试</b>。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><h3>出片前一键健康检查</h3><p>检查 FFmpeg、解析工具、11 类模型、LLM 连通性、磁盘与缓存;核心模型可取消、可续传地准备。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>分析与成片看同一画面</h3><p>运动、镜头、表情、缩略图与可选视觉扫描绑定最终选中视频轨;HDR 预览安全转 SDR 后再分析,<b>64MB 本地索引</b>按画面与色彩决定隔离。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg></span><h3>长视频重复出片更快</h3><p>相同基础成片直接复用本地缓存;H.264 仅在关键帧与画面条件安全时直拷,其余<b>透明回退精确编码</b>。缓存最多 1GB,可单独清理。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg></span><h3>敏感词只静音,原文仍可审</h3><p>自定义词表按逐字稿时间精准静音,跳剪/多片段也能映射;<b>字幕与逐字稿保留原文</b>。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>发布效果回流下一刀</h3><p>稳定内容 ID + 预填指标 CSV 保守对账;待回填/已统计状态清楚,未匹配和歧义不藏起来。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg></span><h3>一片多版自动做本地 A/B</h3><p>同平台、72 小时发布窗口、每版至少 500 播放才比较;只报等待/证据不足/方向性领先,<b>不把相关说成因果</b>。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg></span><h3>同场爆点自动排成系列</h3><p>共享有效关键词的原版成片按源片时间编号成集,附 manifest;变体不充数,硬链接不重复占空间。</p></div>
-    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-tag"/></svg></span><h3>真免费,没有套路</h3><p>无积分制、无水印、不限时长、不锁功能,连账号都没有。</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-voice"/></svg></span><h3>Realce inteligente de voz em 48k</h3><p>O nível inteligente explícito baixa sob demanda um modelo local de cerca de 10 MB e limpa o ventilador, o ar-condicionado e o ruído de fundo da sala depois da edição completa e antes dos efeitos e da trilha; <b>a falha volta sozinha ao nível básico</b>, e a imagem do vídeo não é recodificada.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-voice"/></svg></span><h3>Separação de quem fala</h3><p>Em entrevista ou conversa com convidado, um clique marca <b>quem está falando</b> (tudo local, zero upload), e a legenda ainda pode ganhar cor por pessoa.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg></span><h3>Já tem legenda? Comece a cortar direto</h3><p>Importe o <b>SRT / WebVTT</b> com o texto original, os tempos das frases são preservados e tudo cai na transcrição frase a frase; também dá para usar o serviço de fala local Qwen3, e o motor padrão continua disponível.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>Todo corte é auditável</h3><p>O motivo do ponto de corte, quais vícios de linguagem saíram, que estilo foi usado — o <b>recibo clips.json</b> registra tudo, e você pode vetar e reverter.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg></span><h3>Espaço com vários projetos</h3><p>Dá para trocar, renomear, fechar, apagar e religar a mídia de cada projeto; se o material de origem some ou muda, <b>o projeto fica e o estado não se perde</b>, e apagar o projeto não toca no material.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg></span><h3>Dá para desfazer e refazer cada passo</h3><p>A escolha dos cortes, o título, o ponto de corte, o corte adicionado à mão e a correção da transcrição dividem o mesmo histórico reversível, que volta junto com o projeto; tocar, pular e marcar entrada e saída têm atalhos de profissional.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg></span><h3>Interrompeu a transcrição? Ela continua</h3><p>A transcrição local salva por trecho e reaproveita o que já ficou pronto depois de parar ou reiniciar; a etapa de preparo da exportação também dá para cancelar, e a falha <b>preserva os candidatos para tentar de novo</b>.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span><h3>Diagnóstico com um clique antes de exportar</h3><p>Confere o FFmpeg, as ferramentas de análise, os 11 tipos de modelo, a conexão com o LLM, o disco e o cache; os modelos centrais são preparados de um jeito que dá para cancelar e retomar.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>A análise e o corte olham a mesma imagem</h3><p>Movimento, plano, expressão, miniatura e a varredura visual opcional ficam presos à trilha de vídeo escolhida no fim; a pré-visualização HDR é convertida com segurança para SDR antes da análise, e o <b>índice local de 64 MB</b> é isolado pela imagem e pela decisão de cor.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg></span><h3>Exportar de novo um vídeo longo é mais rápido</h3><p>O mesmo vídeo de base é reaproveitado direto do cache local; o H.264 só é copiado quando o quadro-chave e as condições de imagem são seguros, e o resto <b>volta de forma transparente para a codificação exata</b>. O cache ocupa no máximo 1 GB e dá para limpar sozinho.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-scissors"/></svg></span><h3>A palavra de risco só é silenciada, e o texto continua auditável</h3><p>A sua lista de palavras é silenciada com precisão pelo tempo da transcrição, e o corte seco e os vários trechos também são mapeados; <b>a legenda e a transcrição preservam o texto original</b>.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg></span><h3>O resultado da publicação volta para o próximo corte</h3><p>Um ID de conteúdo estável + um CSV de métricas pré-preenchido fazem a conferência de forma conservadora; o estado de «a preencher» e «já contabilizado» fica claro, e o que não casou ou ficou ambíguo não é escondido.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg></span><h3>Várias versões de um corte viram um A/B local</h3><p>Só compara na mesma plataforma, dentro de uma janela de 72 horas de publicação e com pelo menos 500 visualizações por versão; só informa «aguardando», «prova insuficiente» ou «vantagem de direção», e <b>nunca chama correlação de causa</b>.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg></span><h3>Os picos da mesma transmissão viram série sozinhos</h3><p>Os cortes originais que dividem uma palavra-chave válida são numerados pela ordem do vídeo de origem e viram uma coletânea com manifesto; a variante não entra para encher, e o link físico não ocupa espaço duas vezes.</p></div>
+    <div class="b-cell" data-reveal><span class="ico"><svg class="ic" aria-hidden="true"><use href="#i-tag"/></svg></span><h3>Grátis de verdade, sem pegadinha</h3><p>Sem crédito, sem marca-d'água, sem limite de duração, sem função trancada e sem nem precisar de conta.</p></div>
     <div class="b-cell b-full b-shot" data-reveal>
       <div class="shot-copy">
-        <span class="st-k">真实界面 · 非概念图</span>
-        <h3>这就是你会用到的「挑爆点」页</h3>
-        <p>演示素材:一段带货直播回放。AI 通读全文给出候选清单,每条附<b>爆款分、悬念句、四维分项与精确切点</b>,弱片自动标「不建议发布」——勾选取舍,一键出片。</p>
-        <a class="btn btn-ghost" href="https://github.com/xixihhhh/hotclip/releases/latest">下载亲手试试</a>
+        <span class="st-k">Interface real · não é conceito</span>
+        <h3>É esta a tela de «escolher o pico» que você vai usar</h3>
+        <p>Material da demonstração: a gravação de uma live de vendas. A IA lê tudo e entrega a lista de candidatos, cada um com <b>nota, frase de suspense, as quatro notas por eixo e o ponto de corte exato</b>, e o corte fraco é marcado sozinho como «não recomendado publicar» — você marca o que quer e exporta com um clique.</p>
+        <a class="btn btn-ghost" href="https://github.com/xixihhhh/hotclip/releases/latest">Baixe e teste você mesmo</a>
       </div>
       <figure class="shot-frame">
-        <img src="screenshots/04-highlights.png" alt="HotClip 真实界面:AI 爆点候选,每条附爆款分、开场钩子与四维打分" loading="lazy" width="2880" height="2520">
+        <img src="screenshots/04-highlights.png" alt="Interface real do HotClip: os candidatos a pico da IA, cada um com nota, gancho de abertura e as quatro notas por eixo" loading="lazy" width="2880" height="2520">
       </figure>
     </div>
   </div>
 </section>
 
-<section class="manifesto" role="region" aria-label="HotClip 与积分制工具的区别宣言">
-  <p class="m-line" data-reveal>没有 7 天试用,<span>因为没有付费版</span></p>
-  <p class="m-line" data-reveal>没有分钟额度,<span>因为根本不计费</span></p>
-  <p class="m-line" data-reveal>不需要信用卡,<span>因为连账号都没有</span></p>
-  <p class="m-note" data-reveal>OpusClip 免费档 60 分钟 ≈ 一场直播的零头;HotClip 不数分钟。</p>
+<section class="manifesto" role="region" aria-label="Manifesto: a diferença entre o HotClip e as ferramentas com crédito">
+  <p class="m-line" data-reveal>Não tem teste de 7 dias, <span>porque não tem versão paga</span></p>
+  <p class="m-line" data-reveal>Não tem cota de minutos, <span>porque não se cobra nada</span></p>
+  <p class="m-line" data-reveal>Não pede cartão, <span>porque nem conta existe</span></p>
+  <p class="m-note" data-reveal>Os 60 minutos da faixa grátis do OpusClip ≈ o troco de uma única live; o HotClip não conta minuto.</p>
   <div class="stats">
-    <div class="stat" data-reveal><div class="num">¥<span data-count="0" data-decimals="0">0</span></div><div class="lab">永久免费 · 无积分制</div></div>
-    <div class="stat" data-reveal><div class="num"><span data-count="100">0</span>%</div><div class="lab">本地处理 · 素材不上传</div></div>
-    <div class="stat" data-reveal><div class="num"><span data-count="3">0</span> 步</div><div class="lab">导入 → 挑爆点 → 出片</div></div>
-    <div class="stat" data-reveal><div class="num">∞</div><div class="lab">不限时长 · 无水印</div></div>
+    <div class="stat" data-reveal><div class="num">R$<span data-count="0" data-decimals="0">0</span></div><div class="lab">grátis para sempre · sem crédito</div></div>
+    <div class="stat" data-reveal><div class="num"><span data-count="100">0</span>%</div><div class="lab">processado na sua máquina · nada é enviado</div></div>
+    <div class="stat" data-reveal><div class="num"><span data-count="3">0</span> passos</div><div class="lab">importar → escolher o pico → exportar</div></div>
+    <div class="stat" data-reveal><div class="num">∞</div><div class="lab">sem limite de duração · sem marca-d'água</div></div>
   </div>
 </section>
 
 <section id="who">
-  <h2>谁在用:<span class="hl">直播切片 · 切片带货 · 播客剪辑 · 口播剪辑</span></h2>
+  <h2>Quem usa: <span class="hl">corte de live · corte para vender · edição de podcast · edição de locução</span></h2>
   <div class="who-list">
     <div class="who-row" data-reveal>
-      <div><h3>主播 / 切片手</h3><span class="who-tag">直播切片 · 录播切片</span></div>
-      <p>下播后几小时回放自动切成高光短视频;录播姬/OBS 目录挂上「录播监听」录完自动出片;<b>弹幕热度</b>直接进爆点判断,B 站/抖音弹幕文件都认,礼物 SC 点赞另计权。虚拟主播切片同样适用。</p>
+      <div><h3>Quem transmite / quem corta</h3><span class="who-tag">corte de live · corte de gravação</span></div>
+      <p>As horas de gravação que sobram depois da live viram vídeos curtos de melhores momentos sozinhas; basta apontar o «monitoramento de gravação» para a pasta do OBS ou do gravador e o corte sai assim que a gravação termina; o <b>calor dos comentários ao vivo</b> entra direto no julgamento do pico, os arquivos de comentários das principais plataformas são reconhecidos, e presente, doação e curtida têm peso próprio. Vale igual para quem transmite como avatar virtual.</p>
       <span class="who-ico"><svg class="ic" aria-hidden="true"><use href="#i-gamepad"/></svg></span>
     </div>
     <div class="who-row" data-reveal>
-      <div><h3>带货 / 矩阵团队</h3><span class="who-tag">切片带货(已授权)</span></div>
-      <p><b>商品讲解模式</b>按转化逻辑选段(试用实测 &gt; 卖点 &gt; 价格机制),批量托管出片附文案/封面/元数据,120+ 违禁词规则发布前点名。</p>
+      <div><h3>Equipe de vendas / de várias contas</h3><span class="who-tag">corte para vender (já licenciado)</span></div>
+      <p>O <b>modo de apresentação de produto</b> escolhe os trechos pela lógica de conversão (teste na prática &gt; argumento de venda &gt; mecânica de preço), a exportação em lote vem com texto, capa e metadados, e mais de 120 regras de palavra proibida apontam o problema antes de publicar.</p>
       <span class="who-ico"><svg class="ic" aria-hidden="true"><use href="#i-cart"/></svg></span>
     </div>
     <div class="who-row" data-reveal>
-      <div><h3>播客主</h3><span class="who-tag">播客剪辑 · 播客视频化</span></div>
-      <p>纯音频也能出片——自动合成<b>波形动画画面</b> + 金句字幕,播客节目直接变竖屏视频;转写缓存,换设置重切秒进。</p>
+      <div><h3>Quem faz podcast</h3><span class="who-tag">edição de podcast · podcast em vídeo</span></div>
+      <p>Só com áudio já sai vídeo: a <b>animação da forma de onda</b> é montada sozinha, com a legenda da frase de efeito, e o episódio vira vídeo vertical direto; a transcrição fica em cache, então trocar a configuração e cortar de novo é instantâneo.</p>
       <span class="who-ico"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg></span>
     </div>
     <div class="who-row" data-reveal>
-      <div><h3>知识区 / 口播博主</h3><span class="who-tag">口播剪辑</span></div>
-      <p>自动<b>去气口、剪口头禅</b>、删停顿,长口播变利落短视频;逐句稿即点即改,热词词表一次纠错期期生效。</p>
+      <div><h3>Criador de conteúdo / de locução</h3><span class="who-tag">edição de locução</span></div>
+      <p><b>Tira a respiração, corta o vício de linguagem</b> e apaga a pausa sozinho, e a locução longa vira um vídeo curto enxuto; a transcrição frase a frase se corrige no clique, e o glossário de palavras difíceis corrige uma vez e vale em todos os episódios.</p>
       <span class="who-ico"><svg class="ic" aria-hidden="true"><use href="#i-cap"/></svg></span>
     </div>
   </div>
 </section>
 
 <section id="compare">
-  <h2>和 OpusClip、剪映智能切片这些工具的<span class="hl">区别</span></h2>
+  <h2>A <span class="hl">diferença</span> para o OpusClip e para o corte inteligente do CapCut</h2>
   <div class="tablewrap" data-reveal>
     <table id="compare-table">
-      <thead><tr><th></th><th>HotClip</th><th>OpusClip / Klap / Vizard</th><th>剪映智能切片</th><th>FunClip 等开源</th></tr></thead>
+      <thead><tr><th></th><th>HotClip</th><th>OpusClip / Klap / Vizard</th><th>Corte inteligente do CapCut</th><th>Abertos como o FunClip</th></tr></thead>
       <tbody>
-        <tr><td>价格</td><td class="win">免费开源</td><td>$15-29+/月,按分钟扣积分,月底清零</td><td>核心功能进会员</td><td>免费</td></tr>
-        <tr><td>素材去向</td><td class="win">全程本地,不上传</td><td>必须上传云端</td><td>云端为主</td><td>本地</td></tr>
-        <tr><td>水印/限制</td><td class="win">无</td><td>免费档水印+限时长,项目3天过期</td><td>部分功能受限</td><td>无</td></tr>
-        <tr><td>账号/注册</td><td class="win">无需注册</td><td>需注册,退订删项目</td><td>需登录</td><td>无</td></tr>
-        <tr><td>安装门槛</td><td class="win">双击安装即用</td><td>网页版</td><td>易用</td><td>命令行/Docker</td></tr>
-        <tr><td>切点质量</td><td class="win">逐字对齐,附理由可否决</td><td>黑盒打分,常断章取义</td><td>黑盒</td><td>按句切,无排序</td></tr>
+        <tr><td>Preço</td><td class="win">grátis e aberto</td><td>US$ 15 a 29+ por mês, crédito descontado por minuto e zerado no fim do mês</td><td>funções centrais na assinatura</td><td>grátis</td></tr>
+        <tr><td>Para onde vai o material</td><td class="win">tudo local, nada enviado</td><td>upload obrigatório para a nuvem</td><td>principalmente na nuvem</td><td>local</td></tr>
+        <tr><td>Marca-d'água / limites</td><td class="win">nenhum</td><td>marca-d'água e limite de duração na faixa grátis, projeto expira em 3 dias</td><td>algumas funções limitadas</td><td>nenhum</td></tr>
+        <tr><td>Conta / cadastro</td><td class="win">sem cadastro</td><td>exige cadastro, e cancelar apaga os projetos</td><td>exige login</td><td>nenhum</td></tr>
+        <tr><td>Barreira de instalação</td><td class="win">clicou duas vezes, instalou, usou</td><td>versão web</td><td>fácil</td><td>linha de comando / Docker</td></tr>
+        <tr><td>Qualidade do corte</td><td class="win">alinhado palavra a palavra, com motivo e direito de veto</td><td>nota em caixa-preta, corta o sentido com frequência</td><td>caixa-preta</td><td>corta por frase, sem ordenação</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="table-note">详细英文对比:<a href="alternatives/opus-clip.html">HotClip vs OpusClip(免费开源替代)</a></p>
+  <p class="table-note">Comparação detalhada em inglês: <a href="alternatives/opus-clip.html">HotClip vs OpusClip (alternativa grátis e de código aberto)</a></p>
 </section>
 
 <section id="faq">
-  <h2>常见问题</h2>
-  <details open><summary>有什么免费的 AI 切片软件?HotClip 是免费的吗?</summary><p>HotClip 完全免费:开源(AGPL-3.0)、本地运行、无水印、无积分制、不限视频时长。可选的云端大模型按你自己的 API Key 计费,也可以接本机 Ollama 做到<b>完全免费、完全离线</b>。</p></details>
-  <details><summary>直播切片怎么做?直播回放怎么剪辑成短视频?</summary><p>三步:①把直播回放/播客/长视频导入 HotClip;②AI 转写并自动识别高光爆点,每条附爆款分和理由,可手动取舍;③一键导出竖屏 9:16 成片,字幕已烧进画面,直接发抖音/快手/B站/视频号/小红书/TikTok。</p></details>
-  <details><summary>和 OpusClip、剪映智能切片有什么区别?</summary><p>最大区别是<b>素材不出你的电脑</b>:OpusClip 等 SaaS 必须上传云端、按源视频分钟扣积分(月底清零),免费档带水印;剪映的智能切片核心功能在会员里。HotClip 免费开源、本地处理、无水印、不限时长,AI 切点附理由可审计。</p></details>
-  <details><summary>需要联网吗?视频会上传到云端吗?</summary><p>素材永不上传。转写、字幕、切片、导出全程离线;只有「AI 找爆点」默认调云端大模型(只发文字稿,用你自己的 Key),接本机 Ollama 后整条流水线 <b>100% 离线</b>。</p></details>
-  <details><summary>手机拍的 HDR 视频导出会发灰吗?</summary><p>PQ 或 HLG 且原色、矩阵、范围完整受支持时,HotClip 会在本机做受控色调映射并输出 <b>TV-range SDR BT.709</b>;可用的 MaxCLL / mastering 峰值会约束高光。色彩路径不完整或不受支持时标记未转换,色彩检查失败时单独提示;两者都跳过 SDR 域智能校正。普通 SDR 不变,无新增模型、上传或下载。</p></details>
-  <details><summary>智能封面怎么避开黑场、模糊和转场帧?</summary><p>响度峰和均匀时刻先提名,HotClip 再在<b>最终质检后的成片</b>上本地比较清晰度、信息量、曝光、明暗跨度与短时间稳定性。黑白场和低信息帧先淘汰,一片多版按排名取不同封面;探测失败精确回退原来的响度峰。</p></details>
-  <details><summary>支持中文视频吗?方言和粤语呢?</summary><p>支持且是强项:SenseVoice / Paraformer / FireRedASR2 专用引擎,方言、粤语、中英混说覆盖;界面、字幕、爆点判断提示词都为中文内容适配。</p></details>
-  <details><summary>视频怎么自动加字幕?能导出 SRT 吗?</summary><p>导入后自动逐字转写,关键词高亮/大字弹出/气泡特效等多款动态字幕一档切换、直接烧进画面;也可以一键导出 <b>SRT 字幕文件</b>给平台原生上传,开双语字幕还能整句翻译烧成第二行。</p></details>
-  <details><summary>弹幕能参与选爆点吗?</summary><p>能,而且是<b>最硬的证据</b>。HotClip 自动发现录播旁的弹幕文件(B 站录播姬 .xml、抖音直播录制 .jsonl 都认),弹幕密度与 SC/舰长/礼物/关注/点赞互动按档计权直接进爆点判断;单人刷屏有贡献封顶,突然爆发有额外加成。没有弹幕文件时,响度/镜头/运动/表情/语气/笑声等信号兜底。</p></details>
-  <details><summary>剪映可以自动切割片段吗?能和剪映配合用吗?</summary><p>剪映的智能切片在会员档,且只能切连续区间。HotClip 免费开源,支持把相隔十几分钟的片段拼成一条,还能把每条切片导出成<b>剪映草稿</b>——AI 粗剪交给 HotClip,打开剪映接着精修。</p></details>
-  <details><summary>能自动剪掉口播里的停顿和口头禅吗?</summary><p>能。「剪气口」自动删掉说话间的静音停顿(去气口),「剪口头禅」剪掉嗯/呃与结巴重复——剪了什么逐条写进 clips.json,你始终知道 AI 动了哪里。</p></details>
-  <details><summary>需要显卡吗?配置要求高吗?</summary><p>不需要显卡。本地转写用 int8 量化的小模型,普通 CPU 就能跑;找爆点的大模型在云端或你本机的 Ollama。</p></details>
-  <details><summary>可以切别人的直播吗?直播切片如何申请授权?</summary><p>HotClip 面向<b>你自己的内容或已获授权的切片</b>。切别人的直播请先拿到授权(如各平台/公会的主播切片授权计划);未经授权的影视/直播搬运不受支持,也不欢迎。</p></details>
+  <h2>Perguntas frequentes</h2>
+  <details open><summary>Existe algum programa de corte com IA de graça? O HotClip é grátis?</summary><p>O HotClip é totalmente grátis: código aberto (AGPL-3.0), roda na sua máquina, sem marca-d'água, sem crédito e sem limite de duração. O modelo grande na nuvem é opcional e vai na sua própria chave de API, e ligando o Ollama da sua máquina fica <b>tudo grátis e totalmente offline</b>.</p></details>
+  <details><summary>Como cortar uma live? Como transformar a gravação de uma live em vídeo curto?</summary><p>Três passos: ① importe a gravação da live, o podcast ou o vídeo longo para o HotClip; ② a IA transcreve e acha os melhores momentos sozinha, cada um com nota e motivo, e você escolhe à mão; ③ um clique exporta o corte vertical 9:16 com a legenda já gravada na imagem, pronto para o Instagram, o TikTok, o YouTube Shorts e o Kwai.</p></details>
+  <details><summary>Qual a diferença para o OpusClip e para o corte inteligente do CapCut?</summary><p>A maior diferença é que <b>o material não sai do seu computador</b>: o OpusClip e outros SaaS obrigam a enviar para a nuvem e descontam crédito por minuto do vídeo de origem (zerado no fim do mês), e a faixa grátis tem marca-d'água; no CapCut, o corte inteligente está na assinatura. O HotClip é grátis e de código aberto, processa na sua máquina, não põe marca-d'água, não limita a duração, e cada ponto de corte da IA vem com o motivo, auditável.</p></details>
+  <details><summary>Precisa de internet? O vídeo vai para a nuvem?</summary><p>O material nunca é enviado. A transcrição, a legenda, o corte e a exportação rodam offline do começo ao fim; só «a IA acha o pico» chama por padrão um modelo grande na nuvem (mandando apenas o texto, com a sua chave), e ligando o Ollama da sua máquina a linha inteira fica <b>100% offline</b>.</p></details>
+  <details><summary>O vídeo HDR gravado no celular sai lavado na exportação?</summary><p>Quando é PQ ou HLG e as primárias, a matriz e a faixa estão completas e suportadas, o HotClip faz o mapeamento de tons controlado na sua máquina e entrega <b>SDR BT.709 em faixa de televisão</b>; o pico de MaxCLL ou de mastering, quando existe, limita as altas luzes. Se o caminho de cor está incompleto ou não é suportado, fica marcado como não convertido, e se a checagem de cor falha há um aviso próprio; nos dois casos a correção inteligente no domínio SDR é pulada. O SDR comum não muda, e não há modelo novo, upload nem download.</p></details>
+  <details><summary>Como a capa inteligente evita cena preta, imagem borrada e quadro de transição?</summary><p>O pico de volume e os momentos uniformes indicam primeiro, e o HotClip compara localmente, <b>já sobre o corte final revisado</b>, a nitidez, a quantidade de informação, a exposição, a amplitude entre claro e escuro e a estabilidade em intervalo curto. Cena preta, cena branca e quadro com pouca informação caem antes, e as várias versões de um corte pegam capas diferentes pela ordem da lista; se a detecção falha, tudo volta exatamente ao pico de volume anterior.</p></details>
+  <details><summary>Funciona com vídeo em português? E com sotaque regional?</summary><p>A interface, a legenda e os prompts de julgamento do pico são todos em português do Brasil. Os motores locais que vêm no instalador (SenseVoice / Paraformer / FireRedASR2) reconhecem chinês e inglês, então, para áudio em português, use o motor de nuvem opcional (ElevenLabs) ou importe um SRT / WebVTT que você já tenha.</p></details>
+  <details><summary>Como colocar legenda automática no vídeo? Dá para exportar SRT?</summary><p>Depois de importar, a transcrição palavra a palavra sai sozinha, e a legenda animada (destaque de palavra-chave, letra grande saltando, efeito de balão) troca em uma chave só e já é gravada na imagem; também dá para exportar o <b>arquivo SRT</b> com um clique para subir direto na plataforma, e, com a legenda bilíngue ligada, a frase traduzida é gravada em uma segunda linha.</p></details>
+  <details><summary>Os comentários ao vivo participam da escolha do pico?</summary><p>Participam, e são a <b>prova mais dura</b>. O HotClip acha sozinho o arquivo de comentários ao lado da gravação (reconhece tanto .xml quanto .jsonl), e a densidade dos comentários, junto com doações, presentes, seguidas e curtidas, entra com peso por faixa direto no julgamento do pico; uma pessoa sozinha enchendo o chat tem a contribuição limitada, e uma explosão repentina ganha bônus. Sem arquivo de comentários, os sinais de volume, plano, movimento, expressão, tom de voz e risada seguram a barra.</p></details>
+  <details><summary>O CapCut corta trechos sozinho? Dá para usar junto com ele?</summary><p>O corte inteligente do CapCut está na assinatura e só corta um intervalo contínuo. O HotClip é grátis e de código aberto, junta em um corte só trechos separados por dezenas de minutos e ainda exporta cada corte como <b>rascunho do CapCut</b> — o corte inicial fica com o HotClip, e você abre o CapCut para o acabamento.</p></details>
+  <details><summary>Dá para cortar sozinho as pausas e os vícios de linguagem da locução?</summary><p>Dá. O «corte de respiração» apaga sozinho as pausas silenciosas entre as falas, e o «corte de vício de linguagem» tira os «ahn», os «é» e as gagueiras repetidas — tudo o que foi cortado vai item a item para o clips.json, então você sempre sabe onde a IA mexeu.</p></details>
+  <details><summary>Precisa de placa de vídeo? A exigência de máquina é alta?</summary><p>Não precisa de placa de vídeo. A transcrição local usa um modelo pequeno quantizado em int8, que roda em CPU comum; o modelo grande que acha o pico fica na nuvem ou no Ollama da sua máquina.</p></details>
+  <details><summary>Dá para cortar a live de outra pessoa? Como se pede a licença?</summary><p>O HotClip é para <b>o seu próprio conteúdo ou para cortes que você já tem licença de fazer</b>. Para cortar a live de outra pessoa, consiga a licença antes (por exemplo, os programas de licenciamento de cortes das plataformas e das agências); reaproveitar filme, série ou live sem autorização não é suportado e nem é bem-vindo aqui.</p></details>
 </section>
 
 <div class="final-cta" data-reveal>
-  <h2>把下一场直播回放,交给 <span class="hl">HotClip</span></h2>
-  <p>Windows / macOS / Linux · 免费开源 · 无需注册 · 双击即用</p>
+  <h2>Entregue a próxima gravação de live ao <span class="hl">HotClip</span></h2>
+  <p>Windows / macOS / Linux · grátis e de código aberto · sem cadastro · clicou duas vezes, usou</p>
   <div class="cta">
-    <a class="btn btn-primary" href="https://github.com/xixihhhh/hotclip/releases/latest"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg> 免费下载最新版</a>
-    <a class="btn btn-ghost" href="https://github.com/xixihhhh/hotclip">去 GitHub 点个 <svg class="ic" aria-hidden="true"><use href="#i-star"/></svg></a>
+    <a class="btn btn-primary" href="https://github.com/xixihhhh/hotclip/releases/latest"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg> Baixar a versão mais recente</a>
+    <a class="btn btn-ghost" href="https://github.com/xixihhhh/hotclip">Deixe uma <svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> no GitHub</a>
   </div>
 </div>
 </main>
@@ -437,13 +437,13 @@
 <footer>
   <div class="foot-links">
     <a href="https://github.com/xixihhhh/hotclip">GitHub</a>
-    <a href="https://github.com/xixihhhh/hotclip/releases/latest">下载</a>
+    <a href="https://github.com/xixihhhh/hotclip/releases/latest">Baixar</a>
     <a href="alternatives/opus-clip.html">vs OpusClip</a>
     <a href="en.html">English</a>
-    <a href="https://github.com/xixihhhh/hotclip/issues">反馈</a>
-    <a href="https://github.com/xixihhhh/clipforge">ClipForge(AI 带货短视频)</a>
+    <a href="https://github.com/xixihhhh/hotclip/issues">Feedback</a>
+    <a href="https://github.com/xixihhhh/clipforge">ClipForge (vídeo curto de vendas com IA)</a>
   </div>
-  <p>HotClip · 开源 AGPL-3.0 · 仅面向自有内容与已授权切片,请遵守各平台二创与授权规则。</p>
+  <p>HotClip · código aberto AGPL-3.0 · só para conteúdo próprio e cortes licenciados; respeite as regras de recriação e de licenciamento de cada plataforma.</p>
 </footer>
 
 </div>
