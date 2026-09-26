@@ -1,96 +1,97 @@
 import { describe, it, expect } from "vitest";
 import { lintText, lintClipContent, formatLintIssue } from "../content-lint";
 
-describe("lintText (平台违禁词扫描)", () => {
-  it("绝对化用语命中", () => {
-    const hits = lintText("这款是全网最低价,销量第一的国家级产品");
-    const terms = hits.map((h) => h.term);
-    expect(terms).toContain("全网最低价");
-    expect(terms).toContain("销量第一");
-    expect(terms).toContain("国家级");
-    expect(hits.every((h) => h.category === "绝对化用语")).toBe(true);
+describe("lintText (varredura das palavras de risco das plataformas)", () => {
+  it("encontra as expressões absolutas", () => {
+    const hits = lintText("esse aqui é o menor preço da internet, campeão de vendas do Brasil e simplesmente imbatível");
+    const terms = hits.map((h) => h.term.toLowerCase());
+    expect(terms).toContain("menor preço da internet");
+    expect(terms).toContain("campeão de vendas do brasil");
+    expect(terms).toContain("imbatível");
+    expect(hits.every((h) => h.category === "expressão absoluta")).toBe(true);
   });
 
-  it("医疗功效与承诺类命中,类别正确", () => {
-    const hits = lintText("三天见效,根治脱发,无效退款");
+  it("encontra as alegações médicas e as promessas, com a categoria correta", () => {
+    const hits = lintText("resultado em 3 dias, combate a queda de cabelo e satisfação garantida ou seu dinheiro de volta");
     expect(hits).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ term: "根治", category: "医疗功效宣称" }),
-        expect.objectContaining({ term: "三天见效", category: "夸大承诺" }),
-        expect.objectContaining({ term: "无效退款", category: "夸大承诺" }),
+        expect.objectContaining({ term: "combate a queda de cabelo", category: "alegação médica" }),
+        expect.objectContaining({ term: "resultado em 3 dias", category: "promessa exagerada" }),
+        expect.objectContaining({ term: "satisfação garantida ou seu dinheiro de volta", category: "promessa exagerada" }),
       ])
     );
   });
 
-  it("收益承诺与导流话术命中", () => {
-    const hits = lintText("躺赚月入过万,想要的加微信私信我领取");
-    const terms = hits.map((h) => h.term);
-    expect(terms).toContain("躺赚");
-    expect(terms).toContain("月入过万");
-    expect(terms).toContain("加微信");
-    expect(terms).toContain("私信我领");
+  it("encontra as promessas de renda e as construções de desvio de plataforma", () => {
+    const hits = lintText("ganha dormindo com lucro garantido; quem quiser me chama no WhatsApp ou comenta 1 que eu mando");
+    const terms = hits.map((h) => h.term.toLowerCase());
+    expect(terms).toContain("ganha dormindo");
+    expect(terms).toContain("lucro garantido");
+    expect(terms).toContain("me chama no whatsapp");
+    expect(terms).toContain("comenta 1 que eu mando");
   });
 
-  it("同一词多次出现只报一次", () => {
-    const hits = lintText("最低价!今天最低价!还是最低价!");
-    expect(hits.filter((h) => h.term === "最低价")).toHaveLength(1);
+  it("a mesma palavra aparecendo várias vezes é reportada uma só", () => {
+    const hits = lintText("menor preço da internet! hoje é o menor preço da internet! ainda é o menor preço da internet!");
+    expect(hits.filter((h) => h.term.toLowerCase() === "menor preço da internet")).toHaveLength(1);
   });
 
-  it("日常口语不误报(裸「最/第一」不在规则里)", () => {
-    expect(lintText("我最近在减脂,今天第一次直播,最后聊聊感受")).toEqual([]);
-    expect(lintText("这个功能特别好用,大家可以试试")).toEqual([]);
+  it("fala do dia a dia não gera falso positivo (\"melhor\" e \"primeiro\" sozinhos não estão nas regras)", () => {
+    expect(lintText("eu ando fazendo dieta, hoje é a minha primeira transmissão, e no fim a gente conversa")).toEqual([]);
+    expect(lintText("essa função é muito boa de usar, vale a pena experimentar")).toEqual([]);
   });
 
-  it("空文本返回空", () => {
+  it("texto vazio devolve vazio", () => {
     expect(lintText("")).toEqual([]);
   });
 });
 
-describe("lintClipContent (整条切片的物料扫描)", () => {
-  it("按物料来源分别报告;字幕按字拼接也能扫到跨词命中", () => {
+describe("lintClipContent (varredura do material de um clipe inteiro)", () => {
+  it("reporta separadamente por origem do material, e a legenda concatenada também revela o que atravessa palavras", () => {
     const hits = lintClipContent({
-      title: "全网最低价的秘密",
-      hook: "看完你就知道怎么躺赚",
-      publish: { title: "买它", hashtags: ["#好物"], description: "假一赔十,无效退款", cta: "加微信领福利" },
-      // 中文 ASR 按字出词:「根」「治」相邻拼接后才可命中
-      captionText: "这个方子能根治老胃病",
+      title: "o segredo do menor preço da internet",
+      hook: "assiste até o fim para saber como ganha dormindo",
+      publish: { title: "compra isso", hashtags: ["#achadinho"], description: "100% original, resultado garantido", cta: "me chama no zap para o brinde" },
+      // O reconhecimento de fala entrega palavra por palavra: só depois de concatenar é
+      // que uma expressão que atravessa palavras pode ser encontrada
+      captionText: "essa receita cura a doença do estômago de vez",
     });
     expect(hits).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ term: "全网最低价", source: "title" }),
-        expect.objectContaining({ term: "躺赚", source: "hook" }),
-        expect.objectContaining({ term: "假一赔十", source: "publish" }),
-        expect.objectContaining({ term: "无效退款", source: "publish" }),
-        expect.objectContaining({ term: "加微信", source: "publish" }),
-        expect.objectContaining({ term: "根治", source: "caption" }),
+        expect.objectContaining({ source: "title", category: "expressão absoluta" }),
+        expect.objectContaining({ term: "ganha dormindo", source: "hook" }),
+        expect.objectContaining({ term: "100% original", source: "publish" }),
+        expect.objectContaining({ term: "resultado garantido", source: "publish" }),
+        expect.objectContaining({ term: "me chama no zap", source: "publish" }),
+        expect.objectContaining({ term: "cura a doença", source: "caption" }),
       ])
     );
   });
 
-  it("同一词在不同物料各报一次(要分别改)", () => {
-    const hits = lintClipContent({ title: "最低价来了", captionText: "今天最低价" });
-    expect(hits.filter((h) => h.term === "最低价")).toHaveLength(2);
+  it("a mesma palavra em materiais diferentes é reportada uma vez em cada (precisam ser corrigidas separadamente)", () => {
+    const hits = lintClipContent({ title: "chegou o menor preço da internet", captionText: "hoje é o menor preço da internet" });
+    expect(hits.filter((h) => h.term.toLowerCase() === "menor preço da internet")).toHaveLength(2);
   });
 
-  it("全部缺省/干净物料 → 空命中", () => {
+  it("tudo ausente ou material limpo → nenhuma ocorrência", () => {
     expect(lintClipContent({})).toEqual([]);
-    expect(lintClipContent({ title: "分享一个学习方法", captionText: "坚持就有收获" })).toEqual([]);
+    expect(lintClipContent({ title: "vou compartilhar um método de estudo", captionText: "insistindo, o resultado vem" })).toEqual([]);
   });
 });
 
-describe("formatLintIssue (告警文案)", () => {
-  it("无命中返回 null", () => {
+describe("formatLintIssue (texto do aviso)", () => {
+  it("sem ocorrências, devolve null", () => {
     expect(formatLintIssue([])).toBeNull();
   });
 
-  it("点名词+类别+来源;超过 5 个归入「等 N 处」", () => {
-    const one = formatLintIssue([{ term: "根治", category: "医疗功效宣称", source: "caption" }]);
-    expect(one).toContain("「根治」");
-    expect(one).toContain("医疗功效宣称");
-    expect(one).toContain("字幕");
+  it("cita a palavra, a categoria e a origem; passando de 5, o resto entra como \"em N ocorrências\"", () => {
+    const one = formatLintIssue([{ term: "cura a doença", category: "alegação médica", source: "caption" }]);
+    expect(one).toContain('"cura a doença"');
+    expect(one).toContain("alegação médica");
+    expect(one).toContain("legenda");
     const many = formatLintIssue(
-      Array.from({ length: 7 }, (_, i) => ({ term: `词${i}`, category: "绝对化用语", source: "publish" as const }))
+      Array.from({ length: 7 }, (_, i) => ({ term: `palavra ${i}`, category: "expressão absoluta", source: "publish" as const }))
     );
-    expect(many).toContain("等 7 处");
+    expect(many).toContain("em 7 ocorrências");
   });
 });

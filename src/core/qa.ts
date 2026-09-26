@@ -1,12 +1,20 @@
 /**
- * 出片自我质检(render QA):成片渲染完成后用一遍 ffmpeg 解码扫描 +
- * 一次切点核对,把「AI 切得好不好」变成机器可核对的报告——黑屏、长静音、
- * 响度/时长偏差、切点压在词中间(半词风险),全部写进 clips.json 的 qa
- * 字段并回传给 MCP/CLI。用户只需要看告警条,不用逐条回放验证。
+ * Verificação de qualidade do próprio vídeo (render QA): depois que o vídeo termina
+ * de renderizar, uma passada de decodificação do ffmpeg mais uma conferência dos
+ * pontos de corte transformam "a IA cortou bem?" num relatório que a máquina pode
+ * conferir — tela preta, silêncio longo, desvio de volume e de duração e ponto de
+ * corte no meio de uma palavra (o risco de palavra partida) são todos escritos no
+ * campo qa do clips.json e devolvidos ao MCP e à CLI. A pessoa só precisa olhar a
+ * faixa de avisos, sem reproduzir cada clipe para verificar.
  *
- * 解析器与判定全部是纯函数(stderr 文本 → 结构化区间 → 报告),可单测;
- * 只有 runClipQa 真正跑 ffmpeg/ffprobe。检测自身失败由调用方兜底置空,
- * 绝不拖垮导出(与封面/SRT 等附属产物同一语义)。
+ * A leitura e o julgamento são inteiramente de funções puras (texto do stderr →
+ * intervalos estruturados → relatório) e testáveis; só o runClipQa realmente roda
+ * ffmpeg e ffprobe. A falha da própria verificação é coberta por quem chama, que
+ * deixa o campo vazio, e nunca derruba a exportação (a mesma semântica da capa, do
+ * SRT e dos outros produtos acessórios).
+ *
+ * e nunca derruba a exportação (a mesma semântica da capa, do SRT e dos outros
+ * produtos acessórios).
  */
 import { spawn } from "child_process";
 import { resolveFfmpegPath } from "./binaries";
@@ -15,102 +23,111 @@ import { EDGE_FADE_SEC } from "./cut";
 import { formatLintIssue, type LintHit } from "./content-lint";
 import type { TranscriptWord } from "../shared/api-types";
 
-/** 一段被检出的可疑区间(成片输出时间轴,秒)。 */
+/** Um intervalo suspeito encontrado (na linha do tempo de saída do vídeo, em segundos). */
 export interface QaSpan {
   startSec: number;
   endSec: number;
 }
 
-/** 单条成片的质检报告(进 clips.json 的 qa 字段)。 */
+/** O relatório de verificação de um vídeo (vai para o campo qa do clips.json). */
 export interface ClipQaReport {
-  /** pass = 全部检查通过;warn = 有告警条目(见 issues)。 */
+  /** pass = todas as checagens passaram; warn = há itens de aviso (veja issues). */
   status: "pass" | "warn";
-  /** 人类可读的告警清单(空数组即通过)。 */
+  /** A lista de avisos em linguagem legível (array vazio significa aprovado). */
   issues: string[];
-  /** 成片实测时长与管线预期时长(秒)。 */
+  /** A duração medida do vídeo e a duração prevista pela esteira (em segundos). */
   durationSec: number;
   expectedDurationSec: number;
-  /** 黑屏区间(≥0.5s 且画面近全黑)。 */
+  /** Intervalos de tela preta (de 0,5s ou mais, com a imagem quase toda escura). */
   blackSpans: QaSpan[];
-  /** 长静音区间(≥2s;开了跳剪还剩长静音尤其可疑)。 */
+  /** Intervalos de silêncio longo (de 2s ou mais; com o corte seco ligado, um silêncio longo remanescente é especialmente suspeito). */
   silenceSpans: QaSpan[];
-  /** 像素近乎不变的冻结区间(≥3s);旧回执可能缺省。 */
+  /** Intervalos congelados, em que os pixels quase não mudam (de 3s ou mais); um comprovante antigo pode não ter este campo. */
   frozenSpans?: QaSpan[];
-  /** 响度实测(EBU R128);音频扫描失败为 null。 */
+  /** Volume medido (EBU R128); null quando a varredura de áudio falha. */
   loudness: { integratedLufs: number; truePeakDb: number } | null;
-  /** 落在词中间的切点数(0 = 每个切点都在词边界外,无半词风险)。 */
+  /** Quantos pontos de corte caíram no meio de uma palavra (0 = todo corte está fora do limite de palavra, sem risco de palavra partida). */
   midWordCuts: number | null;
-  /** 平台违禁词命中(标题/钩子/文案/字幕);没跑 lint 为 null。 */
+  /** Palavras proibidas pelas plataformas encontradas (no título, no gancho, no texto e na legenda); null quando a checagem não rodou. */
   contentHits: LintHit[] | null;
-  /** 最长「无视觉变化」间隔(秒);没做节奏评估(有字幕/运镜兜底)为 null。 */
+  /** O maior intervalo "sem mudança visual" (em segundos); null quando a avaliação de ritmo não foi feita (por já haver legenda ou movimento de câmera cobrindo). */
   pacingGapSec: number | null;
-  /** 钩子/标题承诺了、片中转写却没出现的数字类实体;没评估为 null。 */
+  /** As entidades numéricas que o gancho e o título prometeram mas que não aparecem na transcrição do clipe; null quando não foi avaliado. */
   hookPayoffMissing: string[] | null;
-  /** 人脸取景的采样覆盖率;没跑人脸取景为 null。 */
+  /** Cobertura das amostras do enquadramento por rosto; null quando o enquadramento por rosto não rodou. */
   subjectCoverage?: SubjectCoverage | null;
-  /** 自动修复记录(qa 修复循环执行过才有);见 repair.ts。 */
+  /** Registro da correção automática (só existe quando o laço de correção da verificação rodou); veja repair.ts. */
   repair?: QaRepairRecord;
 }
 
-/** qa 修复循环的执行记录(进 clips.json,「AI 又改了什么」要可审计)。 */
+/** Registro da execução do laço de correção da verificação (vai para o clips.json, porque "o que a IA mexeu de novo" precisa ser auditável). */
 export interface QaRepairRecord {
-  /** 修复动作的人类可读描述(裁头/裁尾/响度重归一)。 */
+  /** Descrição legível da ação de correção (recorte do começo, recorte do fim, nova normalização de volume). */
   actions: string[];
-  /** 修复前的告警清单(与修复后的 issues 对照)。 */
+  /** A lista de avisos antes da correção (para comparar com os issues de depois). */
   beforeIssues: string[];
-  /** true = 修复后的成片被采纳;false = 修复没让报告变好,保留原片。 */
+  /** true = o vídeo corrigido foi adotado; false = a correção não melhorou o relatório, e o vídeo original ficou. */
   applied: boolean;
 }
 
-/** 黑屏判定:0.5s 起报(短于此多为正常转场/闪黑)。 */
+/** Julgamento de tela preta: reportado a partir de 0,5s (mais curto que isso é, em geral, transição ou piscada normal). */
 const BLACK_MIN_SEC = 0.5;
-/** 静音判定:-50dB 以下持续 2s 起报。 */
+/** Julgamento de silêncio: reportado a partir de 2s abaixo de -50 dB. */
 const SILENCE_MIN_SEC = 2;
-/** 冻结判定:3s 起报,避开默认 2.2s 标题/钩子停留。 */
+/** Julgamento de congelamento: reportado a partir de 3s, para não pegar a permanência padrão de 2,2s do título e do gancho. */
 const FREEZE_MIN_SEC = 3;
-/** 低于此逐帧差异视为同一画面。 */
+/** Abaixo desta diferença entre quadros, a imagem é considerada a mesma. */
 const FREEZE_NOISE = 0.0005;
-/** 响度容差:偏离 -14 LUFS 目标超过 ±2 LU 才告警(loudnorm 单遍本有浮动)。 */
+/** Tolerância de volume: o aviso só sai quando o desvio do alvo de -14 LUFS passa de ±2 LU (uma passada só de loudnorm já oscila por natureza). */
 const LOUDNESS_TOLERANCE_LU = 2;
-/** 真峰值上限:超过 -1 dBTP 有平台转码削波风险。 */
+/** Teto de pico real: acima de -1 dBTP há risco de recorte na recodificação da plataforma. */
 const TRUE_PEAK_CEILING_DB = -1;
-/** 时长偏差容忍(秒):超过多为拼接/剪切错位。 */
+/** Tolerância de desvio de duração (em segundos): passar disso é, em geral, desalinhamento de costura ou de corte. */
 const DURATION_TOLERANCE_SEC = 0.75;
-/** 切点离词边界的容差:淡化时长再放宽一点,压线不算切进词里。 */
+/** Tolerância da distância do ponto de corte ao limite de palavra: a duração da transição amplia um pouco mais, e encostar no limite não conta como cortar dentro da palavra. */
 const BOUNDARY_TOLERANCE_SEC = EDGE_FADE_SEC + 0.02;
 /**
- * 画面节奏告警线(秒):2026 调研口径「有意义的视觉变化间隔 ≤3s,硬顶 5s」
- * (RESEARCH-2026-08-CLIP-QUALITY.md 第三节)。这里取硬顶——只在明显偏慢时
- * 提醒,不对风格化的慢节奏指手画脚。
+ * Linha de aviso do ritmo da imagem (em segundos): pelo critério da pesquisa de 2026,
+ * "o intervalo entre mudanças visuais significativas deve ser de até 3s, com teto
+ * rígido de 5s" (RESEARCH-2026-08-CLIP-QUALITY.md, seção 3). Aqui é usado o teto
+ * rígido — o aviso só sai quando o ritmo está claramente lento, sem dar palpite em
+ * escolhas estilísticas de ritmo pausado.
  */
 export const PACING_MAX_GAP_SEC = 5;
 
 /**
- * 钩子兑付校验:钩子/悬念句/标题里承诺的**数字类实体**(价格/百分比/数量)
- * 必须真实出现在切片转写里——制造的信息缺口不兑付,完播率崩、算法降权、
- * 长期掉粉(2026 调研「标题党但不欺骗」的边界)。只核对 ≥2 位的数字串:
- * 单个数字常被转写成汉字(三个方法/3个方法),核对必然误报,宁漏勿误。
- * 返回未兑付的承诺清单(空 = 通过或无可核对项)。纯函数。
+ * Conferência do desfecho do gancho: as **entidades numéricas** prometidas no gancho,
+ * na frase de suspense ou no título (preço, porcentagem, quantidade) precisam aparecer
+ * de verdade na transcrição do clipe — uma lacuna de informação fabricada e não
+ * cumprida derruba a taxa de conclusão, reduz o alcance no algoritmo e, no longo prazo,
+ * perde seguidores (é o limite do "título chamativo sem enganar" da pesquisa de 2026).
+ * Só são conferidas sequências de 2 dígitos ou mais: um número de um dígito costuma ser
+ * transcrito por extenso ("três métodos" / "3 métodos"), e conferir isso geraria falso
+ * positivo garantido, então é melhor deixar passar do que errar.
+ * Devolve a lista de promessas não cumpridas (vazia = aprovado ou sem nada a conferir).
+ * Função pura.
  */
 export function missingHookPayoffs(hookText: string | undefined, transcriptText: string | undefined): string[] {
   const hook = (hookText ?? "").trim();
   if (!hook || !transcriptText) return [];
-  const claims = hook.match(/\d[\d.,]*[%％折万亿]?/g) ?? [];
-  // 转写归一:去掉分隔符后按「数字核」查含(「1,999」→「1999」;30% 查「30」尾随%或％)
-  const text = transcriptText.replace(/[,，\s]/g, "");
+  const claims = hook.match(/\d[\d.,]*\s?(?:%|mil|mi|reais)?/g) ?? [];
+  // Normalização da transcrição: depois de tirar os separadores, a busca é pelo "núcleo numérico" ("1.999" → "1999"; 30% procura "30" seguido de %)
+  const text = transcriptText.replace(/[,.\s]/g, "");
   const missing: string[] = [];
   for (const claim of [...new Set(claims)]) {
     const core = claim.replace(/[^\d.]/g, "").replace(/\.$/, "");
-    if (core.replace(/\./g, "").length < 2) continue; // 单位数不核对
+    if (core.replace(/\./g, "").length < 2) continue; // número de um dígito não é conferido
     if (!text.includes(core)) missing.push(claim);
   }
   return missing;
 }
 
 /**
- * 视觉事件序列(拼接缝/跳剪缝/高潮前置接缝等,输出时间轴)→ 最长无变化
- * 间隔。片头片尾各算一个天然事件。纯函数;调用方在有字幕/自动运镜兜底时
- * 不必调用(连续的视觉变化已覆盖节奏)。
+ * Sequência de eventos visuais (emenda da costura, emenda do corte seco, junção da
+ * abertura fria e afins, na linha do tempo de saída) → o maior intervalo sem mudança.
+ * O começo e o fim do vídeo contam cada um como um evento natural. Função pura; quem
+ * chama não precisa chamar isto quando há legenda ou movimento automático de câmera
+ * cobrindo (a mudança visual contínua já cobre o ritmo).
  */
 export function maxVisualGapSec(eventsSec: number[], durationSec: number): number {
   const pts = [...new Set([0, ...eventsSec.filter((t) => t > 0 && t < durationSec), durationSec])].sort(
@@ -121,7 +138,7 @@ export function maxVisualGapSec(eventsSec: number[], durationSec: number): numbe
   return Number(maxGap.toFixed(2));
 }
 
-/** blackdetect 输出解析:`black_start:1.2 black_end:2.0 ...`(同行成对)。 */
+/** Leitura da saída do blackdetect: `black_start:1.2 black_end:2.0 …` (os pares vêm na mesma linha). */
 export function parseBlackSpans(stderr: string): QaSpan[] {
   const spans: QaSpan[] = [];
   const re = /black_start:\s*([\d.]+)\s+black_end:\s*([\d.]+)/g;
@@ -136,8 +153,10 @@ export function parseBlackSpans(stderr: string): QaSpan[] {
 }
 
 /**
- * silencedetect 输出解析:start/end 分行出现,按序配对。收尾只有 start
- * 没 end(静音贯穿到片尾)时,用 streamEndSec 闭合;不传则丢弃不完整对。
+ * Leitura da saída do silencedetect: start e end aparecem em linhas separadas e são
+ * emparelhados na ordem. Quando no fim só há start e nenhum end (o silêncio atravessa
+ * até o fim do vídeo), o fechamento usa streamEndSec; sem ele, o par incompleto é
+ * descartado.
  */
 export function parseSilenceSpans(stderr: string, streamEndSec?: number): QaSpan[] {
   const spans: QaSpan[] = [];
@@ -159,7 +178,7 @@ export function parseSilenceSpans(stderr: string, streamEndSec?: number): QaSpan
   return spans;
 }
 
-/** freezedetect 输出解析;冻结延续到 EOF 时用 streamEndSec 闭合。 */
+/** Leitura da saída do freezedetect; quando o congelamento vai até o EOF, o fechamento usa streamEndSec. */
 export function parseFreezeSpans(stderr: string, streamEndSec?: number): QaSpan[] {
   const spans: QaSpan[] = [];
   let open: number | null = null;
@@ -208,8 +227,9 @@ export function summarizeSubjectCoverage(
 }
 
 /**
- * ebur128 汇总解析:取末尾 Summary 的整片响度与真峰值。
- * 形如 `I: -14.1 LUFS` / `Peak: -1.3 dBFS`(peak=true 时为真峰值)。
+ * Leitura do resumo do ebur128: pega o volume do vídeo inteiro e o pico real do
+ * Summary final.
+ * No formato `I: -14.1 LUFS` e `Peak: -1.3 dBFS` (com peak=true, é o pico real).
  */
 export function parseLoudnessSummary(stderr: string): ClipQaReport["loudness"] {
   const iMatches = [...stderr.matchAll(/I:\s*(-?[\d.]+)\s*LUFS/g)];
@@ -222,9 +242,11 @@ export function parseLoudnessSummary(stderr: string): ClipQaReport["loudness"] {
 }
 
 /**
- * 切点核对(纯函数):每个保留段的起止点(源时间轴)是否压在某个词的
- * 中间——跳剪与镜头吸附都带词边界守卫,这里是「信任但要验证」的复核。
- * words 与 segments 都用源片绝对时间。
+ * Conferência dos pontos de corte (função pura): se o início e o fim de cada trecho
+ * preservado (na linha do tempo da origem) caem no meio de alguma palavra — tanto o
+ * corte seco quanto o encaixe na troca de plano já têm proteção de limite de palavra, e
+ * isto aqui é a conferência de "confie, mas verifique".
+ * Tanto words quanto segments usam o tempo absoluto da origem.
  */
 export function countMidWordCuts(
   words: TranscriptWord[],
@@ -241,7 +263,7 @@ export function countMidWordCuts(
   return hits;
 }
 
-/** 判定输入(全部由调用方备好,便于单测)。 */
+/** Entradas do julgamento (tudo preparado por quem chama, o que facilita o teste). */
 export interface QaAssessment {
   durationSec: number;
   expectedDurationSec: number;
@@ -249,65 +271,65 @@ export interface QaAssessment {
   silenceSpans: QaSpan[];
   frozenSpans?: QaSpan[];
   loudness: ClipQaReport["loudness"];
-  /** 出片时开了响度标准化才核对 -14 LUFS 目标。 */
+  /** O alvo de -14 LUFS só é conferido quando a normalização de volume estava ligada na exportação. */
   loudnessNormalized: boolean;
   midWordCuts: number | null;
-  /** 平台违禁词命中(调用方用 content-lint 扫好传入);缺省 = 没扫。 */
+  /** Palavras proibidas pelas plataformas encontradas (quem chama varre com o content-lint e passa aqui); ausente = não foi varrido. */
   contentHits?: LintHit[] | null;
-  /** 最长无视觉变化间隔(maxVisualGapSec 算好传入);缺省 = 不评估节奏。 */
+  /** O maior intervalo sem mudança visual (calculado por maxVisualGapSec e passado aqui); ausente = o ritmo não é avaliado. */
   pacingGapSec?: number | null;
-  /** 未兑付的钩子承诺(missingHookPayoffs 算好传入);缺省 = 不评估。 */
+  /** As promessas do gancho não cumpridas (calculadas por missingHookPayoffs e passadas aqui); ausente = não é avaliado. */
   hookPayoffMissing?: string[] | null;
-  /** 人脸取景样本的主体覆盖汇总;缺省 = 未使用人脸取景。 */
+  /** Resumo da cobertura do assunto nas amostras do enquadramento por rosto; ausente = o enquadramento por rosto não foi usado. */
   subjectCoverage?: SubjectCoverage | null;
 }
 
 const fmtSec = (v: number): string => v.toFixed(1);
 
-/** 纯判定:各项实测 → 告警清单与状态。 */
+/** Julgamento puro: as medições de cada item → a lista de avisos e o estado. */
 export function assessClipQa(input: QaAssessment): ClipQaReport {
   const issues: string[] = [];
   const delta = Math.abs(input.durationSec - input.expectedDurationSec);
   if (input.expectedDurationSec > 0 && delta > DURATION_TOLERANCE_SEC) {
-    issues.push(`成片时长 ${fmtSec(input.durationSec)}s 与预期 ${fmtSec(input.expectedDurationSec)}s 偏差 ${fmtSec(delta)}s`);
+    issues.push(`a duração do vídeo, de ${fmtSec(input.durationSec)}s, desvia ${fmtSec(delta)}s da prevista, de ${fmtSec(input.expectedDurationSec)}s`);
   }
   if (input.blackSpans.length > 0) {
     const longest = Math.max(...input.blackSpans.map((s) => s.endSec - s.startSec));
-    issues.push(`检测到黑屏 ${input.blackSpans.length} 段(最长 ${fmtSec(longest)}s)`);
+    issues.push(`${input.blackSpans.length} trecho(s) de tela preta detectado(s) (o mais longo com ${fmtSec(longest)}s)`);
   }
   if (input.silenceSpans.length > 0) {
     const longest = Math.max(...input.silenceSpans.map((s) => s.endSec - s.startSec));
-    issues.push(`检测到长静音 ${input.silenceSpans.length} 段(最长 ${fmtSec(longest)}s)`);
+    issues.push(`${input.silenceSpans.length} trecho(s) de silêncio longo detectado(s) (o mais longo com ${fmtSec(longest)}s)`);
   }
   if ((input.frozenSpans?.length ?? 0) > 0) {
     const longest = Math.max(...input.frozenSpans!.map((s) => s.endSec - s.startSec));
-    issues.push(`检测到画面冻结 ${input.frozenSpans!.length} 段(最长 ${fmtSec(longest)}s,建议回放核对)`);
+    issues.push(`${input.frozenSpans!.length} trecho(s) de imagem congelada detectado(s) (o mais longo com ${fmtSec(longest)}s; vale reproduzir para conferir)`);
   }
   if (input.loudnessNormalized && input.loudness) {
     const dev = Math.abs(input.loudness.integratedLufs - -14);
     if (dev > LOUDNESS_TOLERANCE_LU) {
-      issues.push(`响度 ${input.loudness.integratedLufs.toFixed(1)} LUFS 偏离 -14 目标 ${dev.toFixed(1)} LU`);
+      issues.push(`o volume de ${input.loudness.integratedLufs.toFixed(1)} LUFS desvia ${dev.toFixed(1)} LU do alvo de -14`);
     }
     if (input.loudness.truePeakDb > TRUE_PEAK_CEILING_DB) {
-      issues.push(`真峰值 ${input.loudness.truePeakDb.toFixed(1)} dBTP 超过 ${TRUE_PEAK_CEILING_DB} 上限(平台转码有削波风险)`);
+      issues.push(`o pico real de ${input.loudness.truePeakDb.toFixed(1)} dBTP passa do teto de ${TRUE_PEAK_CEILING_DB} (há risco de recorte na recodificação da plataforma)`);
     }
   }
   if ((input.midWordCuts ?? 0) > 0) {
-    issues.push(`${input.midWordCuts} 处切点落在词中间(可能出现半词,建议回放核对)`);
+    issues.push(`${input.midWordCuts} ponto(s) de corte caíram no meio de uma palavra (pode aparecer palavra partida; vale reproduzir para conferir)`);
   }
   if ((input.pacingGapSec ?? 0) > PACING_MAX_GAP_SEC) {
     issues.push(
-      `画面 ${fmtSec(input.pacingGapSec!)}s 无视觉变化(节奏偏慢,建议开启自动运镜或字幕)`
+      `a imagem fica ${fmtSec(input.pacingGapSec!)}s sem mudança visual (o ritmo está lento; vale ligar o movimento automático de câmera ou a legenda)`
     );
   }
   if ((input.hookPayoffMissing?.length ?? 0) > 0) {
     issues.push(
-      `钩子/标题承诺的「${input.hookPayoffMissing!.join("、")}」未在片中出现(不兑付=标题党,完播率与账号权重双降,建议改钩子或换切点)`
+      `o que o gancho ou o título prometeram ("${input.hookPayoffMissing!.join(", ")}") não aparece no clipe (não cumprir é título enganoso, o que derruba a taxa de conclusão e o alcance da conta; vale trocar o gancho ou o ponto de corte)`
     );
   }
   if (input.subjectCoverage && (input.subjectCoverage.clippedRatio >= 0.15 || input.subjectCoverage.severeFrames >= 2)) {
     issues.push(
-      `竖屏取景有 ${(input.subjectCoverage.clippedRatio * 100).toFixed(0)}% 采样帧未完整保留人脸(最差 ${(input.subjectCoverage.worstVisibleFraction * 100).toFixed(0)}%,建议检查构图)`
+      `no enquadramento vertical, ${(input.subjectCoverage.clippedRatio * 100).toFixed(0)}% dos quadros amostrados não preservam o rosto por inteiro (o pior com ${(input.subjectCoverage.worstVisibleFraction * 100).toFixed(0)}%; vale conferir a composição)`
     );
   }
   const lintIssue = formatLintIssue(input.contentHits ?? []);
@@ -331,12 +353,13 @@ export function assessClipQa(input: QaAssessment): ClipQaReport {
   };
 }
 
-/** stderr 收集上限:detect 行 + ebur128 汇总远小于此,防素材异常刷爆内存。 */
+/** Teto de coleta do stderr: as linhas de detect mais o resumo do ebur128 são muito menores que isso, e o limite evita que um material anômalo estoure a memória. */
 const STDERR_CAP = 4 * 1024 * 1024;
 
 /**
- * 解码扫描一遍成片,收集完整 stderr(blackdetect/silencedetect 行散布
- * 全程,ebur128 汇总在末尾——不能像 runFfmpeg 那样只留尾部)。
+ * Decodifica o vídeo uma vez, coletando o stderr inteiro (as linhas de blackdetect e
+ * silencedetect ficam espalhadas do começo ao fim, e o resumo do ebur128 vem no final —
+ * então não dá para guardar só o fim, como faz o runFfmpeg).
  */
 export async function scanClipMedia(path: string, signal?: AbortSignal): Promise<string> {
   const args = [
@@ -361,26 +384,26 @@ export async function scanClipMedia(path: string, signal?: AbortSignal): Promise
 }
 
 export interface RunClipQaOptions {
-  /** 管线预期成片时长(切片时长 + 高潮前置迷你片)。 */
+  /** Duração do vídeo prevista pela esteira (a duração do clipe mais o trecho curto da abertura fria). */
   expectedDurationSec: number;
-  /** 出片是否开了响度标准化(决定是否核对 -14 LUFS)。 */
+  /** Se a normalização de volume estava ligada na exportação (é o que decide se o alvo de -14 LUFS é conferido). */
   loudnessNormalized: boolean;
-  /** 切片覆盖的词(源片绝对时间);缺省跳过切点核对。 */
+  /** As palavras que o clipe cobre (em tempo absoluto da origem); ausente, a conferência dos pontos de corte é pulada. */
   words?: TranscriptWord[];
-  /** 实际保留的源片段(跳剪后多段);与 words 同为源片绝对时间。 */
+  /** Os trechos da origem de fato preservados (vários, depois do corte seco); em tempo absoluto da origem, como words. */
   segments?: QaSpan[];
-  /** 平台违禁词命中(content-lint 扫标题/钩子/文案/字幕的结果)。 */
+  /** Palavras proibidas pelas plataformas encontradas (o resultado da varredura do content-lint no título, no gancho, no texto e na legenda). */
   contentHits?: LintHit[] | null;
-  /** 最长无视觉变化间隔(调用方按剪辑计划算好);缺省 = 不评估节奏。 */
+  /** O maior intervalo sem mudança visual (calculado por quem chama a partir do plano de edição); ausente = o ritmo não é avaliado. */
   pacingGapSec?: number | null;
-  /** 未兑付的钩子承诺(missingHookPayoffs 算好传入);缺省 = 不评估。 */
+  /** As promessas do gancho não cumpridas (calculadas por missingHookPayoffs e passadas aqui); ausente = não é avaliado. */
   hookPayoffMissing?: string[] | null;
-  /** 已按最终保留片段过滤的人脸覆盖汇总。 */
+  /** Resumo da cobertura de rosto, já filtrado pelos trechos finalmente preservados. */
   subjectCoverage?: SubjectCoverage | null;
   signal?: AbortSignal;
 }
 
-/** 对一条成片跑完整质检:解码扫描 + ffprobe 时长 + 切点核对 → 报告。 */
+/** Roda a verificação completa num vídeo: varredura por decodificação, duração pelo ffprobe e conferência dos pontos de corte → o relatório. */
 export async function runClipQa(path: string, opts: RunClipQaOptions): Promise<ClipQaReport> {
   const [stderr, info] = await Promise.all([scanClipMedia(path, opts.signal), probeMedia(path)]);
   return assessClipQa({
