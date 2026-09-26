@@ -21,6 +21,7 @@ import { modelDir, ensureModel, EMOTION_MODEL } from "./models";
 import { planSignalGuidedTimes, type MediaSignals, type TimeRange } from "./signals";
 import { YunetDetector, pickMainFace, YUNET_INPUT, type FaceBox } from "./reframe/yunet";
 import { visualPeakRanges } from "./highlight/vision";
+import { onnxSessionOptions } from "./onnx-provider";
 
 const execFileAsync = promisify(execFile);
 
@@ -138,7 +139,7 @@ export class EmotionScorer {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const o = require("onnxruntime-node");
     const path = join(modelDir(this.modelsRoot, EMOTION_MODEL), EMOTION_MODEL.singleFile ?? "model.onnx");
-    this.session = await o.InferenceSession.create(path);
+    this.session = await o.InferenceSession.create(path, onnxSessionOptions());
   }
 
   /** gray64: 64×64 em tons de cinza (0 a 255). Devolve as probabilidades softmax das 8 classes. */

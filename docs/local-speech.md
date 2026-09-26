@@ -18,6 +18,52 @@
 - Uma resposta bem-sucedida é lida até 2 MiB, e a chave de API e a credencial Bearer em uso ficam escondidas no detalhe do erro. Parar a tarefa interrompe a resposta que está chegando e a espera da retentativa, mas se a inferência que o servidor já recebeu para na hora é decisão dele.
 - Com a pré-filtragem local ligada, a transcrição longa processa no máximo 2 trechos ao mesmo tempo, dentro de um prazo de pré-filtragem de 2 minutos compartilhado; passado o prazo, os trechos na fila não são mais despachados. Os trechos que falharam ou que ainda não foram processados ficam preservados inteiros; quando a pré-filtragem toda não está disponível ou filtra pouco, vale a análise do texto completo. O reconhecimento de endereço aceita loopback IPv4 / IPv6 e localhost, e decide se é a máquina local só pelo nome de host de verdade.
 
+## Os motores locais e o que cada um serve
+
+| Motor | Idiomas | Download | Marca de tempo por palavra |
+|---|---|---|---|
+| **Parakeet TDT v3** | português + 24 idiomas europeus | 465 MB | **nativa** |
+| SenseVoice | zh / yue / en / ja / ko | 170 MB | nativa |
+| Paraformer | zh / en | 230 MB | nativa |
+| FireRedASR2 | zh + sotaques / en | 520 MB | nativa |
+| Whisper large-v3-turbo | 99 idiomas | 538 MB | estimada |
+| Whisper large-v3 | 99 idiomas | 1,0 GB | estimada |
+| ElevenLabs Scribe (nuvem) | 90+ | — | nativa |
+
+Para material em português, o **Parakeet TDT v3** é a escolha: é o único tier local treinado em
+português e, por ser um transducer, a marca de tempo de cada palavra sai da própria decodificação —
+é disso que a legenda palavra a palavra, o encaixe do ponto de corte e o corte de vício de
+linguagem dependem.
+
+O **Whisper** entra quando o material troca de idioma no meio ou tem sotaque que o Parakeet erra.
+A ressalva importante: o sherpa-onnx não devolve marca de tempo nenhuma para o Whisper, porque ele é
+encoder-decoder. O tempo das palavras sai repartido dentro da janela e marcado como estimado — serve
+para escolher o trecho e exportar SRT, mas para legenda palavra a palavra é preciso passar pela
+«calibração de tempo», que realinha a frase marcada.
+
+O motor padrão continua sendo o SenseVoice: trocá-lo faria a primeira execução baixar 465 MB para
+quem só queria transcrever. Escolha o Parakeet uma vez em «motor de transcrição» e a escolha fica.
+
+## Aceleração por GPU
+
+Fica desligada por padrão, e é ligada por variável de ambiente. O que existe de verdade, conferido
+nos binários que o npm entrega:
+
+- `HOTCLIP_ONNX_PROVIDER=dml` — acelera **rosto, emoção facial e detecção de troca de plano** (os
+  três modelos que passam pelo onnxruntime). No **Windows x64 funciona sem instalar nada**: a
+  `DirectML.dll` vem dentro do pacote e roda em qualquer GPU compatível com DirectX 12, NVIDIA
+  inclusive. É o caminho de GPU que dá para usar hoje.
+- `HOTCLIP_ONNX_PROVIDER=cuda` — o pacote do npm **não** traz o provider de CUDA; o valor é aceito
+  para quem trocou o onnxruntime-node por uma build própria com ele compilado. Sem essa build, a
+  execução cai de volta para a CPU.
+- `HOTCLIP_SHERPA_PROVIDER=cuda` — a **transcrição** roda pelo runtime do sherpa-onnx, e os pacotes
+  publicados no npm (`sherpa-onnx-win-x64` e companhia) embutem só o onnxruntime de CPU. Não existe
+  pacote de GPU publicado. Este valor só tem efeito para quem compilou o sherpa-onnx com
+  `SHERPA_ONNX_ENABLE_GPU=ON` e apontou o addon para essa build.
+
+Em qualquer caso a CPU é sempre a última da fila, de modo que um provider indisponível degrade em
+vez de derrubar a análise no meio.
+
 ## Serviço Qwen3 local opcional
 
 O motor padrão continua sendo o SenseVoice. O Qwen3-ASR 0.6B / 1.7B é um serviço opcional administrado por você; o HotClip não instala Python sozinho, não sobe o serviço sozinho e não manda o material para nenhum endereço remoto. O modelo é baixado e guardado na sua máquina na primeira vez que o serviço o carrega. O protocolo só aceita `http://127.0.0.1:<porta>` ou `http://[::1]:<porta>`, e recusa redirecionamento.

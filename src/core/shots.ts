@@ -14,6 +14,7 @@ import { analysisVideoFilter, type AnalysisVideoOptions } from "./analysis-video
 import { ffmpegVideoStreamSpecifier } from "./probe";
 import { ensureModel, modelDir, TRANSNETV2_MODEL } from "./models";
 import type { TranscriptWord } from "../shared/api-types";
+import { onnxSessionOptions } from "./onnx-provider";
 
 const execFileAsync = promisify(execFile);
 
@@ -47,7 +48,7 @@ function getSession(modelsRoot: string): Promise<any> {
     sessionPromise = (async () => {
       await ensureModel(modelsRoot, TRANSNETV2_MODEL);
       const path = join(modelDir(modelsRoot, TRANSNETV2_MODEL), TRANSNETV2_MODEL.singleFile!);
-      return loadOrt().InferenceSession.create(path);
+      return loadOrt().InferenceSession.create(path, onnxSessionOptions());
     })();
     sessionPromise.catch(() => {
       sessionPromise = null;

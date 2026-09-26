@@ -25,8 +25,8 @@ jobs:
         include:
           - os: macos-latest # arm64 dmg
             args: --mac dmg
-          - os: windows-latest # instalador nsis + zip portátil (sem instalação)
-            args: --win
+          - os: windows-latest # instalador nsis + zip portátil (sem instalação), x64
+            args: --win --x64
           - os: ubuntu-latest # experimental AppImage (issue #7)
             args: --linux
     runs-on: ${{ matrix.os }}

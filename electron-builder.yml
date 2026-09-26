@@ -21,9 +21,16 @@ extraResources:
   - from: resources/caption-templates
     to: caption-templates
 win:
+  # arch explícito: sem isto o alvo herda a arquitetura do runner, e uma troca do runner do GitHub
+  # mudaria silenciosamente o que sai na release. O nome do artefato carrega o ${arch} justamente
+  # para que x64 e arm64 nunca se sobrescrevam.
   target:
-    - nsis
-    - zip # versão portátil em zip, que não precisa de instalação
+    - target: nsis
+      arch:
+        - x64
+    - target: zip # versão portátil em zip, que não precisa de instalação
+      arch:
+        - x64
   artifactName: HotClip-${version}-win-${arch}.${ext}
 nsis:
   oneClick: false

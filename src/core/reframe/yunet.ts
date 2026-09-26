@@ -6,6 +6,7 @@
  */
 import { join } from "path";
 import { modelDir, YUNET_MODEL, type ModelAsset } from "../models";
+import { onnxSessionOptions } from "../onnx-provider";
 
 /** YuNet 2023mar is a fixed-size export. */
 export const YUNET_INPUT = 640;
@@ -91,7 +92,7 @@ export class YunetDetector {
   async init(): Promise<void> {
     const o = loadOrt();
     const path = join(modelDir(this.modelsRoot, this.asset), this.asset.singleFile ?? "model.onnx");
-    this.session = await o.InferenceSession.create(path);
+    this.session = await o.InferenceSession.create(path, onnxSessionOptions());
   }
 
   /** bgr: 640*640*3 bytes (HWC). Returns NMS-filtered boxes in input space. */

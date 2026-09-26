@@ -60,7 +60,16 @@ Uso:
 Variáveis de ambiente (highlights / clip precisam delas):
   HOTCLIP_LLM_BASE_URL   endpoint compatível com a OpenAI (Ollama local: http://localhost:11434/v1)
   HOTCLIP_LLM_MODEL      nome do modelo (por exemplo qwen3:8b)
-  HOTCLIP_LLM_API_KEY    a chave da API na nuvem (num Ollama local pode ficar de fora)`;
+  HOTCLIP_LLM_API_KEY    a chave da API na nuvem (num Ollama local pode ficar de fora)
+
+Aceleração por GPU (opcional; sem elas tudo roda em CPU):
+  HOTCLIP_ONNX_PROVIDER  dml | cuda | coreml — acelera rosto, emoção e troca de plano.
+                         No Windows x64 o dml funciona sem instalar nada (a DirectML.dll vem no
+                         pacote e roda em qualquer GPU DirectX 12, NVIDIA inclusive). O cuda só
+                         vale para quem trocou o onnxruntime-node por uma build com o provider.
+  HOTCLIP_SHERPA_PROVIDER  cuda | directml — só para quem compilou o sherpa-onnx com
+                         SHERPA_ONNX_ENABLE_GPU=ON; os pacotes do npm são só de CPU, e a
+                         transcrição ignora este valor neles.`;
 
 /** Leitura mínima dos parâmetros: chaves booleanas + opções com valor, e o primeiro parâmetro que não é opção é o caminho do vídeo. */
 export interface CliArgs {
