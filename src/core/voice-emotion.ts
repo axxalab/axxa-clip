@@ -1,18 +1,22 @@
 /**
- * 语音情绪 / 音频事件信号:SenseVoice 每次解码除了文本,本来就顺带输出
- * 整段的情绪标签(<|HAPPY|>/<|ANGRY|>…)和音频事件标签(<|Laughter|>/
- * <|Applause|>…)——转写档已经在用的同一个模型、同一份权重,只是这两个
- * 字段一直没被读。这里用短窗重扫把它们变成带时间的证据:
- *   - 说话人情绪激动时段(笑着说/吼出来/惊到了)
- *   - 笑声 / 掌声 / 哭腔时段(现场反应,不在文字稿里)
- * 两者都是「文字稿看不见的爆点」:同一句话平铺直叙还是笑场,只有声音知道。
+ * Sinal de emoção da voz / eventos de áudio: em cada decodificação o SenseVoice já entrega,
+ * além do texto, a etiqueta de emoção do trecho inteiro (<|HAPPY|>/<|ANGRY|>…) e a etiqueta de
+ * evento de áudio (<|Laughter|>/<|Applause|>…) — o mesmo modelo e os mesmos pesos que a edição
+ * de transcrição já usa, só que esses dois campos nunca eram lidos. Aqui uma segunda varredura
+ * em janelas curtas os transforma em evidência com tempo:
+ *   - trechos em que a voz está exaltada (falando rindo / gritando / assustada)
+ *   - trechos de risada / palmas / choro (a reação de quem está ali, que não aparece na transcrição)
+ * Os dois são «o estouro que a transcrição não mostra»: se a mesma frase saiu séria ou na risada,
+ * só o som sabe.
  *
- * 零新模型、零新体积——复用 SenseVoice 模型目录。
+ * Nenhum modelo novo, nenhum megabyte novo — a pasta de modelos do SenseVoice é reaproveitada.
  *
- * 成本控制与表情信号(emotion.ts)同款:只在响度峰值/镜头密集段里密集扫,
- * 均匀网格兜底,窗数与总时长都封顶。全程 fail-open:模型缺失/解码失败/
- * 预算耗尽都只是没有该信号,绝不拖垮检测。纯函数(标签解析/窗口规划/
- * 命中合并)可单测,sherpa 解码通过注入点替换。
+ * O controle de custo é igual ao do sinal de expressão (emotion.ts): a varredura é densa nos picos
+ * de volume / nos trechos de corte denso, uma grade uniforme cobre o resto, e tanto o número de
+ * janelas quanto a duração total têm teto. Tudo falha em aberto: modelo ausente / falha de
+ * decodificação / orçamento esgotado só significam ficar sem este sinal, nunca derrubar a detecção.
+ * As funções puras (leitura da etiqueta / planejamento das janelas / fusão dos acertos) são testáveis,
+ * e a decodificação do sherpa é trocada por um ponto de injeção.
  */
 import { join } from "path";
 import { rm } from "fs/promises";
@@ -23,68 +27,71 @@ import { toAnsiSafeDir } from "./win-ansi-path";
 import { loadSherpa, type SherpaResult } from "./transcribe/sherpa-offline";
 import { planSignalGuidedTimes, type MediaSignals, type TimeRange } from "./signals";
 
-/** 单个扫描窗时长(SenseVoice 是整段分类,太短没上下文、太长会被中性稀释)。 */
+/** Duração de uma janela de varredura (o SenseVoice classifica o trecho inteiro: curta demais não tem contexto, longa demais é diluída pelo neutro). */
 export const VOICE_WINDOW_SEC = 6;
-/** 扫描窗数上限(窗数 × 窗长 = 实际解码音频量,直接决定耗时)。 */
+/** Teto do número de janelas (janelas × duração da janela = áudio realmente decodificado, que é o que determina o tempo gasto). */
 export const VOICE_MAX_WINDOWS = 100;
-/** 信号窗口内的扫描步长。 */
+/** Passo da varredura dentro de uma janela de sinal. */
 export const VOICE_WINDOW_STEP_SEC = 5;
-/** 两窗中心最小间隔(略小于窗长,允许相邻窗轻微重叠不漏边界)。 */
+/** Distância mínima entre os centros de duas janelas (um pouco menor que a janela, deixando vizinhas se sobreporem de leve para não perder a borda). */
 export const VOICE_MIN_SPACING_SEC = 5;
-/** 相邻命中窗间隔小于该值时并成一段。 */
+/** Acertos vizinhos com intervalo menor que este viram um único trecho. */
 const MERGE_GAP_SEC = 4;
-/** 每路信号圈出的时段上限(提示词别塞爆)。 */
+/** Teto de trechos apontados por cada sinal (para não entupir o prompt). */
 const MAX_RANGES = 12;
-/** 总预算:超时带着已得结果收工。 */
+/** Orçamento total: ao esgotar o tempo, encerra com o que já tem. */
 const VOICE_BUDGET_MS = 90_000;
-/** 成功解码的窗少于该数时证据太薄,不给信号。 */
+/** Com menos janelas decodificadas com sucesso que este número, a evidência é fraca e o sinal não sai. */
 const MIN_SCORED_WINDOWS = 3;
 /**
- * 饱和阈值:某路标签命中率超过它就整路丢弃。实测发现 SenseVoice 把「有活力
- * 地说话」普遍判成 HAPPY——主播全程亢奋时这路会退化成常量,"全片都是爆点"
- * 等于没有爆点,塞进提示词只会稀释其他证据。宁可没有信号,不要假信号。
+ * Limite de saturação: se a taxa de acerto de uma etiqueta passar dele, a trilha inteira é descartada.
+ * Na prática o SenseVoice classifica «falar com energia» como HAPPY quase sempre — com alguém animado
+ * do começo ao fim, esta trilha degenera numa constante, e "o vídeo inteiro é estouro" é o mesmo que
+ * estouro nenhum: no prompt só diluiria as outras evidências. Melhor sinal nenhum que sinal falso.
  *
- * 阈值定得很高(0.9),因为超额的时段先由 topByDuration 按时长排序筛过一轮:
- * 脱口秀这类全程有笑声的素材(实测 62% 的窗命中笑声),真正该丢的不是整路
- * 信号,而是那些一闪而过的礼貌笑——留下笑得最久的几波才是爆点。只有几乎
- * 每一窗都命中、排序也失去意义时才整路放弃。
+ * O limite é bem alto (0,9) porque os trechos que passam do teto ainda são filtrados por topByDuration,
+ * que os ordena por duração: em material de stand-up, com risada o tempo todo (na prática 62% das janelas
+ * acertam risada), o que deve ser descartado não é a trilha inteira, e sim aquela risada de cortesia que
+ * passa num instante — ficam as risadas mais longas, que são o estouro. Só quando quase toda janela
+ * acerta, e a ordenação perde o sentido, a trilha é abandonada por completo.
  */
 const SATURATION_RATIO = 0.9;
 
 /**
- * 计入「情绪激动」的 SenseVoice 情绪标签。与表情信号(FER+ 取笑/惊/怒)
- * 保持同一套爆点三情绪:高兴、生气、惊讶。NEUTRAL/SAD/DISGUSTED 不计——
- * 平铺直叙和低落情绪不是切片爆点,计进去只会稀释信号。
+ * As etiquetas de emoção do SenseVoice que contam como «voz exaltada». As mesmas três emoções de estouro
+ * do sinal de expressão (FER+ pega riso/susto/raiva): alegria, raiva e surpresa. NEUTRAL/SAD/DISGUSTED
+ * ficam fora — falar sem entonação e a emoção para baixo não são estouro de corte, e contá-los só dilui o sinal.
  */
 const HOT_EMOTIONS = new Set(["HAPPY", "ANGRY", "SURPRISED"]);
 /**
- * 计入「现场反应」的音频事件标签。BGM/Speech/Breath 不计(垫场与常态),
- * 笑声、掌声、哭腔才是文字稿里看不到的爆点证据。
+ * As etiquetas de evento de áudio que contam como «reação de quem está ali». BGM/Speech/Breath ficam fora
+ * (uma é fundo, a outra é o estado normal); risada, palmas e choro é que são a evidência de estouro que
+ * não aparece na transcrição.
  */
 const HOT_EVENTS = new Set(["LAUGHTER", "APPLAUSE", "CRY"]);
 
 export interface VoiceTagStats {
   windowsPlanned: number;
-  /** 实际完成解码的窗数。 */
+  /** Quantas janelas foram de fato decodificadas. */
   windowsScored: number;
   emotionPeakCount: number;
   eventPeakCount: number;
-  /** 该路命中率过高被判定为无区分度而整路丢弃(见 SATURATION_RATIO)。 */
+  /** A trilha foi descartada inteira por acertar demais e não distinguir nada (veja SATURATION_RATIO). */
   emotionSaturated?: boolean;
   eventSaturated?: boolean;
 }
 
 export interface VoiceEmotionOutcome {
-  /** 说话人情绪激动时段(笑着说/吼/惊)。 */
+  /** Trechos com a voz exaltada (falando rindo / gritando / assustada). */
   voiceEmotionPeaks: TimeRange[];
-  /** 笑声/掌声/哭腔时段(现场反应)。 */
+  /** Trechos de risada/palmas/choro (a reação de quem está ali). */
   audioEventPeaks: TimeRange[];
   stats: VoiceTagStats;
 }
 
 /**
- * 剥 SenseVoice 的 `<|TAG|>` 包装并归一成大写:`"<|HAPPY|>"` → `"HAPPY"`。
- * 非标签原样返回(模型换版本改了格式也不会炸)。纯函数。
+ * Tira o embrulho `<|TAG|>` do SenseVoice e normaliza em maiúsculas: `"<|HAPPY|>"` → `"HAPPY"`.
+ * O que não é etiqueta volta como veio (se o modelo mudar de versão e de formato, nada explode). Função pura.
  */
 export function stripSenseVoiceTag(raw: string | undefined | null): string {
   if (!raw) return "";
@@ -92,19 +99,20 @@ export function stripSenseVoiceTag(raw: string | undefined | null): string {
   return (m ? m[1] : raw).trim().toUpperCase();
 }
 
-/** 该情绪标签算不算「情绪激动」。纯函数。 */
+/** Se esta etiqueta de emoção conta como «voz exaltada». Função pura. */
 export function isHotEmotion(tag: string | undefined | null): boolean {
   return HOT_EMOTIONS.has(stripSenseVoiceTag(tag));
 }
 
-/** 该事件标签算不算「现场反应」。纯函数。 */
+/** Se esta etiqueta de evento conta como «reação de quem está ali». Função pura. */
 export function isHotEvent(tag: string | undefined | null): boolean {
   return HOT_EVENTS.has(stripSenseVoiceTag(tag));
 }
 
 /**
- * 规划扫描窗:信号窗口内密集、均匀网格兜底(与表情信号同款预算策略),
- * 返回窗口的 [起, 止],已夹进片内且按时间排序。纯函数。
+ * Planeja as janelas de varredura: densas dentro das janelas de sinal, com uma grade uniforme cobrindo
+ * o resto (a mesma estratégia de orçamento do sinal de expressão). Devolve o [início, fim] de cada
+ * janela, já aparado ao trecho e ordenado no tempo. Função pura.
  */
 export function planVoiceScanWindows(
   durationSec: number,
@@ -129,8 +137,8 @@ export function planVoiceScanWindows(
 }
 
 /**
- * 命中窗 → 时段:相邻(间隔 ≤ mergeGapSec)的命中窗并成一段。
- * 输入需按时间有序。纯函数。
+ * Janela que acertou → trecho: as janelas vizinhas que acertaram (intervalo ≤ mergeGapSec) viram um trecho só.
+ * A entrada precisa estar ordenada no tempo. Função pura.
  */
 export function mergeHitWindows(hits: TimeRange[], mergeGapSec = MERGE_GAP_SEC): TimeRange[] {
   const out: TimeRange[] = [];
@@ -143,10 +151,11 @@ export function mergeHitWindows(hits: TimeRange[], mergeGapSec = MERGE_GAP_SEC):
 }
 
 /**
- * 时段超额时按**时长**降序取前 max,再按时间排回。
- * 直接截前 max 个等于「只看片头」;而笑声/激动持续得越久,现场反应越强,
- * 时长本身就是强弱的代理指标——脱口秀全程有笑时,靠它挑出最炸的那几波。
- * 纯函数。
+ * Passando do teto, os trechos são tomados em ordem decrescente de **duração** (os `max` primeiros) e
+ * devolvidos na ordem do tempo. Pegar os `max` primeiros direto seria o mesmo que «olhar só o começo do
+ * vídeo»; e quanto mais uma risada ou uma exaltação dura, mais forte foi a reação — a duração é o próprio
+ * indicador indireto da intensidade, e é ela que acha as ondas mais fortes num stand-up que ri o tempo todo.
+ * Função pura.
  */
 export function topByDuration(ranges: TimeRange[], max: number): TimeRange[] {
   if (ranges.length <= max) return ranges;
@@ -156,18 +165,18 @@ export function topByDuration(ranges: TimeRange[], max: number): TimeRange[] {
     .sort((a, b) => a.startSec - b.startSec);
 }
 
-/** 一个窗的解码结果(只关心两个标签,文本丢弃)。 */
+/** O resultado de decodificar uma janela (só as duas etiquetas interessam; o texto é descartado). */
 export interface VoiceWindowTags {
   emotion: string;
   event: string;
 }
 
 export interface VoiceEmotionDeps {
-  /** 解码 [startSec, endSec) 这一窗,返回情绪/事件标签;null 表示该窗不可用(跳过不计数)。 */
+  /** Decodifica a janela [startSec, endSec) e devolve as etiquetas de emoção/evento; null quer dizer que a janela é inutilizável (pulada, sem contar). */
   tagWindow: (startSec: number, endSec: number) => Promise<VoiceWindowTags | null>;
 }
 
-/** SenseVoice 短窗打标器:复用转写档的模型目录,只读 emotion/event 字段。 */
+/** Etiquetador de janelas curtas do SenseVoice: reaproveita a pasta de modelos da transcrição e lê só os campos emotion/event. */
 export class VoiceTagger {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   private recognizer: any = null;
@@ -176,7 +185,7 @@ export class VoiceTagger {
 
   async init(): Promise<void> {
     const sh = loadSherpa();
-    // 模型文件由原生层自己打开(ANSI):Windows 中文路径先转 8.3 短路径(issue #4)
+    // O arquivo do modelo é aberto pela camada nativa (ANSI): no Windows, o caminho com acento vira primeiro o caminho curto 8.3 (issue #4)
     const dir = await toAnsiSafeDir(modelDir(this.modelsRoot, SENSEVOICE_MODEL));
     this.recognizer = new sh.OfflineRecognizer({
       featConfig: { sampleRate: 16000, featureDim: 80 },
@@ -201,12 +210,12 @@ export class VoiceTagger {
 }
 
 /**
- * 采集语音情绪 / 音频事件信号。fail-open:
- * - SenseVoice 模型未安装(用户用的是云端/其他转写档) → null;
- * - 抽音频或初始化失败 → null;
- * - 单窗解码失败 → 跳过该窗;
- * - 成功窗数不足 MIN_SCORED_WINDOWS → null;
- * - 超总预算 → 带着已得结果收工。
+ * Colhe o sinal de emoção da voz / eventos de áudio. Falha em aberto:
+ * - o modelo do SenseVoice não está instalado (a pessoa usa a nuvem ou outra edição de transcrição) → null;
+ * - falha ao extrair o áudio ou ao inicializar → null;
+ * - falha ao decodificar uma janela → aquela janela é pulada;
+ * - menos janelas bem-sucedidas que MIN_SCORED_WINDOWS → null;
+ * - orçamento total estourado → encerra com o que já tem.
  */
 export async function collectVoiceEmotionSignal(opts: {
   videoPath: string;
@@ -220,8 +229,8 @@ export async function collectVoiceEmotionSignal(opts: {
   const windows = planVoiceScanWindows(durationSec, signals);
   if (windows.length === 0) return null;
 
-  // 注入依赖时(测试)不碰磁盘;否则要求模型已就位——这里绝不触发下载,
-  // 用户可能压根没用本地转写档,不该为一路辅助信号偷偷下 170MB。
+  // Com a dependência injetada (nos testes) o disco não é tocado; fora disso o modelo precisa estar pronto —
+  // aqui nunca se dispara um download: a pessoa pode nem usar a transcrição local, e não deve baixar 170MB escondido por um sinal auxiliar.
   if (!opts.deps && !(await isModelInstalled(modelsRoot, SENSEVOICE_MODEL).catch(() => false))) return null;
 
   const pcmPath = join(tmpdir(), `hotclip-voicetag-${Date.now()}-16k.f32le`);
@@ -237,7 +246,7 @@ export async function collectVoiceEmotionSignal(opts: {
         tagWindow: async (startSec, endSec) => {
           const from = Math.floor(startSec * sampleRate);
           const to = Math.min(samples.length, Math.floor(endSec * sampleRate));
-          if (to - from < sampleRate) return null; // 不足 1s 的尾窗没有分类价值
+          if (to - from < sampleRate) return null; // uma janela final com menos de 1s não tem valor de classificação
           return tagger.tag(samples.subarray(from, to));
         },
       };
@@ -249,7 +258,7 @@ export async function collectVoiceEmotionSignal(opts: {
     let windowsScored = 0;
 
     for (const w of windows) {
-      if (Date.now() > deadline) break; // 预算耗尽,带着已得结果收工
+      if (Date.now() > deadline) break; // orçamento esgotado, encerra com o que já tem
       try {
         const tags = await deps.tagWindow(w.startSec, w.endSec);
         if (!tags) continue;
@@ -257,12 +266,12 @@ export async function collectVoiceEmotionSignal(opts: {
         if (isHotEmotion(tags.emotion)) emotionHits.push(w);
         if (isHotEvent(tags.event)) eventHits.push(w);
       } catch {
-        // 单窗失败跳过
+        // falha de uma janela: pula
       }
     }
 
     if (windowsScored < MIN_SCORED_WINDOWS) return null;
-    // 饱和的那一路整路丢弃(见 SATURATION_RATIO):全片都命中 = 没有区分度
+    // A trilha saturada é descartada inteira (veja SATURATION_RATIO): acertar o vídeo todo = não distinguir nada
     const emotionSaturated = emotionHits.length > windowsScored * SATURATION_RATIO;
     const eventSaturated = eventHits.length > windowsScored * SATURATION_RATIO;
     const voiceEmotionPeaks = emotionSaturated ? [] : topByDuration(mergeHitWindows(emotionHits), MAX_RANGES);
@@ -280,7 +289,7 @@ export async function collectVoiceEmotionSignal(opts: {
       },
     };
   } catch {
-    return null; // 抽音频/模型初始化失败:静默没有该信号
+    return null; // falha ao extrair o áudio / inicializar o modelo: em silêncio, sem este sinal
   } finally {
     await rm(pcmPath, { force: true });
   }
