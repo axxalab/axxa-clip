@@ -22,7 +22,11 @@
 import type { GlossaryEntry, Transcript, TranscriptSegment } from "./api-types";
 import { rebuildWords } from "./edit-transcript";
 
-const LATIN_RE = /[A-Za-z0-9]/;
+// Letras e dígitos do alfabeto latino, incluindo as letras acentuadas do português
+// (a faixa Latin-1 Supplement + Latin Extended-A/B, em escapes Unicode): sem elas, a
+// proteção de limite de palavra deixaria "gestão" ou "café" com meia palavra de fora.
+const LATIN_CLASS = "A-Za-z0-9\\u00c0-\\u024f";
+const LATIN_RE = new RegExp(`[${LATIN_CLASS}]`);
 // Faixas de escritas ideográficas (ideogramas CJK, kana e hangul), escritas como
 // escapes Unicode para que o código-fonte não carregue esses caracteres.
 const CJK_RE = /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/;
@@ -51,8 +55,8 @@ function escapeRegExp(s: string): string {
 
 /** Trecho de correspondência de um termo errado: em alfabeto latino, ganha proteção de limite de palavra nas duas pontas, para não atingir uma palavra mais longa. */
 function entryPattern(wrong: string): string {
-  const head = LATIN_RE.test(wrong[0]) ? "(?<![A-Za-z0-9])" : "";
-  const tail = LATIN_RE.test(wrong[wrong.length - 1]) ? "(?![A-Za-z0-9])" : "";
+  const head = LATIN_RE.test(wrong[0]) ? `(?<![${LATIN_CLASS}])` : "";
+  const tail = LATIN_RE.test(wrong[wrong.length - 1]) ? `(?![${LATIN_CLASS}])` : "";
   return `${head}${escapeRegExp(wrong)}${tail}`;
 }
 
