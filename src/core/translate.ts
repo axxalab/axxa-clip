@@ -1,31 +1,34 @@
 /**
- * 双语字幕翻译:把切片覆盖的整句(segment)批量翻译成目标语言,作为独立的
- * 小号翻译轨与原文字幕同屏烧录——短视频出海的标配形态(原文卡拉OK在上,
- * 译文整句在下)。
+ * Tradução da legenda bilíngue: as frases inteiras (os segmentos) cobertas pelos trechos são traduzidas
+ * em lote para o idioma de destino e queimadas na mesma tela numa trilha menor, à parte, junto da legenda
+ * original — a forma padrão de quem leva vídeo curto para fora (o karaokê do original em cima e a frase
+ * inteira traduzida embaixo).
  *
- * 按整句而非字幕行翻译:句子有完整语境,译文质量高,也天然不受逐词换行
- * 与跳剪重排的影响。全程 fail-open:翻译失败/缺句都只是"这句没有译文",
- * 绝不拖垮导出。纯函数(收集/解析/裁剪/重映射)可单测;LLM 调用注入。
+ * A tradução é por frase inteira, e não por linha de legenda: a frase tem contexto completo, a tradução
+ * sai melhor e nada disso é afetado pela quebra de linha por palavra nem pelo rearranjo do corte seco.
+ * Tudo falha em aberto: uma tradução que falha ou uma frase que falta significam só «esta frase ficou sem
+ * tradução», nunca derrubar a exportação. As funções puras (coleta / leitura / aparo / remapeamento) são
+ * testáveis, e a chamada ao LLM é injetada.
  */
 import type { LlmConfig, Transcript } from "../shared/api-types";
 import type { KeptSegment } from "./gaps";
 import { stripThinkBlocks } from "./highlight/prefilter";
 
-/** 单块翻译请求的字符上限(整句为单位切块)。 */
+/** O teto de caracteres de um bloco de pedido de tradução (os blocos são formados por frases inteiras). */
 export const TRANSLATE_CHUNK_CHARS = 1800;
-/** 单块翻译超时。 */
+/** O tempo limite de um bloco de tradução. */
 export const TRANSLATE_TIMEOUT_MS = 90_000;
-/** 短于该秒数的译文行不值得闪一下(重映射后可能被跳剪掐得只剩一瞬)。 */
+/** Uma linha traduzida mais curta que estes segundos não vale o piscar (depois do remapeamento, o corte seco pode ter reduzido a um instante). */
 const MIN_LINE_SEC = 0.3;
 
-/** 一条译文行(时间基与同路字幕词一致:无跳剪为源片绝对时间)。 */
+/** Uma linha traduzida (na mesma base de tempo das palavras da legenda: sem corte seco, é o tempo absoluto do vídeo de origem). */
 export interface TranslationLine {
   startSec: number;
   endSec: number;
   text: string;
 }
 
-/** 待翻译的整句(id 取转写 segment id,跨块全局唯一)。 */
+/** A frase inteira a traduzir (o id vem do id do segmento da transcrição, único em todos os blocos). */
 export interface TranslatableSegment {
   id: number;
   startSec: number;
@@ -33,10 +36,10 @@ export interface TranslatableSegment {
   text: string;
 }
 
-/** 与 detect.ts 的 chatComplete 同形的注入点。 */
+/** O ponto de injeção, com a mesma forma do chatComplete de detect.ts. */
 export type TranslateChatFn = (llm: LlmConfig, system: string, user: string, signal?: AbortSignal) => Promise<string>;
 
-/** 收集所有切片覆盖的句子(按 segment 去重;pad 容纳导出时的镜头吸附位移)。 */
+/** Junta as frases cobertas por todos os trechos (sem repetir segmento; o pad acomoda o deslocamento do encaixe de corte na exportação). */
 export function collectClipSegments(
   transcript: Transcript,
   clips: Array<{ startSec: number; endSec: number }>,
@@ -55,14 +58,14 @@ export function collectClipSegments(
   return out;
 }
 
-const LANG_LABEL: Record<string, string> = { en: "英文", zh: "中文" };
+const LANG_LABEL: Record<string, string> = { en: "inglês", es: "espanhol", pt: "português" };
 
 export function translationSystemPrompt(targetLang: string): string {
   const label = LANG_LABEL[targetLang] ?? targetLang;
   return [
-    `你是短视频字幕翻译员。把每一句口语字幕翻译成${label}。`,
-    "要求:口语化、简短有力、适合字幕阅读;保留语气和数字;品牌名/专有名词不硬translate;不要加解释。",
-    '严格只输出 JSON:{"lines":[{"id":1,"text":"译文"}]},id 与输入一一对应,不要输出其他内容。',
+    `Você traduz legenda de vídeo curto. Traduza cada frase de legenda falada para ${label}.`,
+    "Exigências: linguagem falada, curta e forte, boa de ler na legenda; mantenha o tom e os números; nome de marca e nome próprio não se traduz à força; não acrescente explicação.",
+    'Devolva estritamente só JSON: {"lines":[{"id":1,"text":"tradução"}]}, com os id correspondendo um a um aos da entrada, e nada mais.',
   ].join("\n");
 }
 
@@ -70,7 +73,7 @@ export function translationUserPrompt(segments: TranslatableSegment[]): string {
   return segments.map((s) => `[${s.id}] ${s.text}`).join("\n");
 }
 
-/** 解析翻译输出 → id→译文;垃圾输出返回空 Map(fail-open 到"没有译文")。 */
+/** Lê a saída da tradução → id → texto traduzido; saída lixo devolve um Map vazio (falha em aberto para «sem tradução»). */
 export function parseTranslationLines(content: string, validIds: Set<number>): Map<number, string> {
   const out = new Map<number, string>();
   const cleaned = stripThinkBlocks(content);
@@ -94,7 +97,7 @@ export function parseTranslationLines(content: string, validIds: Set<number>): M
   return out;
 }
 
-/** 按字符预算把句子切块(整句为单位)。 */
+/** Divide as frases em blocos pelo orçamento de caracteres (sempre por frase inteira). */
 export function chunkForTranslate(segments: TranslatableSegment[], targetChars = TRANSLATE_CHUNK_CHARS): TranslatableSegment[][] {
   const chunks: TranslatableSegment[][] = [];
   let cur: TranslatableSegment[] = [];
@@ -113,8 +116,9 @@ export function chunkForTranslate(segments: TranslatableSegment[], targetChars =
 }
 
 /**
- * 批量翻译。逐块调用,单块失败只丢那一块的译文(fail-open);
- * 全部失败返回 null(调用方据此在回执里写明没翻译)。上游取消原样上抛。
+ * Tradução em lote. Cada bloco é uma chamada, e a falha de um bloco só perde a tradução daquele bloco
+ * (falha em aberto); se todos falharem, devolve null (e quem chama registra no recibo que não houve
+ * tradução). Um cancelamento vindo de cima é relançado como veio.
  */
 export async function translateSegments(
   segments: TranslatableSegment[],
@@ -136,14 +140,14 @@ export async function translateSegments(
       if (parsed.size > 0) anySucceeded = true;
       for (const [id, text] of parsed) result.set(id, text);
     } catch (e) {
-      if (signal?.aborted) throw e; // 上游主动取消要中断整个导出
-      // 该块没有译文,继续下一块
+      if (signal?.aborted) throw e; // um cancelamento pedido de cima interrompe a exportação inteira
+      // Este bloco ficou sem tradução; segue para o próximo
     }
   }
   return anySucceeded ? result : null;
 }
 
-/** 取落在切片内的句子译文行,时间夹进切片范围(源片绝对时间)。 */
+/** Pega as linhas traduzidas das frases que caem dentro do trecho, com o tempo aparado no intervalo do trecho (tempo absoluto do vídeo de origem). */
 export function clipTranslationLines(
   segments: TranslatableSegment[],
   translations: Map<number, string>,
@@ -162,7 +166,7 @@ export function clipTranslationLines(
   return out;
 }
 
-/** 把译文行夹进(可能被镜头吸附移动过的)最终切片范围,太短的丢弃。 */
+/** Apara as linhas traduzidas no intervalo final do trecho (que o encaixe de corte pode ter deslocado) e descarta as curtas demais. */
 export function clampTranslationLines(lines: TranslationLine[], clipStartSec: number, clipEndSec: number): TranslationLine[] {
   const out: TranslationLine[] = [];
   for (const l of lines) {
@@ -174,9 +178,10 @@ export function clampTranslationLines(lines: TranslationLine[], clipStartSec: nu
 }
 
 /**
- * 跳剪重映射:把源时间的译文行映射到压缩后的输出时间轴。
- * 一行可能被剪掉中段——保守做法是取该行与各保留段交集的首尾,
- * 完全落在被剪区间里的行直接丢弃。
+ * Remapeamento do corte seco: as linhas traduzidas, em tempo de origem, são mapeadas para a linha de
+ * tempo comprimida da saída.
+ * Uma linha pode ter o meio cortado — o jeito conservador é tomar o começo e o fim da interseção dela com
+ * cada intervalo preservado, e a linha que cai inteira numa região cortada é simplesmente descartada.
  */
 export function remapTranslationLines(lines: TranslationLine[], kept: KeptSegment[]): TranslationLine[] {
   const out: TranslationLine[] = [];

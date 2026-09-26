@@ -18,7 +18,7 @@ export function buildRenderToggles(opts: {
 }): RenderToggles {
   const { prefs, config, brandState, diarize, transcript, atlasReady } = opts;
   // 中文源译英,其余译中——短视频出海/引进的两个主方向
-  const targetLang = (transcript?.language || "").startsWith("zh") ? "en" : "zh";
+  const targetLang = (transcript?.language || "").startsWith("pt") ? "en" : "pt";
   return {
     vertical: prefs.vertical,
     captionStyle: prefs.captionStyle,

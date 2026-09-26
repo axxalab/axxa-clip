@@ -2,51 +2,62 @@ import { describe, it, expect } from "vitest";
 import { planColdOpen, COLD_OPEN_MAX_SEC, COLD_OPEN_MIN_SEC } from "../coldopen";
 import type { TranscriptWord } from "../../shared/api-types";
 
-/** 每字 0.5s 的等宽词流,从 startSec 起。 */
-function words(text: string, startSec: number, perChar = 0.5): TranscriptWord[] {
-  return Array.from(text).map((ch, i) => ({
-    text: ch,
-    startSec: startSec + i * perChar,
-    endSec: startSec + (i + 1) * perChar,
+/** Fluxo de palavras de 0,5s cada, a partir de startSec. */
+function words(text: string, startSec: number, perWord = 0.5): TranscriptWord[] {
+  return text.split(" ").map((piece, i) => ({
+    text: piece,
+    startSec: startSec + i * perWord,
+    endSec: startSec + (i + 1) * perWord,
   }));
 }
 
 describe("planColdOpen", () => {
-  // 切片 100s 起,前 12s 是铺垫,钩子句「直接倒半杯水都不带渗」在 112s 起
+  // O trecho começa em 100s, os 12 primeiros segundos são preparação, e a frase de gancho
+  // «eu jogo meio copo de água e não passa nada» começa em 112s
   const clipStart = 100;
-  const clipWords = [...words("今天给大家带来一款超级好用的纸巾三层加厚", clipStart), ...words("直接倒半杯水都不带渗", 112)];
+  const clipWords = [
+    ...words("hoje eu trouxe um papel toalha muito bom de três camadas que não rasga molhado seis sete oito nove", clipStart),
+    ...words("eu jogo meio copo de água e não passa nada", 112),
+  ];
 
-  it("定位钩子句并返回其词边界区间(10 字×0.5s=5s,超 MAX=4s 截到 116s)", () => {
-    const p = planColdOpen(clipWords, "直接倒半杯水都不带渗", clipStart);
+  it("localiza a frase de gancho e devolve o intervalo nas bordas das palavras (10 palavras × 0,5s = 5s, acima do MAX de 4s, cortado em 116s)", () => {
+    const p = planColdOpen(clipWords, "eu jogo meio copo de água e não passa nada", clipStart);
     expect(p).not.toBeNull();
     expect(p!.startSec).toBeCloseTo(112, 3);
     expect(p!.endSec).toBeCloseTo(116, 3);
   });
 
-  it("钩子句超长:从句首截到 MAX 并收口到词尾", () => {
-    const p = planColdOpen(clipWords, "直接倒半杯水都不带渗", clipStart)!;
+  it("frase de gancho comprida demais: cortada do começo até o MAX, fechando numa borda de palavra", () => {
+    const p = planColdOpen(clipWords, "eu jogo meio copo de água e não passa nada", clipStart)!;
     expect(p.endSec - p.startSec).toBeLessThanOrEqual(COLD_OPEN_MAX_SEC + 1e-6);
-    // 词边界收口:endSec 必须等于某个词的 endSec
+    // Fechamento na borda da palavra: endSec tem de ser igual ao endSec de alguma palavra
     expect(clipWords.some((w) => Math.abs(w.endSec - p.endSec) < 1e-6)).toBe(true);
   });
 
-  it("钩子离切片开头太近(<10s)→ 跳过", () => {
-    const near = [...words("开场白", 100), ...words("爆点句在这里", 103), ...words("后续内容继续说", 108)];
-    expect(planColdOpen(near, "爆点句在这里", 100)).toBeNull();
+  it("gancho perto demais do começo do trecho (<10s) → pulado", () => {
+    const near = [
+      ...words("so a abertura", 100),
+      ...words("o estouro está aqui", 103),
+      ...words("e a conversa continua depois", 108),
+    ];
+    expect(planColdOpen(near, "o estouro está aqui", 100)).toBeNull();
   });
 
-  it("钩子定位失败/空钩子/过短片段 → null(宁可不做不可做错)", () => {
-    expect(planColdOpen(clipWords, "转写里根本没有这句", clipStart)).toBeNull();
+  it("gancho não localizado / vazio / trecho curto demais → null (melhor não fazer que fazer errado)", () => {
+    expect(planColdOpen(clipWords, "essa frase não existe na transcrição", clipStart)).toBeNull();
     expect(planColdOpen(clipWords, "", clipStart)).toBeNull();
-    expect(planColdOpen([], "直接倒", clipStart)).toBeNull();
-    // 命中但只有一个字(0.5s < MIN=1s)
-    const tiny = [...words("很长的铺垫内容一直在说话不停地说", 100), ...words("炸", 115)];
-    expect(planColdOpen(tiny, "炸", 100)).toBeNull();
+    expect(planColdOpen([], "eu jogo", clipStart)).toBeNull();
+    // Encontrado, mas com uma palavra só (0,5s < MIN = 1s)
+    const tiny = [
+      ...words("uma preparação bem longa falando sem parar por um tempão até aqui", 100),
+      ...words("explodiu", 115),
+    ];
+    expect(planColdOpen(tiny, "explodiu", 100)).toBeNull();
     expect(COLD_OPEN_MIN_SEC).toBeGreaterThan(0.5);
   });
 
-  it("引用与转写标点/大小写有出入仍能对齐(同选段的归一化匹配)", () => {
-    const p = planColdOpen(clipWords, "直接倒半杯水,都不带渗!", clipStart);
+  it("citação com pontuação ou caixa diferente da transcrição ainda alinha (a mesma comparação normalizada da escolha de trechos)", () => {
+    const p = planColdOpen(clipWords, "Eu jogo meio copo de água, e não passa nada!", clipStart);
     expect(p).not.toBeNull();
     expect(p!.startSec).toBeCloseTo(112, 3);
   });

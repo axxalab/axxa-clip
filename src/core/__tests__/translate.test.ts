@@ -15,7 +15,7 @@ import type { Transcript } from "../transcribe/types";
 
 const LLM = { baseUrl: "http://x/v1", apiKey: "k", model: "m" };
 
-// n 句转写,每句 4 秒
+// n frases de transcrição, de 4 segundos cada
 function mockTranscript(n: number): Transcript {
   return {
     language: "zh",
@@ -25,21 +25,21 @@ function mockTranscript(n: number): Transcript {
       id: i + 1,
       startSec: i * 4,
       endSec: i * 4 + 3.5,
-      text: `第${i + 1}句`,
+      text: `frase ${i + 1}`,
       words: [],
     })),
   };
 }
 
 describe("collectClipSegments", () => {
-  it("只收切片覆盖(含 pad)的句子,跨切片去重", () => {
+  it("só as frases cobertas pelo trecho (incluindo o pad) entram, sem repetir entre trechos", () => {
     const t = mockTranscript(20);
     const segs = collectClipSegments(t, [
-      { startSec: 8, endSec: 16 }, // 句 3-5(pad 后含句 2 尾部? 句2 endSec=7.5>8-1.5=6.5 → 含)
-      { startSec: 12, endSec: 20 }, // 与上一片重叠
+      { startSec: 8, endSec: 16 }, // frases 3 a 5 (com o pad, o fim da frase 2 entra? a frase 2 termina em 7,5 > 8-1,5=6,5 → entra)
+      { startSec: 12, endSec: 20 }, // se sobrepõe ao trecho anterior
     ]);
     const ids = segs.map((s) => s.id);
-    expect(new Set(ids).size).toBe(ids.length); // 去重
+    expect(new Set(ids).size).toBe(ids.length); // sem repetição
     expect(ids).toContain(3);
     expect(ids).toContain(5);
     expect(ids).not.toContain(10);
@@ -47,7 +47,7 @@ describe("collectClipSegments", () => {
 });
 
 describe("parseTranslationLines", () => {
-  it("解析标准输出并按 validIds 过滤", () => {
+  it("lê a saída padrão e filtra pelos validIds", () => {
     const map = parseTranslationLines(
       '{"lines":[{"id":1,"text":"Hello"},{"id":2,"text":"World"},{"id":99,"text":"bad"}]}',
       new Set([1, 2])
@@ -57,17 +57,17 @@ describe("parseTranslationLines", () => {
     expect(map.has(99)).toBe(false);
   });
 
-  it("剥 think 块;垃圾输出返回空 Map", () => {
-    expect(parseTranslationLines('<think>嗯</think>{"lines":[{"id":1,"text":"Hi"}]}', new Set([1])).get(1)).toBe("Hi");
-    expect(parseTranslationLines("对不起我做不到", new Set([1])).size).toBe(0);
-    expect(parseTranslationLines('{"lines":"不是数组"}', new Set([1])).size).toBe(0);
+  it("tira o bloco de raciocínio; saída lixo devolve um Map vazio", () => {
+    expect(parseTranslationLines('<think>hum</think>{"lines":[{"id":1,"text":"Hi"}]}', new Set([1])).get(1)).toBe("Hi");
+    expect(parseTranslationLines("desculpa, não consigo fazer isso", new Set([1])).size).toBe(0);
+    expect(parseTranslationLines('{"lines":"não é um array"}', new Set([1])).size).toBe(0);
   });
 });
 
 describe("chunkForTranslate", () => {
-  it("按字符预算整句切块", () => {
+  it("os blocos são formados por frases inteiras, dentro do orçamento de caracteres", () => {
     const segs: TranslatableSegment[] = Array.from({ length: 10 }, (_, i) => ({
-      id: i + 1, startSec: i, endSec: i + 1, text: "字".repeat(500),
+      id: i + 1, startSec: i, endSec: i + 1, text: "a".repeat(500),
     }));
     const chunks = chunkForTranslate(segs, 1800);
     expect(chunks.length).toBeGreaterThan(1);
@@ -78,32 +78,32 @@ describe("chunkForTranslate", () => {
 
 describe("translateSegments", () => {
   const segs: TranslatableSegment[] = [
-    { id: 1, startSec: 0, endSec: 3, text: "你好" },
-    { id: 2, startSec: 4, endSec: 7, text: "世界" },
+    { id: 1, startSec: 0, endSec: 3, text: "oi" },
+    { id: 2, startSec: 4, endSec: 7, text: "mundo" },
   ];
 
-  it("正常路径返回 id→译文", async () => {
+  it("no caminho normal devolve id → tradução", async () => {
     const chat: TranslateChatFn = async (_llm, _sys, user) => {
-      expect(user).toContain("[1] 你好");
+      expect(user).toContain("[1] oi");
       return '{"lines":[{"id":1,"text":"Hello"},{"id":2,"text":"World"}]}';
     };
     const map = await translateSegments(segs, "en", LLM, chat);
     expect(map?.get(2)).toBe("World");
   });
 
-  it("端点全挂 fail-open 返回 null", async () => {
+  it("com o endpoint todo fora do ar, falha em aberto devolvendo null", async () => {
     const chat: TranslateChatFn = async () => { throw new Error("ECONNREFUSED"); };
     expect(await translateSegments(segs, "en", LLM, chat)).toBeNull();
   });
 
-  it("上游取消原样上抛", async () => {
+  it("o cancelamento vindo de cima é relançado como veio", async () => {
     const ac = new AbortController();
     ac.abort();
     const chat: TranslateChatFn = async () => { throw new Error("aborted"); };
     await expect(translateSegments(segs, "en", LLM, chat, ac.signal)).rejects.toThrow();
   });
 
-  it("空输入返回 null", async () => {
+  it("entrada vazia devolve null", async () => {
     const chat: TranslateChatFn = async () => "{}";
     expect(await translateSegments([], "en", LLM, chat)).toBeNull();
   });
@@ -111,26 +111,26 @@ describe("translateSegments", () => {
 
 describe("clipTranslationLines / clampTranslationLines", () => {
   const segs: TranslatableSegment[] = [
-    { id: 1, startSec: 0, endSec: 4, text: "一" },
-    { id: 2, startSec: 4, endSec: 8, text: "二" },
-    { id: 3, startSec: 8, endSec: 12, text: "三" },
+    { id: 1, startSec: 0, endSec: 4, text: "um" },
+    { id: 2, startSec: 4, endSec: 8, text: "dois" },
+    { id: 3, startSec: 8, endSec: 12, text: "três" },
   ];
   const tr = new Map([[1, "one"], [2, "two"], [3, "three"]]);
 
-  it("只取落在切片内的句子,时间夹进切片", () => {
+  it("só as frases que caem dentro do trecho entram, com o tempo aparado no trecho", () => {
     const lines = clipTranslationLines(segs, tr, 3, 9);
     expect(lines.map((l) => l.text)).toEqual(["one", "two", "three"]);
-    expect(lines[0].startSec).toBe(3); // 夹到切片起点
-    expect(lines[2].endSec).toBe(9); // 夹到切片终点
+    expect(lines[0].startSec).toBe(3); // aparado no início do trecho
+    expect(lines[2].endSec).toBe(9); // aparado no fim do trecho
   });
 
-  it("没有译文的句子跳过;交集太短丢弃", () => {
+  it("frase sem tradução é pulada; interseção curta demais é descartada", () => {
     const partial = new Map([[2, "two"]]);
     expect(clipTranslationLines(segs, partial, 0, 12).length).toBe(1);
-    expect(clipTranslationLines(segs, tr, 3.9, 9).map((l) => l.text)).toEqual(["two", "three"]); // 句1只剩0.1s
+    expect(clipTranslationLines(segs, tr, 3.9, 9).map((l) => l.text)).toEqual(["two", "three"]); // da frase 1 sobram só 0,1s
   });
 
-  it("clamp 助手同样按最短时长过滤", () => {
+  it("o ajudante de clamp filtra pela mesma duração mínima", () => {
     const lines = [{ startSec: 0, endSec: 10, text: "x" }, { startSec: 11.9, endSec: 12, text: "y" }];
     const out = clampTranslationLines(lines, 2, 12);
     expect(out.length).toBe(1);
@@ -139,36 +139,36 @@ describe("clipTranslationLines / clampTranslationLines", () => {
 });
 
 describe("remapTranslationLines", () => {
-  // 保留段:[10,14] 和 [16,20] → 输出 0-4 与 4-8
+  // Intervalos preservados: [10,14] e [16,20] → a saída vai de 0 a 4 e de 4 a 8
   const kept = [
     { startSec: 10, endSec: 14 },
     { startSec: 16, endSec: 20 },
   ];
 
-  it("跨剪切点的行取交集首尾(中段被剪掉)", () => {
-    const out = remapTranslationLines([{ startSec: 12, endSec: 18, text: "跨" }], kept);
+  it("a linha que atravessa um ponto de corte usa o começo e o fim da interseção (o meio foi cortado)", () => {
+    const out = remapTranslationLines([{ startSec: 12, endSec: 18, text: "atravessa" }], kept);
     expect(out.length).toBe(1);
-    expect(out[0].startSec).toBeCloseTo(2); // 12 在段1内偏移2
-    expect(out[0].endSec).toBeCloseTo(6); // 18 在段2内偏移2 + 前段4秒
+    expect(out[0].startSec).toBeCloseTo(2); // 12 fica a 2 do início do primeiro intervalo
+    expect(out[0].endSec).toBeCloseTo(6); // 18 fica a 2 do início do segundo intervalo + os 4 segundos do intervalo anterior
   });
 
-  it("完全落在被剪区间的行丢弃", () => {
-    expect(remapTranslationLines([{ startSec: 14.2, endSec: 15.8, text: "剪" }], kept)).toEqual([]);
+  it("a linha que cai inteira numa região cortada é descartada", () => {
+    expect(remapTranslationLines([{ startSec: 14.2, endSec: 15.8, text: "cortada" }], kept)).toEqual([]);
   });
 
-  it("完整落在保留段内的行原样平移", () => {
-    const out = remapTranslationLines([{ startSec: 16.5, endSec: 19, text: "在" }], kept);
+  it("a linha que cabe inteira num intervalo preservado só é deslocada", () => {
+    const out = remapTranslationLines([{ startSec: 16.5, endSec: 19, text: "dentro" }], kept);
     expect(out[0].startSec).toBeCloseTo(4.5);
     expect(out[0].endSec).toBeCloseTo(7);
   });
 });
 
 describe("translationUserPrompt", () => {
-  it("id 与原文逐行成对", () => {
+  it("o id e o texto original vêm em pares, linha a linha", () => {
     const p = translationUserPrompt([
-      { id: 7, startSec: 0, endSec: 1, text: "你好" },
-      { id: 8, startSec: 1, endSec: 2, text: "再见" },
+      { id: 7, startSec: 0, endSec: 1, text: "oi" },
+      { id: 8, startSec: 1, endSec: 2, text: "tchau" },
     ]);
-    expect(p).toBe("[7] 你好\n[8] 再见");
+    expect(p).toBe("[7] oi\n[8] tchau");
   });
 });
