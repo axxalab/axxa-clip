@@ -1,0 +1,67 @@
+# Publica no Cloudflare Pages duas coisas estáticas:
+#   /          → o site em docs/ (a página inicial em pt-BR e a versão em inglês)
+#   /preview/  → a interface do HotClip rodando contra o provedor simulado do navegador,
+#                para conferir a tradução e o layout sem instalar o aplicativo
+#
+# Não roda sozinho num clone: só dispara quando a variável de repositório
+# CLOUDFLARE_PAGES_PROJECT existir. Para ligar, em Settings do repositório:
+#   Variables → CLOUDFLARE_PAGES_PROJECT = <nome do projeto no Pages>
+#   Secrets   → CLOUDFLARE_API_TOKEN     = um token com a permissão "Cloudflare Pages: Edit"
+#               CLOUDFLARE_ACCOUNT_ID    = o id da conta (aparece na barra lateral do painel)
+name: Prévia (Cloudflare Pages)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "src/renderer/**"
+      - ".github/workflows/pages-cloudflare.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-cloudflare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: vars.CLOUDFLARE_PAGES_PROJECT != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # O binário do Electron não é usado para gerar uma página estática
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      # --base ./ deixa os caminhos relativos, para a prévia funcionar dentro de /preview/
+      - name: Build da prévia da interface
+        run: pnpm exec vite build --config vite.renderer.config.ts --base ./
+
+      - name: Montar o diretório de publicação
+        run: |
+          rm -rf .pages
+          mkdir -p .pages
+          cp -r docs/. .pages/
+          mkdir -p .pages/preview
+          cp -r src/renderer/dist/. .pages/preview/
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy .pages --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}

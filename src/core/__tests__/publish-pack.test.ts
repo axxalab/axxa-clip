@@ -78,7 +78,7 @@ describe("adaptPost", () => {
     const emojiCopy = { ...copy, title: "😀".repeat(30) };
     const out = adaptPost("nome do trecho", emojiCopy, platformSpec("xiaohongshu")!);
     expect(Array.from(out.title)).toHaveLength(20);
-    expect(out.title.includes("�")).toBe(false);
+    expect(out.title.includes("\uFFFD")).toBe(false);
   });
 
   it("sem texto de publicação, o título do trecho serve de reserva, e nenhum título sai vazio", () => {
