@@ -2,8 +2,9 @@ import { canSearchSimilarTranscript, indexTranscript, searchSimilarTranscript, s
 import { VirtualTranscriptList } from "./VirtualTranscriptList";
 import { AlignmentReview } from "./AlignmentReview";
 /**
- * 逐句稿页签:工作台里的转写稿视图——逐句纠错(即点即改)+ 热词词表闭环。
- * 与旧 TranscribeView 结果态同一套逻辑,但住进工作台面板,不再是独占一屏。
+ * A aba da transcrição: a vista do texto transcrito dentro da bancada — a correção frase a frase (clicou,
+ * mudou) + o ciclo do vocabulário de termos.
+ * É a mesma lógica do estado de resultado do antigo TranscribeView, mas morando num painel da bancada, sem ocupar a tela inteira.
  */
 import { useMemo, useState } from "react";
 import { LuBookOpen, LuPencil, LuReplaceAll, LuTriangleAlert, LuX } from "react-icons/lu";
@@ -88,7 +89,7 @@ export function TranscriptPanel({ transcript, visualNotes, onSeek, onAudition, o
     const next = editSegmentText(transcript, segId, value);
     if (next !== transcript) {
       editTranscript(next);
-      // 术语纠错闭环:这次修改若是「错词→对词」,提示一键全片替换+入词表
+      // O ciclo da correção de termo: se esta mudança é um «termo errado → termo certo», surge a oferta de substituir em todo o material com um clique e de entrar no vocabulário
       const entry = diffReplacement(prevText, value);
       setPending(entry ? { entry, count: countGlossaryHits(next, [entry]) } : null);
     }

@@ -1,7 +1,9 @@
 /**
- * 候选密排表:一行一条,肥卡片的信息量压进 40px——分数/标题/时码/四维/
- * 质量门一屏对比十几条。点行聚焦(右栏出详情),勾选框决定出片。
- * AI 判弃的折叠到列表末尾,展开才显示(可手动捞回)。
+ * A tabela densa de candidatos: uma linha por candidato, com a informação de um cartão gordo comprimida em
+ * 40px — nota / título / código de tempo / as quatro dimensões / o portão de qualidade, com uma dúzia deles
+ * comparáveis numa tela só. Clicar na linha põe em foco (os detalhes aparecem na coluna da direita), e a
+ * caixa de marcação decide o que é exportado.
+ * O que a IA descartou fica recolhido no fim da lista e só aparece ao expandir (dá para resgatar à mão).
  */
 import { useState } from "react";
 import { LuCheck, LuChevronDown, LuScissorsLineDashed, LuBookmark, LuTextSelect, LuTriangleAlert, LuBan } from "react-icons/lu";
@@ -57,7 +59,7 @@ export function CandidateTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line/60 bg-panel/60">
-      {/* 表头 */}
+      {/* Cabeçalho da tabela */}
       <div className="flex h-7 shrink-0 items-center gap-2.5 border-b border-line/60 px-3 text-[10px] font-bold tracking-wide text-mut/60 select-none">
         <span className="w-5" />
         <span className="w-8">{t("colScore")}</span>

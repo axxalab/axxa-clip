@@ -48,10 +48,11 @@ const api: HotClipApi = {
   },
   cancelExport: () => ipcRenderer.send("hotclip:export-cancel"),
   revealClip: (path) => ipcRenderer.send("hotclip:reveal", path),
-  // 路径整体编码进 pathname,主进程协议按同样规则解回
-  // [FIX] view 段编进 pathname(不是 query):Chromium 判定"是否同一媒体资源"时
-  // 不看 query,多个 <video> 用 ?view=xxx 区分是无效的,仍会共享同一媒体缓冲而撞车。
-  // 主进程按 pathname 第 2 段做资源区分,第 3 段才是真实文件路径。
+  // O caminho inteiro é codificado no pathname, e o protocolo do processo principal o decodifica pela mesma regra
+  // [CORREÇÃO] O trecho da view entra no pathname (e não na query): o Chromium não olha a query ao decidir «é a
+  // mesma mídia?», então distinguir vários <video> por ?view=xxx não funciona e eles continuam dividindo o mesmo
+  // buffer de mídia e batendo de frente.
+  // O processo principal distingue o recurso pelo 2º trecho do pathname, e só o 3º é o caminho real do arquivo.
   mediaUrl: (filePath, view = "main") =>
     `hotclip-media://local/${encodeURIComponent(view)}/${encodeURIComponent(filePath)}`,
   selectImage: () => ipcRenderer.invoke("hotclip:select-image"),

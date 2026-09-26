@@ -1,6 +1,7 @@
 /**
- * 底部出片栏:已选统计 + 变形度预估 + 方案切换 + 导出目录 + 出片按钮。
- * 33 个开关不再铺屏——常用的走方案一键切,全量选项在「全部选项」面板里。
+ * A barra de exportação do rodapé: a contagem do que está marcado + a estimativa de quanto o vídeo muda + a
+ * troca de conjunto + a pasta de exportação + o botão de exportar.
+ * As 33 chaves não ocupam mais a tela — as mais usadas trocam de uma vez pelo conjunto, e a lista completa fica no painel «todas as opções».
  */
 import { LuFolderOpen, LuScissors, LuSlidersHorizontal } from "react-icons/lu";
 import { useT } from "../../i18n/store";
@@ -65,7 +66,7 @@ export function ExportBar({
       </span>
       {picked.length > 5 && <span className="hidden shrink-0 text-[10.5px] text-amber-400/90 lg:block">{th("overCapHint", { n: picked.length })}</span>}
       <span className="min-w-0 flex-1" />
-      {/* 方案切换:选中即应用整组开关 */}
+      {/* Troca de conjunto: escolher já aplica o grupo inteiro de chaves */}
       <label className="flex shrink-0 items-center gap-1.5 text-[11px] text-mut">
         {t("schemeLabel")}
         <select

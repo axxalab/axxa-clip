@@ -1,7 +1,7 @@
 /**
- * 出片选项组装:偏好 + 会话态 → RenderToggles。
- * 手动出片与一键托管共用这一份——原先托管路径写死一套默认开关,
- * 与手动出片各长各的,改一处漏一处。
+ * A montagem das opções de exportação: preferências + estado da sessão → RenderToggles.
+ * A exportação manual e o «tudo automático» usam esta mesma montagem — antes o caminho automático tinha um
+ * conjunto de chaves padrão fixo no código, cada um crescia para um lado, e mudar num lugar esquecia o outro.
  */
 import type { RenderToggles, LlmConfig, Transcript } from "../../../../shared/api-types";
 import type { RenderPrefs } from "../../stores/render-prefs-store";
@@ -13,11 +13,11 @@ export function buildRenderToggles(opts: {
   brandState: Parameters<typeof activeBrandStyle>[0];
   diarize: boolean;
   transcript: Transcript | null;
-  /** AI 生成媒体档可用(LLM 指向 Atlas 且带 Key)。 */
+  /** A edição de geração de mídia por IA está disponível (o LLM aponta para a Atlas e há chave). */
   atlasReady: boolean;
 }): RenderToggles {
   const { prefs, config, brandState, diarize, transcript, atlasReady } = opts;
-  // 中文源译英,其余译中——短视频出海/引进的两个主方向
+  // Material em português é traduzido para o inglês, e o resto para o português — os dois sentidos de quem leva vídeo curto para fora e de quem traz de fora
   const targetLang = (transcript?.language || "").startsWith("pt") ? "en" : "pt";
   return {
     vertical: prefs.vertical,

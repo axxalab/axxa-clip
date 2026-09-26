@@ -1,6 +1,7 @@
 /**
- * 出片方案面板:33 个开关按用途收进六组,循环档改分段控件,「打开文件/
- * 弹窗」不再伪装成开关;当前组合可存成命名方案,一键复用。
+ * O painel de conjuntos de exportação: as 33 chaves recolhidas em seis grupos por finalidade, as que ciclavam
+ * viraram controle segmentado, e «abrir um arquivo ou uma janela» não se disfarça mais de chave;
+ * a combinação atual pode ser salva como um conjunto nomeado e reaproveitada com um clique.
  */
 import { useState } from "react";
 import { LuX, LuPalette, LuTrash2, LuLoaderCircle } from "react-icons/lu";
@@ -79,7 +80,7 @@ export function ExportPanel({
           </button>
         </div>
 
-        {/* 方案行 */}
+        {/* Linha dos conjuntos */}
         <div className="mt-3.5 flex shrink-0 flex-wrap items-center gap-1.5">
           {schemes.map((s) => (
             <span key={s.id} className="group relative">
@@ -201,7 +202,7 @@ export function ExportPanel({
                 <span className="shrink-0">{th("sensitiveWordsLabel")}</span>
                 <input
                   value={prefs.sensitiveWords.join(", ")}
-                  onChange={(event) => setPref({ sensitiveWords: event.target.value.split(/[,，\n]/).map((term) => term.trim()).filter(Boolean).slice(0, 100) })}
+                  onChange={(event) => setPref({ sensitiveWords: event.target.value.split(/[,\n\uff0c]/).map((term) => term.trim()).filter(Boolean).slice(0, 100) })}
                   className="min-w-0 flex-1 rounded-md border border-line bg-panel px-2 py-1 text-[11px] text-fg outline-none focus:border-ember/60"
                 />
               </label>

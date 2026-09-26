@@ -1,7 +1,8 @@
 /**
- * 热词词表管理:错词→对词的增删查。词表持久化在本地,转写完成后自动
- * 整词替换全片(桌面/MCP/录播监听共用)——同一主播的黑话、品牌名、人名
- * 一次录入,之后每期自动修正。
+ * Gestão do vocabulário de termos: acrescentar, remover e procurar os pares «termo errado → termo certo». O
+ * vocabulário fica guardado nesta máquina e, quando a transcrição termina, a palavra inteira é substituída em
+ * todo o material (o mesmo para o desktop, o MCP e o vigia de gravações) — a gíria de quem apresenta, o nome
+ * da marca e o nome das pessoas são cadastrados uma vez e corrigidos sozinhos em todos os episódios seguintes.
  */
 import { useEffect, useState } from "react";
 import { LuBookOpen, LuX, LuPlus, LuTrash2, LuArrowRight } from "react-icons/lu";
@@ -61,7 +62,7 @@ export function GlossaryModal({ onClose }: { onClose: () => void }): React.JSX.E
         </div>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-mut">{t("desc")}</p>
 
-        {/* 新增词条 */}
+        {/* Nova entrada */}
         <div className="mt-4 flex items-center gap-2">
           <input
             value={wrong}
@@ -90,7 +91,7 @@ export function GlossaryModal({ onClose }: { onClose: () => void }): React.JSX.E
           </button>
         </div>
 
-        {/* 词条列表 */}
+        {/* Lista de entradas */}
         <div className="mt-4 max-h-[40vh] overflow-y-auto rounded-xl border border-line">
           {entries === null ? (
             <p className="p-4 text-center text-[12.5px] text-mut">…</p>

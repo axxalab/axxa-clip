@@ -46,8 +46,9 @@ export function ExportView({
   const requestId = useRef(0);
   const unsubscribeProgress = useRef(() => {});
 
-  // 可重入的导出启动:失败/取消后「重试」直接再跑一轮,不再 reload 整个应用
-  // (reload 会把整个会话状态一起炸掉——工作台时代候选还在 store 里,不能陪葬)
+  // Um início de exportação que pode ser repetido: depois de uma falha ou de um cancelamento, o «tentar de novo»
+  // roda outra vez direto, sem recarregar o aplicativo inteiro
+  // (recarregar explodiria junto todo o estado da sessão — na era da bancada os candidatos estão na store, e não podem ir junto)
   const runExport = useRef(() => {});
   runExport.current = (): void => {
     if (running.current) return;
