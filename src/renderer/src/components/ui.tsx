@@ -1,13 +1,13 @@
 /**
- * 统一控件三件套:Switch(布尔开关)/ Segmented(多档选择)/ ToggleChip(带
- * 图标的开关胶囊)。此前三种开关视觉语言并存(自绘 pill / chip 边框高亮 /
- * 单选圆点),这里收敛成一份——布尔用 Switch,多档用 Segmented,别再让
- * 循环点击的 chip 伪装成开关。
+ * O trio de controles unificado: Switch (chave booleana) / Segmented (escolha entre faixas) / ToggleChip
+ * (a cápsula de chave com ícone). Antes conviviam três linguagens visuais de chave (uma pill desenhada à mão,
+ * um chip com borda destacada, um ponto de rádio), e aqui tudo converge para uma só — booleano usa Switch,
+ * várias faixas usam Segmented, e um chip que cicla a cada clique não se disfarça mais de chave.
  */
 import { createPortal } from "react-dom";
 import { useEffect } from "react";
 
-/** 布尔开关(品牌渐变 = 开)。 */
+/** Chave booleana (o gradiente da marca = ligada). */
 export function Switch({ on, disabled, onToggle }: { on: boolean; disabled?: boolean; onToggle: () => void }): React.JSX.Element {
   return (
     <button
@@ -23,7 +23,7 @@ export function Switch({ on, disabled, onToggle }: { on: boolean; disabled?: boo
   );
 }
 
-/** 一行开关:左标签(可带说明)右 Switch。 */
+/** Uma linha de chave: o rótulo à esquerda (com explicação, se houver) e o Switch à direita. */
 export function SwitchRow({
   label,
   hint,
@@ -36,7 +36,7 @@ export function SwitchRow({
   hint?: string;
   on: boolean;
   disabled?: boolean;
-  /** 置灰原因(为什么现在开不了)。 */
+  /** O motivo do cinza (por que isto não dá para ligar agora). */
   disabledHint?: string;
   onToggle: () => void;
 }): React.JSX.Element {
@@ -51,7 +51,7 @@ export function SwitchRow({
   );
 }
 
-/** 多档分段控件(替代「点击循环切换」——档位一眼可见,不用点着数)。 */
+/** O controle segmentado de várias faixas (no lugar do «clicar para ciclar» — as faixas se veem de relance, sem precisar clicar contando). */
 export function Segmented<T extends string | number>({
   value,
   options,
@@ -90,15 +90,16 @@ export function Segmented<T extends string | number>({
   );
 }
 
-/** 小节标题(工作台面板里的分组眉头)。 */
+/** O título de uma subseção (o cabeçalho de um grupo dentro dos painéis da bancada). */
 export function SectionLabel({ children }: { children: React.ReactNode }): React.JSX.Element {
   return <div className="text-[10.5px] font-bold tracking-[1.5px] text-mut/70">{children}</div>;
 }
 
 /**
- * 模态外壳:portal 到 body + Esc 关闭 + 点遮罩关闭。
- * portal 解决了 rise-in transform 让 fixed 定位失效的那类 containing-block
- * 坑(不再依赖祖先链干净);Esc 从「只有审阅台有」变成人人都有。
+ * A casca do modal: portal para o body + fechar com Esc + fechar clicando na máscara.
+ * O portal resolveu aquela classe de armadilha de containing-block em que o transform do rise-in fazia o
+ * posicionamento fixed deixar de funcionar (sem depender mais de uma cadeia de ancestrais limpa); e o Esc
+ * deixou de existir «só na mesa de revisão» para existir em todo lugar.
  */
 export function ModalShell({ onClose, children }: { onClose: () => void; children: React.ReactNode }): React.JSX.Element {
   useEffect(() => {

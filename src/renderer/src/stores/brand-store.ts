@@ -1,6 +1,8 @@
 /**
- * 品牌样式预设 store(localStorage 持久化):多套命名预设 + 当前启用项。
- * "默认"预设 = 全部内置默认值(输出与历史版本逐字节一致),不可删除。
+ * A store dos presets de estilo da marca (guardada no localStorage): vários presets nomeados + o que está
+ * em uso.
+ * O preset «padrão» = todos os valores embutidos (a saída fica igual byte a byte à das versões anteriores) e
+ * não pode ser apagado.
  */
 import { create } from "zustand";
 import type { BrandStyle } from "../../../shared/api-types";
@@ -13,10 +15,10 @@ export interface BrandPreset {
   style: BrandStyle;
 }
 
-/** 内置"默认"预设:不带任何覆盖,管线走原有硬编码样式。名称由 i18n 渲染。 */
+/** O preset «padrão» embutido: sem nenhuma sobrescrita, a esteira usa o estilo que já estava no código. O nome é renderizado pelo i18n. */
 export const DEFAULT_PRESET: BrandPreset = { id: "default", name: "", style: {} };
 
-/** 常用品牌色速选(UI 色板)。 */
+/** As cores de marca mais usadas, para escolha rápida (a paleta da interface). */
 export const SWATCHES = ["#FF6E0D", "#FF3355", "#FFD400", "#22C55E", "#38BDF8", "#A855F7"];
 
 interface Persisted {
@@ -39,7 +41,7 @@ function load(): Persisted {
       }
     }
   } catch {
-    /* 解析失败回落默认 */
+    /* falha na leitura volta ao padrão */
   }
   return { presets: [DEFAULT_PRESET], activeId: "default" };
 }
@@ -51,7 +53,7 @@ function persist(state: Persisted): void {
       JSON.stringify({ presets: state.presets.filter((p) => p.id !== "default"), activeId: state.activeId })
     );
   } catch {
-    /* 持久化尽力而为 */
+    /* a persistência é feita na medida do possível */
   }
 }
 
@@ -59,7 +61,7 @@ interface BrandState {
   presets: BrandPreset[];
   activeId: string;
   setActive: (id: string) => void;
-  /** 更新当前预设的样式;对"默认"编辑时自动分叉成新预设。 */
+  /** Atualiza o estilo do preset atual; editar o «padrão» cria uma bifurcação num preset novo, sozinho. */
   updateActiveStyle: (patch: Partial<BrandStyle>) => void;
   addPreset: (name: string) => void;
   removePreset: (id: string) => void;
@@ -78,16 +80,16 @@ export const useBrandStore = create<BrandState>((set, get) => ({
   },
   updateActiveStyle: (patch) => {
     let { presets, activeId } = get();
-    // "默认"是只读锚点:一改就分叉出"我的样式",默认永远可回退
+    // O «padrão» é uma âncora somente de leitura: a primeira mudança bifurca em «meu estilo», e o padrão sempre pode ser retomado
     if (activeId === "default") {
-      const fork: BrandPreset = { id: newId(), name: "我的样式", style: {} };
+      const fork: BrandPreset = { id: newId(), name: "meu estilo", style: {} };
       presets = [...presets, fork];
       activeId = fork.id;
     }
     const next = presets.map((p) => {
       if (p.id !== activeId) return p;
       const style = { ...p.style, ...patch };
-      // 显式传 undefined 表示清除该字段
+      // Passar undefined explicitamente quer dizer limpar aquele campo
       for (const k of Object.keys(patch) as (keyof BrandStyle)[]) {
         if (patch[k] === undefined) delete style[k];
       }
@@ -98,7 +100,7 @@ export const useBrandStore = create<BrandState>((set, get) => ({
     set(s);
   },
   addPreset: (name) => {
-    const preset: BrandPreset = { id: newId(), name: name.trim() || "新预设", style: {} };
+    const preset: BrandPreset = { id: newId(), name: name.trim() || "preset novo", style: {} };
     const s = { presets: [...get().presets, preset], activeId: preset.id };
     persist(s);
     set(s);
@@ -123,7 +125,7 @@ export const useBrandStore = create<BrandState>((set, get) => ({
   },
 }));
 
-/** 当前生效的品牌样式(给导出用;默认预设返回 undefined = 不覆盖)。 */
+/** O estilo de marca que vale agora (para a exportação; o preset padrão devolve undefined = não sobrescreve nada). */
 export function activeBrandStyle(state: Pick<BrandState, "presets" | "activeId">): BrandStyle | undefined {
   const preset = state.presets.find((p) => p.id === state.activeId);
   if (!preset || preset.id === "default") return undefined;

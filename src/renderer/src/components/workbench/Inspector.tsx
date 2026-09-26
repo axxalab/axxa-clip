@@ -1,8 +1,10 @@
 /**
- * 右栏 Inspector:上下文面板,两个页签——
- *  - 候选详情:选中候选的四维分/钩子/理由/边界微调/审阅台入口
- *  - 检测参数:品类/时长档/商品词/点题/多人对谈/参考爆款,改动只标脏,
- *    「重新检测」按钮是唯一会重跑 AI 的东西(废除静默重跑)
+ * O Inspector da coluna da direita: o painel de contexto, com duas abas —
+ *  - Detalhes do candidato: as quatro notas do candidato escolhido, o gancho, o motivo, o ajuste fino das
+ *    bordas e a entrada da mesa de revisão
+ *  - Parâmetros de detecção: categoria / faixa de duração / palavras do produto / pauta / conversa de várias
+ *    pessoas / vídeo de referência; uma mudança só marca como sujo, e o botão «detectar de novo» é a única
+ *    coisa que roda a IA outra vez (o rodar em silêncio foi abolido)
  */
 import { useState } from "react";
 import {
@@ -46,7 +48,7 @@ const BOUNDARY_KEY = {
   signal: "boundarySignal",
 } as const;
 
-/** 候选详情页签。 */
+/** A aba de detalhes do candidato. */
 function DetailTab({
   c,
   transcript,
@@ -75,7 +77,7 @@ function DetailTab({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 分数 + 档位 */}
+      {/* Nota + faixa */}
       <div className="flex items-baseline gap-2.5">
         {c.score > 0 ? (
           <>
@@ -97,7 +99,7 @@ function DetailTab({
         )}
       </div>
 
-      {/* 标题(即点即改) */}
+      {/* Título (editável no próprio lugar) */}
       <div className="flex flex-col gap-1.5">
         <SectionLabel>{t("fieldTitle")}</SectionLabel>
         {editingTitle ? (
@@ -128,7 +130,7 @@ function DetailTab({
         )}
       </div>
 
-      {/* 钩子 + 理由 */}
+      {/* Gancho + motivo */}
       {(c.hook || c.reason || c.teaser) && (
         <div className="flex flex-col gap-1.5">
           <SectionLabel>{t("fieldHook")}</SectionLabel>
@@ -153,7 +155,7 @@ function DetailTab({
         </div>
       )}
 
-      {/* 视觉证据结构化展示:匹配状态有文字标签,不只靠颜色表达。 */}
+      {/* A evidência visual mostrada de forma estruturada: o estado de correspondência tem rótulo em texto, e não depende só da cor. */}
       {c.visualEvidence && (
         <div className="flex flex-col gap-1.5">
           <SectionLabel>{t("fieldVisualEvidence")}</SectionLabel>
@@ -179,7 +181,7 @@ function DetailTab({
         </div>
       )}
 
-      {/* 四维评审 */}
+      {/* A avaliação nas quatro dimensões */}
       {c.scoreDims && (
         <div className="flex flex-col gap-1.5">
           <SectionLabel>{t("fieldDims")}</SectionLabel>
@@ -202,7 +204,7 @@ function DetailTab({
         </div>
       )}
 
-      {/* 质量门/复评备注 */}
+      {/* O portão de qualidade e a observação da revisão */}
       {(!c.recommended || (c.gateNotes?.length ?? 0) > 0) && (
         <p
           className={`flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed ${
@@ -217,7 +219,7 @@ function DetailTab({
         </p>
       )}
 
-      {/* 字幕时间回执:只报告可证明的来源,不伪造跨模型置信度。 */}
+      {/* O recibo do tempo da legenda: só a procedência que dá para provar é informada, sem inventar confiança entre modelos. */}
       {timingQuality.totalWords > 0 && (
         <div className="flex flex-col gap-1.5">
           <SectionLabel>{t("timingReceipt")}</SectionLabel>
@@ -251,7 +253,7 @@ function DetailTab({
         </div>
       )}
 
-      {/* 边界微调 */}
+      {/* Ajuste fino das bordas */}
       <div className="flex flex-col gap-1.5">
         <SectionLabel>
           {t("fieldBoundary")} · {th(BOUNDARY_KEY[c.boundary])}
@@ -297,7 +299,7 @@ function DetailTab({
   );
 }
 
-/** 检测参数页签:改动标脏,「重新检测」显式生效。 */
+/** A aba de parâmetros de detecção: a mudança marca como sujo, e o «detectar de novo» é que a aplica. */
 function ParamsTab({ onRedetect }: { onRedetect: () => void }): React.JSX.Element {
   const t = useT("workbench");
   const th = useT("highlights");
@@ -386,7 +388,7 @@ function ParamsTab({ onRedetect }: { onRedetect: () => void }): React.JSX.Elemen
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
           onBlur={(e) => {
-            const next = [...new Set(e.target.value.split(/[,，、;；]/).map((s) => s.trim()).filter(Boolean))].slice(0, 20);
+            const next = [...new Set(e.target.value.split(/[,;\u3001\uff0c\uff1b]/).map((s) => s.trim()).filter(Boolean))].slice(0, 20);
             if (JSON.stringify(next) !== JSON.stringify(prefs.products)) {
               setPref({ products: next });
               dirty();
@@ -495,7 +497,7 @@ export function Inspector({
   const { candidates, focusedId, paramsDirty } = useSession();
   const [tab, setTab] = useState<"detail" | "params">("detail");
   const focused = candidates?.find((c) => c.id === focusedId) ?? null;
-  // 同批排名:按分数从高到低,聚焦候选排第几(手动 0 分不参与)
+  // A posição nesta leva: por nota, da maior para a menor, mostra em que lugar o candidato em foco está (os manuais, com 0, ficam fora)
   const scored = (candidates ?? []).filter((c) => c.score > 0).sort((a, b) => b.score - a.score);
   const rank = focused ? scored.findIndex((c) => c.id === focused.id) + 1 : 0;
 

@@ -1,8 +1,10 @@
 /**
- * App 外壳:顶栏(项目名 + 管线状态 + 一键托管 + 设置)+ 视图分派。
- * 三步向导退役——没素材时是导入页,有素材即进「工作台」;设置中心全屏
- * 视图任何时刻可达。会话状态全部在 session store,视图切换不丢结果。
- * Electron(IPC)与纯浏览器(mock)双跑,后者是设计预览通路。
+ * A casca do App: a barra de cima (o nome do projeto + o estado da esteira + o «tudo automático» + as
+ * configurações) + o despacho das vistas.
+ * O assistente de três passos foi aposentado — sem material é a página de importação, e com material entra-se
+ * na «bancada»; a central de configurações é uma vista em tela cheia alcançável a qualquer momento. Todo o
+ * estado da sessão vive na store de sessão, e trocar de vista não perde resultado.
+ * Roda tanto no Electron (por IPC) quanto num navegador puro (mock), sendo o segundo o caminho da pré-visualização de design.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -54,7 +56,7 @@ function formatTransfer(bytes?: number): string {
 
 const FILE_CHIPS = ["MP4", "MKV", "MOV", "FLV", "MP3"];
 
-/** 管线状态 chip:✓ 完成 / ● 进行中 / 空心 未开始。 */
+/** O chip de estado da esteira: ✓ concluído / ● em andamento / vazado ainda não começou. */
 function PipeChip({ label, state, extra }: { label: string; state: "done" | "busy" | "idle"; extra?: string }): React.JSX.Element {
   return (
     <span
@@ -75,7 +77,7 @@ function PipeChip({ label, state, extra }: { label: string; state: "done" | "bus
   );
 }
 
-/** 导入页:工作区的空态——拖放区 + 录播监听入口,营销话术退场。 */
+/** A página de importação: o estado vazio da área de trabalho — a zona de arrastar e soltar + a entrada do vigia de gravações, sem discurso de marketing. */
 function ImportStage({ onImportFile }: { onImportFile: (file: ProbedFile) => Promise<void> }): React.JSX.Element {
   const t = useT("home");
   const [busy, setBusy] = useState(false);
@@ -160,7 +162,7 @@ function ImportStage({ onImportFile }: { onImportFile: (file: ProbedFile) => Pro
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          // Electron 的拖放文件带真实路径;浏览器没有,忽略
+          // No Electron o arquivo arrastado traz o caminho real; no navegador não traz, e é ignorado
           const dropped = e.dataTransfer.files[0] as (File & { path?: string }) | undefined;
           if (dropped?.path) void probePath(dropped.path);
         }}
@@ -473,7 +475,7 @@ export default function App(): React.JSX.Element {
 
   return (
     <div className="relative flex h-full flex-col">
-      {/* ---- 顶栏:品牌 + 项目 + 管线状态 ---- */}
+      {/* ---- Barra de cima: marca + projeto + estado da esteira ---- */}
       <header
         className="z-10 flex h-12 shrink-0 items-center gap-3 border-b border-line/70 bg-panel/55 px-4 backdrop-blur-xl"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
@@ -503,7 +505,7 @@ export default function App(): React.JSX.Element {
           </>
         )}
         <div className="min-w-0 flex-1" />
-        {/* 管线状态:替代三步条,只报状态不锁路径 */}
+        {/* O estado da esteira: no lugar da barra de três passos, só informa o estado e não tranca o caminho */}
         {file && (
           <nav className="flex shrink-0 items-center gap-1.5 overflow-hidden" style={noDrag}>
             <PipeChip label={t("pipeTranscribe")} state={transcript ? "done" : "busy"} />
@@ -571,7 +573,7 @@ export default function App(): React.JSX.Element {
         </div>
       </header>
 
-      {/* ---- 视图分派:设置中心 > 工作台 > 导入页 ---- */}
+      {/* ---- Despacho das vistas: central de configurações > bancada > página de importação ---- */}
       {settingsOpen ? <SettingsView /> : file ? <Workbench onCloseProject={() => void closeCurrentProject()} /> : <ImportStage onImportFile={importFileAsProject} />}
       {showProjects && (
         <ProjectLibraryModal
