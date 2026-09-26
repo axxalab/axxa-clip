@@ -1,43 +1,47 @@
 /**
- * 转写失败的错误归因协议(issue #2)。
- * 曾经所有失败都显示「请确认文件包含音轨」,用户被误导去反复转码——
- * 真实原因(模型下载失败/解压失败/真没音轨)必须区分开并透传到 UI。
- * 主进程在 IPC 边界打标记,渲染层解析标记选文案;标记跨 IPC 只能靠
- * message 字符串携带,所以用稳定的前缀 token 而不是 Error 子类。
+ * Protocolo de atribuição de causa das falhas de transcrição (issue #2).
+ * Antes, toda falha mostrava «confira se o arquivo tem trilha de áudio», e a pessoa era levada a
+ * transcodificar o material sem parar — a causa de verdade (download do modelo que falhou, descompactação
+ * que falhou, material realmente sem trilha) precisa ser separada e chegar à interface.
+ * O processo principal marca a causa na fronteira do IPC, e a camada de renderização lê a marca e escolhe
+ * o texto; como a marca só atravessa o IPC dentro da string da message, o que se usa é um token de prefixo
+ * estável, e não uma subclasse de Error.
  */
 
-/** 素材经探测确认没有音轨——用户换素材才能解决。 */
+/** A sondagem confirmou que o material não tem trilha de áudio — só trocar o material resolve. */
 export const ERR_TAG_NO_AUDIO = "[hotclip:no-audio]";
-/** 模型下载/解压失败——检查网络或磁盘,与素材无关。 */
+/** O download ou a descompactação do modelo falhou — é a rede ou o disco, e não tem nada a ver com o material. */
 export const ERR_TAG_MODEL_DOWNLOAD = "[hotclip:model-download]";
-/** 模型已在却加载失败——最常见是 Windows 中文路径原生层打不开(issue #4),其次是模型文件损坏。 */
+/** O modelo está lá, mas não carregou — o caso mais comum é a camada nativa não abrir um caminho com acento no Windows (issue #4), e o segundo é o arquivo do modelo estar corrompido. */
 export const ERR_TAG_MODEL_LOAD = "[hotclip:model-load]";
 
 export type TranscribeErrorKind = "no-audio" | "model-download" | "model-load" | "generic";
 
 /**
- * 主进程侧:根据失败后的补充探测结果给原始错误打标记。
- * 探测不到(probe 也失败)时保持原样——宁可笼统,不可错怪素材。
+ * No processo principal: marca o erro original conforme o resultado da sondagem extra feita depois da falha.
+ * Sem resultado (quando o probe também falha), o erro fica como veio — melhor genérico que acusar o material à toa.
  */
 export function tagTranscribeError(rawMessage: string, media: { hasAudio: boolean } | null): string {
   if (media && !media.hasAudio) return `${ERR_TAG_NO_AUDIO} ${rawMessage}`;
   if (/model download failed/i.test(rawMessage)) return `${ERR_TAG_MODEL_DOWNLOAD} ${rawMessage}`;
-  // sherpa 原生层创建 recognizer 失败的固定文案——模型文件打不开/损坏,与素材无关
+  // O texto fixo de quando a camada nativa do sherpa falha ao criar o recognizer — o arquivo do modelo não abre ou está corrompido, e o material não tem culpa
   if (/check your config/i.test(rawMessage)) return `${ERR_TAG_MODEL_LOAD} ${rawMessage}`;
   return rawMessage;
 }
 
 /**
- * 通用:剥掉 Electron IPC 的包装前缀("Error invoking remote method 'x': Error: ...")。
- * 任何要展示给用户的 IPC 错误都先过这一层——包装串只会淹没真正有用的那句话(issue #6)。
+ * Geral: tira o prefixo de embrulho do IPC do Electron ("Error invoking remote method 'x': Error: ...").
+ * Todo erro de IPC que vai ser mostrado à pessoa passa por aqui primeiro — o embrulho só afoga a única
+ * frase que serve para algo (issue #6).
  */
 export function stripIpcError(raw: string): string {
   return raw.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, "").trim();
 }
 
 /**
- * 渲染层侧:从 IPC 送回的错误文本里剥掉 Electron 的包装前缀,识别标记归类,
- * 并留下可展示给用户的原始细节(报 issue 时贴出来才有诊断价值)。
+ * Na camada de renderização: tira o prefixo de embrulho do Electron do texto de erro que voltou pelo IPC,
+ * reconhece a marca para classificar, e guarda o detalhe original que dá para mostrar à pessoa (é o que tem
+ * valor de diagnóstico quando ela abre uma issue).
  */
 export function parseTranscribeError(raw: string): { kind: TranscribeErrorKind; detail: string } {
   let detail = stripIpcError(raw);

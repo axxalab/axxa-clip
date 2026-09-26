@@ -1,27 +1,29 @@
 /**
- * LLM 配置预检(issue #6 的产品级答案):用户点「开始」之前,拿 OpenAI 兼容
- * 协议里最稳的 /models 接口先探一次路——「本地 Ollama 没装/没启动」「Key
- * 空/错」「本地模型没拉取」这三类必败局,在配置面板里就拦下并告诉用户怎么
- * 办,而不是等检测跑到一半才甩一句 fetch failed。
- * fail-open 是底线:探针说不清的(端点没实现 /models 等)一律放行,预检
- * 永远不能拦住一套本来能跑的配置。纯函数,渲染层与测试共用。
+ * Pré-checagem da configuração do LLM (a resposta de produto para a issue #6): antes de a pessoa clicar em
+ * «começar», o caminho é sondado uma vez pelo endpoint mais firme do protocolo compatível com a OpenAI, o
+ * /models — as três derrotas garantidas («o Ollama local não está instalado ou não subiu», «a chave está
+ * vazia ou errada», «o modelo local não foi baixado») são barradas no próprio painel de configuração, com
+ * o que fazer em seguida, em vez de aparecer um fetch failed no meio da detecção.
+ * Falhar em aberto é o limite: o que a sonda não consegue afirmar (um endpoint que não implementa /models,
+ * por exemplo) passa sempre, e a pré-checagem nunca pode barrar uma configuração que funcionaria.
+ * Função pura, usada pela camada de renderização e pelos testes.
  */
 import type { ModelListResult } from "./api-types";
 
 export type PreflightVerdict =
   | { kind: "ok" }
-  /** 探针自身说不清(端点没实现 /models 等)——放行。 */
+  /** A própria sonda não consegue afirmar nada (o endpoint não implementa /models, etc.) — passa. */
   | { kind: "unknown" }
-  /** 本地端点没响应:Ollama 没装/没启动。 */
+  /** O endpoint local não respondeu: o Ollama não está instalado ou não subiu. */
   | { kind: "local-down" }
-  /** 云端端点连不上:网络或接口地址问题。 */
+  /** O endpoint na nuvem não responde: problema de rede ou do endereço da API. */
   | { kind: "unreachable" }
-  /** 鉴权失败:API Key 空/错/过期。 */
+  /** Falha de autenticação: a API Key está vazia, errada ou vencida. */
   | { kind: "auth" }
-  /** 本地服务在跑,但所填模型还没拉取;附上已安装清单方便就地改选。 */
+  /** O serviço local está no ar, mas o modelo preenchido ainda não foi baixado; a lista do que está instalado vem junto, para trocar a escolha ali mesmo. */
   | { kind: "model-missing"; installed: string[] };
 
-/** 本地端点(Ollama/LM Studio 等):不需要 Key,但需要服务真的在本机跑着。 */
+/** Endpoint local (Ollama, LM Studio e afins): não precisa de chave, mas precisa que o serviço esteja de fato rodando na máquina. */
 export function isLocalBaseUrl(baseUrl: string): boolean {
   try {
     const url = new URL(baseUrl);
@@ -29,10 +31,10 @@ export function isLocalBaseUrl(baseUrl: string): boolean {
   } catch { return false; }
 }
 
-/** 连接类失败的错误特征(undici 的 fetch failed、系统级 ECONNREFUSED、超时)。 */
+/** As marcas de uma falha de conexão (o fetch failed do undici, o ECONNREFUSED do sistema, o tempo esgotado). */
 const CONNECT_FAIL = /fetch failed|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|abort|timeout|timed\s*out|network/i;
 
-/** Ollama 允许省略 :latest 标签——"llama3" 命中已安装的 "llama3:latest"。 */
+/** O Ollama aceita omitir a etiqueta :latest — "llama3" encontra o "llama3:latest" instalado. */
 function hasModel(ids: string[], model: string): boolean {
   return ids.includes(model) || ids.includes(`${model}:latest`);
 }
@@ -42,10 +44,10 @@ export function preflightVerdict(res: ModelListResult, baseUrl: string, model: s
   if (res.error) {
     if (CONNECT_FAIL.test(res.error)) return local ? { kind: "local-down" } : { kind: "unreachable" };
     if (/^HTTP (401|403)/.test(res.error)) return { kind: "auth" };
-    // 其余(404 没实现 /models、返回空清单、解析失败)都不是 chat 必败的证据
+    // O resto (404 por não implementar /models, lista vazia, falha de leitura) não é prova de que o chat vai falhar
     return { kind: "unknown" };
   }
-  // 本地清单是确定性的(Ollama 列的就是已安装全集);云端清单可能不全,不据此拦人
+  // A lista local é determinística (o que o Ollama lista é tudo o que está instalado); a da nuvem pode vir incompleta, e ninguém é barrado por ela
   if (local && res.ids.length > 0 && !hasModel(res.ids, model)) {
     return { kind: "model-missing", installed: res.ids };
   }

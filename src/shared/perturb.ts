@@ -1,15 +1,20 @@
 /**
- * 模板受控微扰(v0.14「发得出去、活得下来」):批量出片时按「源文件+切片」
- * 种子对字幕几何做小幅确定性抖动——字号 ±4%、字幕基线 ±1% 画高、水平边距
- * 几个像素——让同一账号(或矩阵账号)批量产出的成片不共享像素级相同的
- * 模板指纹。2026 平台的量产检测盯的是「同模板同版式大批量」,微扰幅度
- * 刻意压在观感无差的区间,且基线抖动后仍留在平台安全区(62-72% 字幕带)内。
+ * Perturbação controlada do modelo (a v0.14, do «conseguir publicar e sobreviver»): numa leva de vídeos, a
+ * geometria da legenda recebe um tremor determinístico e pequeno a partir de uma semente formada por
+ * «arquivo de origem + trecho» — o corpo da fonte ±4%, a linha de base da legenda ±1% da altura da imagem
+ * e a margem horizontal de alguns pixels — para os vídeos que uma mesma conta (ou uma rede de contas)
+ * produz em lote não compartilharem uma impressão digital de modelo idêntica pixel a pixel. O que a
+ * detecção de produção em massa das plataformas de 2026 persegue é «o mesmo modelo, a mesma diagramação,
+ * em grande quantidade», e a amplitude da perturbação é mantida de propósito na faixa em que nada muda
+ * para quem assiste, com a linha de base tremida continuando dentro da zona segura da plataforma (a faixa
+ * de legenda de 62 a 72%).
  *
- * 确定性:同一种子永远得到同一组抖动——重新导出可复现,QA 能对账;
- * 不用 Math.random(不可复现,also 工作流环境禁用)。纯函数,无 Node 依赖。
+ * Determinismo: a mesma semente dá sempre o mesmo conjunto de tremores — reexportar reproduz o resultado e
+ * a verificação de qualidade fecha as contas; nada de Math.random (que não se reproduz e, além disso, é
+ * proibido no ambiente de trabalho). Função pura, sem depender do Node.
  */
 
-/** FNV-1a 32 位哈希:把种子字符串折成 PRNG 种子。 */
+/** Hash FNV-1a de 32 bits: dobra a string da semente numa semente de PRNG. */
 export function fnv1a(str: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
@@ -19,7 +24,7 @@ export function fnv1a(str: string): number {
   return h >>> 0;
 }
 
-/** mulberry32:小而稳的种子化 PRNG(返回 [0,1) 均匀分布)。 */
+/** mulberry32: um PRNG com semente, pequeno e firme (devolve uma distribuição uniforme em [0,1)). */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -31,14 +36,14 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-/** 字号抖动幅度:±4%(78px 档约 ±3px,观感无差)。 */
+/** A amplitude do tremor do corpo da fonte: ±4% (na faixa de 78px dá uns ±3px, imperceptível). */
 export const JITTER_FONT_SPAN = 0.04;
-/** 字幕基线抖动幅度:±1% 画高(1920 高约 ±19px,不出 62-72% 安全带)。 */
+/** A amplitude do tremor da linha de base da legenda: ±1% da altura da imagem (numa altura de 1920 dá uns ±19px, sem sair da faixa segura de 62 a 72%). */
 export const JITTER_BASELINE_FRAC = 0.01;
-/** 水平边距抖动幅度:±8px(只影响留白,不动断行宽度)。 */
+/** A amplitude do tremor da margem horizontal: ±8px (afeta só o espaço em branco, sem mexer na largura da quebra de linha). */
 export const JITTER_MARGIN_H_PX = 8;
 
-/** 微扰作用的最小布局面——core 的 AssLayout 结构性满足,shared 不反向依赖。 */
+/** A superfície mínima de layout em que a perturbação age — o AssLayout do core a satisfaz por estrutura, e shared não passa a depender do core. */
 export interface JitterableLayout {
   playResY: number;
   fontSize: number;
@@ -47,8 +52,8 @@ export interface JitterableLayout {
 }
 
 /**
- * 按种子微扰一份字幕布局(字号/基线/水平边距)。同种子同输出;
- * 返回新对象,不改入参。
+ * Perturba um layout de legenda conforme a semente (corpo da fonte / linha de base / margem horizontal).
+ * A mesma semente dá a mesma saída; um objeto novo é devolvido, sem alterar o que entrou.
  */
 export function perturbLayout<T extends JitterableLayout>(layout: T, seedKey: string): T {
   const rand = mulberry32(fnv1a(seedKey));

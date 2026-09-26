@@ -1,11 +1,12 @@
 /**
- * 候选切片审阅台的纯逻辑:上下文窗口、拖拽吸附字词边界、拖动范围钳制、
- * 切片文本重算。与平台无关,渲染层交互和单元测试共用。
+ * A lógica pura da mesa de revisão dos trechos candidatos: a janela de contexto, o encaixe do arrasto nas
+ * bordas das palavras, o aparo do intervalo arrastado e o recálculo do texto do trecho. Independe de
+ * plataforma, e é compartilhada pela interação da camada de renderização e pelos testes unitários.
  */
 import type { Transcript, TranscriptWord } from "./api-types";
 
 const EPS = 1e-3;
-/** 手动微调允许的时长范围(与 boundary.ts 的守卫一致)。 */
+/** A faixa de duração que o ajuste manual permite (a mesma guarda de boundary.ts). */
 export const REVIEW_MIN_SEC = 3;
 export const REVIEW_MAX_SEC = 120;
 
@@ -14,7 +15,7 @@ export interface ReviewWindow {
   winEndSec: number;
 }
 
-/** 审阅时间轴的上下文窗口:切片两侧各留一段余量,便于向外扩切点。 */
+/** A janela de contexto da linha de tempo de revisão: uma folga de cada lado do trecho, para dar espaço a esticar o corte para fora. */
 export function contextWindow(startSec: number, endSec: number, durationSec: number): ReviewWindow {
   const pad = Math.min(20, Math.max(6, (endSec - startSec) * 0.4));
   return {
@@ -23,7 +24,7 @@ export function contextWindow(startSec: number, endSec: number, durationSec: num
   };
 }
 
-/** 窗口内(含跨边界)的全部词,按时间排序——时间轴吸附的候选点。 */
+/** Todas as palavras da janela (inclusive as que atravessam a borda), ordenadas no tempo — são os pontos candidatos ao encaixe na linha de tempo. */
 export function wordsInWindow(transcript: Transcript, winStartSec: number, winEndSec: number): TranscriptWord[] {
   return transcript.segments
     .filter((s) => s.endSec > winStartSec && s.startSec < winEndSec)
@@ -33,8 +34,9 @@ export function wordsInWindow(transcript: Transcript, winStartSec: number, winEn
 }
 
 /**
- * 拖拽吸附:起点吸到最近的词首、终点吸到最近的词尾(容差内),
- * 容差外原样返回——拖到没词的地方(空镜/静音)也允许自由落点。
+ * Encaixe do arrasto: o início encaixa no começo da palavra mais próxima e o fim no fim da palavra mais
+ * próxima (dentro da tolerância); fora da tolerância tudo fica como está — arrastar para um lugar sem
+ * palavra (imagem sem fala, silêncio) também pode cair livremente.
  */
 export function snapToWordEdge(
   sec: number,
@@ -56,8 +58,8 @@ export function snapToWordEdge(
 }
 
 /**
- * 拖动一侧手柄的钳制:不越过另一侧(保住最短时长)、不超最长时长、
- * 不出窗口。"不越过另一侧"是硬规则,窗口边界在冲突时让位。
+ * O aparo ao arrastar uma das alças: não passa da outra (o que preserva a duração mínima), não passa da
+ * duração máxima e não sai da janela. «Não passar da outra» é regra dura, e a borda da janela cede quando houver conflito.
  */
 export function clampDrag(
   edge: "start" | "end",
@@ -75,7 +77,7 @@ export function clampDrag(
   return Math.max(lo, Math.min(hi, sec));
 }
 
-/** 重算当前范围覆盖的逐句稿文本(与 boundary.ts 的重叠规则一致)。 */
+/** Recalcula o texto da transcrição coberto pelo intervalo atual (com a mesma regra de sobreposição de boundary.ts). */
 export function clipText(transcript: Transcript, startSec: number, endSec: number): string {
   return transcript.segments
     .filter((s) => s.endSec > startSec + EPS && s.startSec < endSec - EPS)

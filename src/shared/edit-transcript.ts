@@ -1,15 +1,18 @@
 /**
- * 逐句稿纠错:ASR 错字会一路烧进字幕/翻译/发布文案,在转写页当场改掉
- * 最省事。改完句子文本后,该句的词级时间轴按"字符视觉宽度占比"重建
- * (CJK 逐字、英文按词)——卡拉OK扫色在该句内会略均匀化,但字是对的;
- * 错字与略糙的扫色之间,永远选后者。纯函数,可完整单测。
+ * Correção da transcrição frase a frase: o erro de escrita do ASR seria queimado na legenda, na tradução e
+ * no texto de publicação, então corrigir ali mesmo na página de transcrição é o caminho mais curto. Depois
+ * de mudar o texto da frase, a linha de tempo por palavra daquela frase é reconstruída pela «proporção da
+ * largura visual dos caracteres» (caractere a caractere na escrita ideográfica e por palavra no alfabeto
+ * latino) — a varredura de cor do karaokê fica um pouco mais uniforme dentro daquela frase, mas as palavras
+ * estão certas; entre um erro de escrita e uma varredura um pouco tosca, a escolha é sempre a segunda.
+ * Função pura, testável por inteiro.
  */
 import type { Transcript, TranscriptWord } from "./api-types";
 
 const CJK_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 const WORD_CHAR_RE = /[\p{L}\p{M}\p{N}'’\-]/u;
 
-/** 把编辑后的句子切成卡拉OK词单元:CJK 单字、latin 词、标点附着前词。 */
+/** Quebra a frase editada em unidades de palavra do karaokê: um caractere por vez na escrita ideográfica, a palavra inteira no alfabeto latino, e a pontuação colada na palavra anterior. */
 export function tokenizeForWords(text: string): string[] {
   const tokens: string[] = [];
   let latin = "";
@@ -29,7 +32,7 @@ export function tokenizeForWords(text: string): string[] {
     if (CJK_RE.test(ch)) {
       tokens.push(ch);
     } else if (tokens.length > 0) {
-      tokens[tokens.length - 1] += ch; // 标点附着前词(与 ASR 词形一致)
+      tokens[tokens.length - 1] += ch; // a pontuação cola na palavra anterior (igual à forma das palavras do ASR)
     } else {
       tokens.push(ch);
     }
@@ -38,7 +41,7 @@ export function tokenizeForWords(text: string): string[] {
   return tokens;
 }
 
-/** 视觉宽度:CJK=2,latin/数字=1,其余(标点)=0.5——时间分配的权重。 */
+/** A largura visual: ideograma=2, letra/número=1 e o resto (pontuação)=0,5 — é o peso da divisão do tempo. */
 function tokenWeight(token: string): number {
   let w = 0;
   for (const ch of Array.from(token)) {
@@ -47,7 +50,7 @@ function tokenWeight(token: string): number {
   return Math.max(0.5, w);
 }
 
-/** 按权重把 [startSec, endSec] 均匀分给各词(首尾对齐,无缝无重叠)。 */
+/** Divide [startSec, endSec] entre as palavras conforme o peso (alinhado nas pontas, sem vão e sem sobreposição). */
 export function rebuildWords(text: string, startSec: number, endSec: number): TranscriptWord[] {
   const tokens = tokenizeForWords(text);
   const dur = Math.max(0, endSec - startSec);
@@ -65,8 +68,8 @@ export function rebuildWords(text: string, startSec: number, endSec: number): Tr
 }
 
 /**
- * 改一句的文本:替换 text 并重建该句 words,其余句原样。空文本视为
- * 误操作,返回原 transcript 不变。
+ * Muda o texto de uma frase: o text é substituído e as words daquela frase são reconstruídas, enquanto as
+ * outras frases ficam como estavam. Texto vazio conta como clique errado, e a transcrição volta sem mudança.
  */
 export function editSegmentText(transcript: Transcript, segmentId: number, newText: string): Transcript {
   const text = newText.trim();

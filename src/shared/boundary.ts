@@ -1,14 +1,14 @@
 /**
- * Sentence-step boundary adjustment for highlight clips: extend/shrink either
- * edge by whole transcript sentences (word-accurate boundaries come free —
- * segments are built from word timestamps). Pure & platform-neutral so both
- * the renderer (interactive tweaking) and core can use it.
+ * Ajuste da borda de um trecho por frases inteiras: cada lado é esticado ou recolhido em frases inteiras da
+ * transcrição (as bordas exatas na palavra vêm de graça — os segmentos são construídos a partir das marcas
+ * de tempo das palavras). Puro e independente de plataforma, então tanto a camada de renderização (o ajuste
+ * interativo) quanto o core podem usar.
  */
 import type { Transcript, TranscriptSegment, ClipPiece } from "./api-types";
 import { mergePieces, PIECE_JOINER } from "./pieces";
 
 const EPS = 1e-3;
-/** Manual tweaking is allowed a wider range than auto-detection. */
+/** O ajuste manual tem uma faixa mais larga que a da detecção automática. */
 const MIN_SEC = 3;
 const MAX_SEC = 120;
 
@@ -23,11 +23,11 @@ export interface AdjustedBoundary {
 }
 
 /**
- * Move one clip edge by one sentence. `dir` follows the timeline:
- *  - start edge: -1 pulls the previous sentence in, +1 drops the first one
- *  - end edge:   +1 pulls the next sentence in,     -1 drops the last one
- * Returns null when the move is impossible (no neighbour, would collapse,
- * or leaves the duration outside sane bounds).
+ * Move uma borda do trecho em uma frase. O `dir` segue a linha de tempo:
+ *  - na borda de início: -1 traz a frase anterior para dentro, +1 descarta a primeira
+ *  - na borda de fim:    +1 traz a frase seguinte para dentro, -1 descarta a última
+ * Devolve null quando o movimento é impossível (sem frase vizinha, o trecho colapsaria, ou a duração sairia
+ * dos limites razoáveis).
  */
 export function adjustClipBoundary(
   transcript: Transcript,
@@ -71,14 +71,15 @@ export function adjustClipBoundary(
 }
 
 export interface AdjustedCandidate extends AdjustedBoundary {
-  /** 拼接片调整后的段清单;单段切片不带此字段。 */
+  /** A lista de pedaços depois do ajuste de um trecho colado; um trecho de pedaço único não traz este campo. */
   pieces?: ClipPiece[];
 }
 
 /**
- * 候选级的切点微调。拼接片只动**第一段的起点**和**最后一段的终点**——中间
- * 那几段是 AI 挑来做对照的,用户按左右箭头时不该被悄悄挪走;调到两段并成
- * 一段(拼接不复存在)时直接拒绝这次调整,让用户自己去审阅台改。
+ * O ajuste do ponto de corte no nível do candidato. Num trecho colado só se move **o início do primeiro
+ * pedaço** e **o fim do último** — os pedaços do meio foram escolhidos pela IA para o contraste, e não
+ * devem sair de lugar em silêncio quando a pessoa usa as setas; se o ajuste fundiria dois pedaços num só (e
+ * a colagem deixaria de existir), ele é simplesmente recusado, e a pessoa muda isso na mesa de revisão.
  */
 export function adjustCandidateBoundary(
   transcript: Transcript,
@@ -92,8 +93,8 @@ export function adjustCandidateBoundary(
   const idx = edge === "start" ? 0 : pieces.length - 1;
   const moved = adjustClipBoundary(transcript, pieces[idx], edge, dir);
   if (!moved) return null;
-  // mergePieces 而非 normalizePieces:这里只动了首/尾段的边,段数不该被
-  // 「最多 4 段/最短 2 秒」的检测侧规整悄悄改掉(手动选段可以超过 4 段)
+  // mergePieces em vez de normalizePieces: aqui só as bordas do primeiro e do último pedaço se moveram, e o
+  // número de pedaços não deve ser mudado em silêncio pela regularização do lado da detecção («no máximo 4 pedaços / no mínimo 2 segundos») — uma escolha manual pode passar de 4 pedaços
   const next = mergePieces(
     pieces.map((p, i) => (i === idx ? { startSec: moved.startSec, endSec: moved.endSec } : p))
   );
@@ -106,7 +107,7 @@ export function adjustCandidateBoundary(
   };
 }
 
-/** 拼接片的展示文本:各段原文用省略标记连起来,一眼看得出中间跳了。 */
+/** O texto exibido de um trecho colado: o texto de cada pedaço unido por uma marca de omissão, de modo que se veja de relance que houve um salto no meio. */
 export function piecesText(transcript: Transcript, pieces: ClipPiece[]): string {
   return pieces
     .map((p) => overlapping(transcript, p.startSec, p.endSec).map((s) => s.text).join(" "))

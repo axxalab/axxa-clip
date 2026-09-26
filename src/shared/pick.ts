@@ -1,18 +1,19 @@
 /**
- * 文稿选段(文字剪视频):把勾选的句子集合成拼接片清单。
- * 只按「文稿相邻」合并——中间被用户跳过的句子绝不并进来(哪怕时间间隔很短,
- * 跳过就是用户的明确决定);非相邻的选中组各自成段,顺序即时间序。
- * 纯函数,渲染进程(选段弹窗)与测试共用。
+ * Escolha de trechos pelo texto (editar vídeo escrevendo): as frases marcadas viram a lista de pedaços a colar.
+ * A união é só por «vizinhança no texto» — a frase que a pessoa pulou no meio nunca entra (mesmo que o vão
+ * de tempo seja curtíssimo: pular foi uma decisão explícita dela); os grupos marcados que não são vizinhos
+ * formam cada um o seu pedaço, e a ordem é a do tempo.
+ * Função pura, compartilhada pelo processo de renderização (a janela de escolha) e pelos testes.
  */
 import type { TranscriptSegment, ClipPiece } from "./api-types";
 
-/** 手动拼接段数上限:再多就不是切片而是剪辑工程了,审阅台也看不过来。 */
+/** O teto de pedaços colados à mão: mais que isso não é um corte, é um projeto de edição, e a mesa de revisão também não daria conta. */
 export const MANUAL_MAX_PIECES = 8;
-/** 手动成片时长范围(与 boundary.ts 手动微调的 MIN/MAX 同口径)。 */
+/** A faixa de duração de um vídeo montado à mão (a mesma dos MIN/MAX do ajuste manual de boundary.ts). */
 export const MANUAL_MIN_SEC = 3;
 export const MANUAL_MAX_SEC = 120;
 
-/** 按文稿顺序把选中句子并成段:相邻选中延长当前段,断开另起一段。 */
+/** Une as frases marcadas em pedaços seguindo a ordem do texto: marcação vizinha estende o pedaço atual, e uma quebra começa outro. */
 export function selectionToPieces(
   segments: TranscriptSegment[],
   selected: ReadonlySet<number>
@@ -34,7 +35,7 @@ export function selectionToPieces(
   return out;
 }
 
-/** 选段是否能成片;不能时给出原因(禁用「加入候选」按钮并解释为什么)。 */
+/** Se a escolha dá para virar vídeo; quando não dá, o motivo vem junto (para desabilitar o botão «juntar aos candidatos» e explicar por quê). */
 export type PickVerdict = "ok" | "empty" | "tooShort" | "tooLong" | "tooMany";
 
 export function pickVerdict(pieces: ClipPiece[], durationSec: number): PickVerdict {
