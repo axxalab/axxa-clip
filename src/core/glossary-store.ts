@@ -1,7 +1,7 @@
 /**
- * 热词词表的本地持久化:userData/glossary.json。桌面端 IPC、MCP Server、
- * 录播监听共用同一份词表——一次纠错,处处生效。读失败/文件损坏一律
- * 返回空表(fail-open,绝不拖垮转写)。
+ * A persistência local do vocabulário de termos: userData/glossary.json. O IPC do desktop, o servidor MCP e o
+ * vigia de gravações usam o mesmo vocabulário — corrigiu uma vez, vale em todo lugar. Uma falha de leitura ou
+ * um arquivo corrompido devolvem sempre uma tabela vazia (falha em aberto, sem nunca derrubar a transcrição).
  */
 import { join } from "path";
 import { mkdir, readFile, writeFile } from "fs/promises";
@@ -12,7 +12,7 @@ export function glossaryPath(userDataDir: string): string {
   return join(userDataDir, "glossary.json");
 }
 
-/** 读词表;文件不存在/损坏返回 []。 */
+/** Lê o vocabulário; arquivo inexistente ou corrompido devolve []. */
 export async function loadGlossary(userDataDir: string): Promise<GlossaryEntry[]> {
   try {
     const raw = await readFile(glossaryPath(userDataDir), "utf8");
@@ -22,7 +22,7 @@ export async function loadGlossary(userDataDir: string): Promise<GlossaryEntry[]
   }
 }
 
-/** 整表写回(先清洗;目录不存在则建)。 */
+/** Grava a tabela inteira de volta (limpando antes; se a pasta não existir, ela é criada). */
 export async function saveGlossary(userDataDir: string, entries: GlossaryEntry[]): Promise<GlossaryEntry[]> {
   const clean = sanitizeGlossary(entries);
   await mkdir(userDataDir, { recursive: true });

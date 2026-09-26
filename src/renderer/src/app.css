@@ -150,9 +150,10 @@ body {
 }
 
 /**
- * 常驻底部的出片操作栏:.card 的 3% 白在小高度上够用,但选项换行后这条能占
- * 三分之一屏,半透明会让下面的候选卡片直接透上来叠字(issue #3 的第二现场)。
- * 操作栏一律走实心面板色,毛玻璃只作锦上添花。
+ * A barra de ações de exportação, sempre presente no rodapé: o branco a 3% do .card basta numa altura pequena,
+ * mas quando as opções quebram em várias linhas esta barra ocupa um terço da tela, e o semitransparente deixa
+ * os cartões de candidato de baixo atravessarem e embolarem o texto (o segundo cenário da issue #3).
+ * A barra de ações usa sempre a cor sólida do painel, e o efeito de vidro fica só como enfeite.
  */
 .card.action-bar {
   background: var(--color-panel);
@@ -183,11 +184,12 @@ body {
 }
 
 .rise-in {
-  /* backwards 而不是 both:forwards 会把末帧 transform 以 identity matrix 的
-     形式永久留在元素上(哪怕末帧写 none,Chromium 填充的是换算后的矩阵),而
-     任何 transform 都是 fixed 后代的 containing block——留着它,容器里所有
-     弹窗(审阅台/品牌/文稿选段)的 inset-0 都不再相对视口。backwards 只管
-     延迟期的隐藏,动画结束即回归元素本身样式,transform 彻底消失 */
+  /* backwards em vez de both: o forwards deixaria o transform do último quadro permanentemente no elemento
+     na forma de uma matriz identidade (mesmo com o último quadro escrito como none, o Chromium preenche a
+     matriz já convertida), e qualquer transform é o containing block dos descendentes fixed — mantê-lo faria
+     o inset-0 de todas as janelas do contêiner (mesa de revisão, marca, escolha de trechos) deixar de ser
+     relativo à viewport. O backwards cuida só de esconder durante o atraso, e no fim da animação o elemento
+     volta ao próprio estilo, com o transform desaparecendo de vez */
   animation: rise-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 

@@ -1,7 +1,8 @@
 /**
- * 时间轴缩略图胶片带:全片均匀抽 N 帧小图(JPEG base64),工作台时间轴
- * 铺在波形背后当"这一段是什么画面"的地图。单帧 200px 宽 q=6,八帧总量
- * 约 100KB,IPC 一次带走。fail-open:单帧失败落空串,渲染层跳过该格。
+ * A tira de miniaturas da linha de tempo: N quadros pequenos amostrados por igual em todo o material (JPEG
+ * em base64), que a linha de tempo da bancada espalha atrás da forma de onda como o mapa de «que imagem tem
+ * neste trecho». Cada quadro tem 200px de largura em q=6, e oito quadros somam uns 100KB, que o IPC leva de
+ * uma vez. Falha em aberto: um quadro que falha vira string vazia, e a camada de renderização pula aquela célula.
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -11,7 +12,7 @@ import { ffmpegVideoStreamSpecifier } from "./probe";
 
 const execFileAsync = promisify(execFile);
 
-/** 抽帧时刻:首尾各让 1%(边界帧常是黑场/转场半帧),中间均匀铺。纯函数。 */
+/** Os instantes da amostragem: 1% é cedido em cada ponta (o quadro da borda costuma ser tela preta ou meia transição) e o meio é espalhado por igual. Função pura. */
 export function filmstripTimes(durationSec: number, count: number): number[] {
   if (!(durationSec > 0) || count < 1) return [];
   const pad = durationSec * 0.01;
@@ -19,7 +20,7 @@ export function filmstripTimes(durationSec: number, count: number): number[] {
   return Array.from({ length: count }, (_, i) => pad + (usable * (i + 0.5)) / count);
 }
 
-/** 抽一帧缩略图 → JPEG base64;失败返回空串。 */
+/** Extrai um quadro de miniatura → JPEG em base64; na falha devolve string vazia. */
 async function grabFrame(
   ffmpeg: string,
   filePath: string,
@@ -44,7 +45,7 @@ async function grabFrame(
   }
 }
 
-/** 全片胶片带:均匀 count 帧,顺序返回(与 filmstripTimes 一一对应)。 */
+/** A tira do material inteiro: count quadros por igual, devolvidos em ordem (um a um, correspondendo a filmstripTimes). */
 export async function extractFilmstrip(
   filePath: string,
   durationSec: number,
@@ -53,7 +54,7 @@ export async function extractFilmstrip(
 ): Promise<string[]> {
   const ffmpeg = resolveFfmpegPath();
   const out: string[] = [];
-  // 串行抽帧:seek 型单帧任务本身毫秒级,并发反而容易在机械盘上互相踩
+  // A extração é em série: uma tarefa de um quadro com seek leva milissegundos, e a concorrência só faz um pisar no outro num disco mecânico
   for (const t of filmstripTimes(durationSec, count)) {
     out.push(await grabFrame(ffmpeg, filePath, t, analysis));
   }

@@ -1,21 +1,23 @@
 /**
- * 新版本检查:启动时静默问一次 GitHub releases/latest,有新版就在页头
- * 提示并指向下载页——未签名应用接自动更新链路太重,「知道有新版」是
- * 分发闭环里最薄也最必要的一环。断网/限流/解析失败全部静默(fail-open),
- * 永不打扰。纯函数(版本比对/响应解析)可单测;fetch 注入。
+ * Verificação de versão nova: na inicialização, o releases/latest do GitHub é consultado uma vez em silêncio
+ * e, havendo versão nova, o cabeçalho avisa e aponta a página de download — montar uma cadeia de atualização
+ * automática num aplicativo sem assinatura é pesado demais, e «saber que existe versão nova» é o elo mais
+ * fino e mais necessário do ciclo de distribuição. Sem rede, com limite de uso ou com falha de leitura, tudo
+ * fica em silêncio (falha em aberto) e ninguém é incomodado. As funções puras (comparação de versão e leitura
+ * da resposta) são testáveis, e o fetch é injetado.
  */
 
 export const RELEASES_URL = "https://github.com/xixihhhh/hotclip/releases/latest";
 const LATEST_API = "https://api.github.com/repos/xixihhhh/hotclip/releases/latest";
 
-/** "v1.2.3" / "1.2.3" → [1,2,3];无法解析返回 null。 */
+/** "v1.2.3" / "1.2.3" → [1,2,3]; sem conseguir ler, devolve null. */
 export function parseVersion(v: string): [number, number, number] | null {
   const m = v.trim().match(/^v?(\d+)\.(\d+)\.(\d+)/);
   if (!m) return null;
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
-/** latest 比 current 新时返回 true(任一无法解析返回 false,宁静默不误报)。 */
+/** Devolve true quando latest é mais nova que current (se qualquer uma não puder ser lida, devolve false: melhor o silêncio que o alarme falso). */
 export function isNewerVersion(latest: string, current: string): boolean {
   const a = parseVersion(latest);
   const b = parseVersion(current);
@@ -38,7 +40,7 @@ type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => P
   json: () => Promise<unknown>;
 }>;
 
-/** 查一次最新版;任何失败返回 null(绝不打扰用户)。 */
+/** Consulta a versão mais nova uma vez; qualquer falha devolve null (ninguém é incomodado). */
 export async function checkForUpdate(
   currentVersion: string,
   fetchImpl: FetchLike = fetch as unknown as FetchLike

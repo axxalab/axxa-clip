@@ -1,7 +1,8 @@
 /**
- * 检测编排:把「调 detectHighlights → 结果落 session store」收成一个动作。
- * 与旧版最大的区别:参数改动只标脏,唯一的触发点是显式调用 run()——
- * 「重新检测」按钮是花 LLM 钱的那只手,用户永远知道自己按了它。
+ * A orquestração da detecção: «chamar detectHighlights → guardar o resultado na store da sessão» virou uma ação só.
+ * A maior diferença para a versão antiga: mudar um parâmetro só marca como sujo, e o único gatilho é chamar
+ * run() explicitamente — o botão «detectar de novo» é a mão que gasta o dinheiro do LLM, e a pessoa sempre
+ * sabe que apertou esse botão.
  */
 import { useCallback } from "react";
 import { getApi } from "../../api/provider";
@@ -47,14 +48,14 @@ export function useDetection(): { run: () => Promise<void> } {
         reference: result.reference ?? null,
         referenceError: result.referenceError ?? null,
       });
-      // 复评通过的预选出片;右栏聚焦第一条推荐(没有就第一条)
+      // Os aprovados na revisão já saem pré-marcados para exportar; a coluna da direita põe em foco a primeira recomendação (ou a primeira de todas, se não houver)
       st.setSelected(new Set(result.candidates.filter((c) => c.recommended).map((c) => c.id)));
       st.setFocusedId(result.candidates.find((c) => c.recommended)?.id ?? result.candidates[0]?.id ?? null);
-      // 带说话人标注的逐句稿回流(导出按说话人给字幕上色)
+      // A transcrição com a marcação de falante volta (a exportação colore a legenda por falante)
       if (result.transcript) st.setTranscript(result.transcript);
       st.markParamsDirty(false);
     } catch (e) {
-      // IPC 包装串只会淹没真正有用的那句话——先剥壳再展示(issue #6)
+      // O embrulho do IPC só afoga a única frase que serve para algo — o embrulho sai antes de exibir (issue #6)
       useSession.getState().setDetectError(stripIpcError(e instanceof Error ? e.message : String(e)));
     } finally {
       useSession.getState().setDetecting(false);

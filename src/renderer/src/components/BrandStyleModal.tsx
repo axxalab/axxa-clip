@@ -1,7 +1,9 @@
 /**
- * 品牌样式模板:高亮色/字号/字幕位置/logo 水印,一次配置每条切片复用。
- * 多套命名预设持久化在本机;"默认"预设只读,一改自动分叉,永远可回退。
- * 右侧 9:16 迷你画布实时预览当前参数的成片效果。
+ * Modelo de estilo da marca: a cor de destaque, o corpo da fonte, a posição da legenda e o logotipo da marca
+ * d'água; configurados uma vez e reaproveitados por todos os trechos.
+ * Vários presets nomeados ficam guardados nesta máquina; o preset «padrão» é somente de leitura, e a primeira
+ * mudança bifurca sozinha, então sempre dá para voltar.
+ * A mini-tela 9:16 da direita mostra na hora como o vídeo fica com os parâmetros atuais.
  */
 import { useState } from "react";
 import { LuPalette, LuX, LuPlus, LuTrash2, LuImage, LuCheck } from "react-icons/lu";
@@ -11,7 +13,7 @@ import { useBrandStore, activeBrandStyle, SWATCHES } from "../stores/brand-store
 import { FONT_SCALE_CHOICES, type BrandStyle, type BrandWatermark } from "../../../shared/api-types";
 import { ModalShell } from "./ui";
 
-/** 迷你预览里字幕基线位置(与管线三档 marginV 倍率一致换算)。 */
+/** A posição da linha de base da legenda na mini-pré-visualização (convertida com o mesmo fator de marginV das três faixas da esteira). */
 const PREVIEW_BASELINE: Record<string, string> = { low: "78%", standard: "70.8%", high: "63.5%" };
 
 function fileBase(path: string): string {
@@ -60,7 +62,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
         className="card rise-in flex max-h-[92vh] w-full max-w-3xl flex-col overflow-y-auto rounded-2xl p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 头部 */}
+        {/* Cabeçalho */}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
@@ -78,7 +80,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
           </button>
         </div>
 
-        {/* 预设切换 */}
+        {/* Troca de preset */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {presets.map((p) => (
             <button key={p.id} type="button" onClick={() => setActive(p.id)} className={chip(p.id === activeId)}>
@@ -106,9 +108,9 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
         </div>
 
         <div className="mt-4 flex gap-5">
-          {/* 左:参数 */}
+          {/* Esquerda: os parâmetros */}
           <div className="min-w-0 flex-1 space-y-4">
-            {/* 高亮色 */}
+            {/* Cor de destaque */}
             <section>
               <h3 className="text-[12px] font-bold text-mut">{t("highlight")}</h3>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -125,7 +127,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
                     {highlight.toUpperCase() === c && <LuCheck className="h-3.5 w-3.5 text-white drop-shadow" />}
                   </button>
                 ))}
-                {/* 自定义取色 */}
+                {/* Escolher uma cor própria */}
                 <label
                   className="relative flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border border-line px-2 text-[11px] text-mut transition-colors hover:border-mut hover:text-fg"
                   title={t("customColor")}
@@ -142,7 +144,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
               </div>
             </section>
 
-            {/* 字号 */}
+            {/* Corpo da fonte */}
             <section>
               <h3 className="text-[12px] font-bold text-mut">{t("fontSize")}</h3>
               <div className="mt-2 flex gap-2">
@@ -165,7 +167,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
               </div>
             </section>
 
-            {/* 字幕位置 */}
+            {/* Posição da legenda */}
             <section>
               <h3 className="text-[12px] font-bold text-mut">{t("position")}</h3>
               <div className="mt-2 flex gap-2">
@@ -188,7 +190,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
               </div>
             </section>
 
-            {/* 水印 */}
+            {/* Marca d'água */}
             <section>
               <h3 className="text-[12px] font-bold text-mut">{t("watermark")}</h3>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -245,14 +247,14 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
             </section>
           </div>
 
-          {/* 右:9:16 迷你预览 */}
+          {/* Direita: a mini-pré-visualização 9:16 */}
           <div className="w-36 shrink-0">
             <div className="relative aspect-9/16 overflow-hidden rounded-xl border border-line bg-gradient-to-b from-panel-2 to-black/70">
-              {/* 标题贴片示意 */}
+              {/* A cartela de título, em esquema */}
               <div className="absolute top-[9%] left-1/2 w-[86%] -translate-x-1/2 rounded-sm bg-black/55 px-1 py-0.5 text-center text-[7px] font-bold text-white">
                 {t("previewTitle")}
               </div>
-              {/* 字幕行:位置随档位,字号随缩放,高亮色实时生效 */}
+              {/* A linha de legenda: a posição segue a faixa, o corpo segue a escala e a cor de destaque vale na hora */}
               <div
                 className="absolute left-1/2 w-[92%] -translate-x-1/2 -translate-y-1/2 text-center font-extrabold whitespace-nowrap"
                 style={{ top: PREVIEW_BASELINE[position], fontSize: `${9 * fontScale}px` }}
@@ -260,7 +262,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
                 <span className="text-white">{t("previewSaid")}</span>
                 <span style={{ color: highlight }}>{t("previewHighlight")}</span>
               </div>
-              {/* 水印示意 */}
+              {/* A marca d'água, em esquema */}
               {wm?.path && (
                 <div
                   className="absolute flex h-5 w-9 items-center justify-center rounded-xs border border-white/30 text-[6px] text-white/80"
@@ -278,7 +280,7 @@ export function BrandStyleModal({ onClose }: { onClose: () => void }): React.JSX
           </div>
         </div>
 
-        {/* 底部 */}
+        {/* Rodapé */}
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-dashed border-line pt-4">
           <p className="text-[11.5px] text-mut">{t("applyNote")}</p>
           <button

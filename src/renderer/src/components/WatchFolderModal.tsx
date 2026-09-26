@@ -1,8 +1,11 @@
 /**
- * 录播监听控制面板:两种触发方式,事件流共用。
- *  - 盯文件夹:轮询目录,新录播写完落稳后自动切片(对接任何会往盘上写文件的工具);
- *  - webhook:录播姬/blrec 下播回调直接推过来,更实时、不用猜文件写没写完。
- * 触发后都走同一条全托管管线(转写→找爆点→出片),7×24 无人值守。
+ * Painel de controle do vigia de gravações: dois jeitos de disparar, compartilhando o mesmo fluxo de eventos.
+ *  - Vigiar a pasta: a pasta é consultada periodicamente e, quando uma gravação nova termina de ser escrita e
+ *    assenta, o corte sai sozinho (funciona com qualquer ferramenta que escreva arquivo no disco);
+ *  - webhook: o aviso de fim de transmissão do gravador (recorder/blrec) chega direto, o que é mais imediato
+ *    e não exige adivinhar se o arquivo terminou de ser escrito.
+ * Depois do disparo, os dois seguem pela mesma esteira de ponta a ponta (transcrever → achar os estouros →
+ * exportar), 24 horas por dia sem ninguém olhando.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LuFolderSearch, LuX, LuPlay, LuSquare, LuCircleCheck, LuCircleAlert, LuLoaderCircle, LuCopy, LuCheck, LuRotateCcw, LuTrash2 } from "react-icons/lu";
@@ -61,10 +64,10 @@ export function WatchFolderModal({ onClose }: { onClose: () => void }): React.JS
     });
   }, [refreshTasks]);
 
-  /** 给录播姬/blrec 填的回调地址。 */
+  /** O endereço de retorno para preencher no gravador (recorder/blrec). */
   const hookUrl = `http://127.0.0.1:${port.trim() || "17650"}/${token.trim() ? `?token=${encodeURIComponent(token.trim())}` : ""}`;
 
-  // 新事件进来自动滚到底
+  // Um evento novo rola a lista até o fim sozinho
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [events]);
@@ -82,7 +85,7 @@ export function WatchFolderModal({ onClose }: { onClose: () => void }): React.JS
       return;
     }
     if (!dir) return;
-    // 用户自选过导出位置的话,无人值守的成片也落那儿(与向导出片一处设置)
+    // Se a pessoa já escolheu um lugar de exportação, o vídeo feito sem ninguém olhando também vai para lá (a mesma configuração da exportação do assistente)
     const outDir = useRenderPrefs.getState().prefs.outDir || undefined;
     if (mode === "webhook") {
       const started = await api.webhookStart(dir, config, outDir, Number(port) || 17650, token.trim() || undefined);
@@ -145,7 +148,7 @@ export function WatchFolderModal({ onClose }: { onClose: () => void }): React.JS
         </div>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-mut">{t("desc")}</p>
 
-        {/* 触发方式:盯文件夹(通用) / webhook(录播姬·blrec,更实时) */}
+        {/* O jeito de disparar: vigiar a pasta (funciona com tudo) / webhook (gravador ou blrec, mais imediato) */}
         <div className="mt-3.5 flex gap-1.5 rounded-lg border border-line bg-panel-2 p-1">
           {(["folder", "webhook"] as const).map((m) => (
             <button
