@@ -1,116 +1,116 @@
-# 2026-08 切片剪辑效果专项调研（二轮）
+# Pesquisa dedicada ao resultado do corte, 2026-08 (segunda rodada)
 
-> 2026-08-05 完成。四路并行调研：①国际竞品成片效果拆解 ②中文切片生态与平台新规 ③可付费第三方 AI 能力盘点（含 Atlas Cloud MCP 实测价格）④留量剪辑工艺与自动化前沿（论文/开源）。
-> 目的：回答「怎么把剪辑效果提升起来」，并按 2026 用户真实流程校准项目方向。可信度均已标注：[多源]≥2 独立来源交叉；[单源]需谨慎；本领域第三方独立评测极少，竞品博客数字视为方向性证据。
+> Concluída em 2026-08-05. Quatro frentes em paralelo: ① desmontagem do resultado final dos concorrentes internacionais ② ecossistema de cortes em chinês e regras novas das plataformas ③ levantamento das capacidades de IA de terceiros que dá para pagar (com o preço do Atlas Cloud MCP medido na prática) ④ o ofício da edição que segura audiência e a fronteira da automação (artigos e código aberto).
+> Objetivo: responder «como melhorar o resultado da edição» e calibrar o rumo do projeto pelo fluxo real de quem usa em 2026. A confiança está sempre marcada: [várias fontes] = duas ou mais fontes independentes se cruzam; [fonte única] = tratar com cuidado. Avaliação independente de terceiros é raríssima nesta área, então número de blog de concorrente vale como indício de direção.
 
 ---
 
-## 一、诊断：起点偏没偏？
+## 1. Diagnóstico: o ponto de partida está torto?
 
-**定位没偏，力量分配偏了。**
+**O posicionamento não está torto; a distribuição de esforço está.**
 
-- 定位（本地+免费+无积分焦虑+切点可审计）被竞品口碑**反向验证**：OpusClip Trustpilot 22% 一星集中在积分制敌意与「取消即失项目」；积分/额度制是全行业口碑毒药。[多源]
-- 「AI 出 draft + 人工快速 review」是 2026 年连工具厂商自己都承认的分工（Vizard 原话：最好的短视频来自 AI 发现时刻 + 人类判断锐化）——审阅台方向也对。[多源]
-- **真正的偏差**：力气花在「信号种类堆叠」（八路证据）上，而两块 2026 年被证明更值钱的层投入不足：
-  1. **成片包装层**（声音设计/节奏/默认审美）——字幕是「即发布感」最大单一变量，auto-zoom 价值被验证，SFX/BGM 我们完全没有；
-  2. **流程右半程**（精修→分发→合规）——中文工作流已定型为「AI 初剪 → 剪映精修 → 矩阵分发」三段式，我们只交付到第一段。
+- O posicionamento (local + grátis + sem a angústia dos créditos + ponto de corte auditável) é **validado pelo avesso** pela reputação dos concorrentes: os 22% de uma estrela do OpusClip no Trustpilot se concentram na hostilidade ao sistema de créditos e no «cancelou, perdeu o projeto»; crédito e cota são veneno de reputação no setor inteiro. [várias fontes]
+- «A IA entrega o rascunho + a pessoa revisa rápido» é a divisão de trabalho que em 2026 até os próprios fabricantes admitem (palavras da Vizard: o melhor vídeo curto vem da IA achando o momento + o julgamento humano afiando) — ou seja, a mesa de revisão também está no rumo certo. [várias fontes]
+- **O desvio de verdade**: a força foi gasta em «empilhar tipo de sinal» (oito trilhas de prova), enquanto duas camadas que 2026 provou valer mais receberam pouco investimento:
+  1. **a camada de embalagem do corte final** (desenho de som / ritmo / estética padrão) — a legenda é a maior variável isolada da «sensação de pronto para publicar», o valor do zoom automático está comprovado, e de efeito sonoro e trilha nós não temos absolutamente nada;
+  2. **a metade final do fluxo** (acabamento → distribuição → conformidade) — o fluxo em chinês já se firmou em três etapas, «corte inicial com IA → acabamento no CapCut → distribuição em rede», e nós entregamos só a primeira.
 
-行业天花板校准（管理预期用）：全自动出片的爆款率天花板目前 ~20%（Reap 公开「约 1/5 片段达互动阈值」，与 OpusClip 实测 40% 丢弃率互洽）；单人口播命中 85-92%、多人对话 52-74%、喜剧/情绪型 <35%。[多源]追求的不是「全自动 100% 能发」，是**可发布率显著高于竞品 + review 成本每条 2 分钟以内**。
+Calibragem do teto do setor (para administrar expectativa): hoje o teto de viralização de quem gera tudo automaticamente é de uns 20% (a Reap divulga «cerca de 1 em 5 trechos atinge o limiar de interação», o que bate com os 40% de descarte medidos no OpusClip); uma pessoa falando sozinha acerta de 85% a 92%, conversa entre várias pessoas de 52% a 74%, e comédia ou conteúdo emocional menos de 35%. [várias fontes] O que se busca não é «100% automático e publicável», é **uma taxa de publicáveis bem acima da dos concorrentes + custo de revisão abaixo de 2 minutos por corte**.
 
-## 二、效果差距的五个来源（四路交叉验证，按杠杆排序）
+## 2. As cinco origens da diferença de resultado (cruzadas pelas quatro frentes, em ordem de alavancagem)
 
-1. **选段完整性 > 选段数量**。Klap「6 条全可用」口碑胜过 OpusClip「14 出 11」；Vizard 被批「截断完整思想」。宁可少出、出完整。[多源]
-   - 学术佐证（HIVE, EMNLP 2025）：剪辑应分解为「高光检测 + **开头/结尾单独选择** + 无关剔除」——开场句和收尾句要独立优化，不能只信一段式选段。
-2. **字幕默认审美**。准确率是地板不是天花板；差距在动画/关键词高亮的默认审美。2026 潮流从 Hormozi 全大写荧光风转向「动态极简」：2-4 词一块卡点上屏、关键词品牌色高亮（每句 ≤1 词）、白字柔和阴影、emoji 基本不用（≤1/条）、内容放画面中间 60% 安全区。[多源]
-3. **声音设计层**（我们的完全空白）。SFX 打点（whoosh 卡切点帧/pop 卡字幕上屏帧/riser 铺 payoff 前 1-2s，每条 ≤3-5 个）；BGM 比人声低 15-20dB + sidechain ducking；静音删除按品类分档且**情绪/笑声事件前后 1s 禁删**。查证结论：「音效放哪一帧」**没有学术方案也没有成熟 API**——规则引擎做好即是竞争力，这是空白区。[多源]
-4. **视觉证据**。弱语音品类（跳舞/萌宠/户外/游戏画面）只有多模态模型能判；OpusClip ClipAnything 是唯一被第三方认可在非口播内容占优的。我们的九宫格 VLM 通道方向对，需升级为「候选段抽帧复核 + 画面描述回流」。[多源]
-5. **开场工艺**。OpusClip 1350 万条数据里仅 0.04% 切片有 visual hook = 明确的差异化机会；配方是 flash-forward cold open（0.3-1s 闪现最炸瞬间→切回开头），与开源 Hook V2、人类工艺教程三方互证。钩子必须「兑付」：钩子承诺的实体/数字必须真实出现在片内，否则完播崩+降权。[多源]
+1. **Trecho completo > quantidade de trechos**. O «6 cortes, todos aproveitáveis» do Klap ganha na reputação do «14, e 11 servem» do OpusClip; a Vizard é criticada por «cortar o pensamento no meio». Melhor entregar menos e entregar inteiro. [várias fontes]
+   - Apoio acadêmico (HIVE, EMNLP 2025): a edição deve ser decomposta em «detecção de destaques + **escolha separada do começo e do fim** + descarte do irrelevante» — a frase de abertura e a de fecho precisam ser otimizadas por conta própria, não dá para confiar só na escolha de um bloco único.
+2. **Estética padrão da legenda**. A precisão é o piso, não o teto; a diferença está na estética padrão da animação e do destaque de palavra-chave. A tendência de 2026 saiu do estilo Hormozi de caixa alta fluorescente e foi para o «minimalismo animado»: blocos de 2 a 4 palavras entrando no tempo da batida, palavra-chave destacada na cor da marca (no máximo 1 por frase), letra branca com sombra suave, emoji quase nunca (no máximo 1 por corte) e conteúdo dentro dos 60% centrais da área segura. [várias fontes]
+3. **A camada de desenho de som** (a nossa está totalmente vazia). Efeito pontuando a ação (whoosh no quadro do corte seco, pop no quadro em que a legenda sobe, riser cobrindo 1 a 2 s antes da entrega, no máximo 3 a 5 por corte); trilha de 15 a 20 dB abaixo da voz + ducking por sidechain; remoção de silêncio com faixas por categoria e **proibida 1 s antes e depois de um evento de emoção ou de risada**. Conclusão da apuração: «em que quadro colocar o efeito» **não tem solução acadêmica nem API madura** — fazer um motor de regras bem feito já é diferencial competitivo, é um espaço vazio. [várias fontes]
+4. **Prova visual**. As categorias de fala fraca (dança, bichos, ar livre, imagem de jogo) só um modelo multimodal julga; o ClipAnything do OpusClip é o único reconhecido por terceiros como superior em conteúdo que não é locução. Nosso canal de VLM com a folha de nove quadros está no rumo certo, mas precisa virar «revisão por quadros do trecho candidato + descrição da imagem voltando para a escolha». [várias fontes]
+5. **O ofício da abertura**. Nos 13,5 milhões de registros do OpusClip, só 0,04% dos cortes têm gancho visual = uma oportunidade clara de diferenciação; a receita é o flash-forward de abertura fria (0,3 a 1 s do momento mais explosivo → volta para o começo), confirmada de três lados pelo Hook V2 de código aberto e pelos tutoriais de ofício humano. O gancho precisa ser **honrado**: a coisa ou o número que o gancho promete tem de aparecer de verdade dentro do corte, senão a retenção desaba e o alcance cai. [várias fontes]
 
-**明确的反面教材**（不值得投入）：
-- **AI B-roll**：口碑最差的重投入功能（「插静态图、不相关、buggy」），且直播切片以真人画面为主，需求本来就低。[多源]
-- **Virality 绝对分**：「40 分跑赢 85 分」被普遍质疑；只能当**排序器**（同场直播内相对排序成立），不能当绝对承诺展示。[多源]
-- **深度去重混剪/绿幕伪在场/去 AI 标识**：2026 平台打击对象，封号红线。[多源]
+**Exemplos claros do que não fazer** (não vale o investimento):
+- **B-roll de IA**: a função de investimento pesado com pior reputação («insere imagem estática, sem relação, cheia de bug»), e o corte de live é feito principalmente de gente real na tela, então a demanda já era baixa. [várias fontes]
+- **Nota absoluta de viralização**: o «40 pontos vai melhor que 85 pontos» é questionado de modo geral; só serve como **ordenador** (a ordem relativa dentro da mesma live se sustenta), nunca como promessa absoluta exibida. [várias fontes]
+- **Mixagem para fugir de duplicata, fundo verde fingindo presença, remoção do selo de IA**: são o alvo das plataformas em 2026, linha vermelha de banimento. [várias fontes]
 
-## 三、可直接落地的规则引擎参数表
+## 3. Tabela de parâmetros do motor de regras, pronta para usar
 
-> 毫秒级参数多来自工具厂商博客（有营销动机），**进可配置项 + A/B，不写死**（改 prompt/参数必跑 A/B 是本仓库既有铁律）。
+> Os parâmetros em milissegundo vêm em boa parte de blog de fabricante (que tem motivação de marketing), então **entram como opção configurável + teste A/B, nunca fixos no código** (mudar prompt ou parâmetro exige rodar A/B é regra de ferro que já existe neste repositório).
 
-| 维度 | 参数 | 可信度 |
+| Dimensão | Parâmetro | Confiança |
 |---|---|---|
-| 开场 | 钩子 1-3s；payoff 倒叙前置；最强内容不压 10s 之后；文字+口播钩子双保险（80-85% 静音观看） | 多源 |
-| flash-forward | 0.3-1s 闪现结局画面→切回；<30s 片可选 loop 结尾（复制开头 1s 到片尾/首尾构图 match） | 多源 |
-| 节奏 | 有意义视觉变化间隔 ≤3s，硬顶 5s；渐进推近 1.5-2%/s 铺垫、snap-zoom 做 pattern interrupt；**推近必须绑定真实事件**（观点落地/物品出现/情绪拐点），随机推近=差评 | 多源(区间)/单源(数字) |
-| 长度 | 直播切片最优 20-40s | 单源+大盘数据同向 |
-| 字幕 | 2-4 词/块、停留 600-900ms、单屏 ≤6 词、每句高亮 ≤1 词（数字/名词/情绪词）、中间 60% 安全区；上屏时机=关键短语开始后 200-400ms | 单源为主，进 A/B |
-| 安全区 | 抖音/TikTok 底 15%+顶 8%；Reels 底 20%；Shorts 底 12%；快手二创素材 ≤90s | 单源/官方 |
-| SFX | 每条 ≤3-5 个；whoosh=硬切帧、pop=字幕上屏帧、riser=payoff 前 1-2s、ding=观点落地/笑点 | 多源 |
-| BGM | 低于人声 15-20dB，sidechain ducking，选 seamless loop | 多源 |
-| 静音 | 删除阈值分档：单人口播 0.5-0.7s/对谈 0.8-1.2s/快节奏 0.3s；切点两侧留 50-200ms pad；**情绪事件前后 1s 禁删**（保抖包袱前的停顿） | 多源 |
-| 竖屏 | 游戏=facecam 上、游戏下（先反应后原因）；双人=上下堆叠保双脸（听者 reaction 常更爆）；≥3 人=active speaker 跟踪 | 多源 |
-| QA 新信号 | 钩子兑付校验（钩子实体/数字必须出现在转写中）；节奏检查（视觉事件间隔 >5s 告警） | 推导自多源 |
+| Abertura | gancho de 1 a 3 s; entrega trazida para a frente; o conteúdo mais forte não fica depois dos 10 s; gancho em texto e em fala ao mesmo tempo (80 a 85% assistem sem som) | várias fontes |
+| flash-forward | 0,3 a 1 s do desfecho piscando → volta; em corte de menos de 30 s, fim em loop opcional (copiar 1 s da abertura para o fim, com a composição do começo e do fim batendo) | várias fontes |
+| Ritmo | intervalo entre mudanças visuais com sentido de no máximo 3 s, teto rígido de 5 s; aproximação progressiva de 1,5 a 2%/s para preparar, snap-zoom como quebra de padrão; **a aproximação tem de estar presa a um evento real** (a ideia aterrissando, o objeto aparecendo, a virada emocional); aproximação aleatória = crítica ruim | várias fontes (faixa) / fonte única (número) |
+| Duração | o ideal do corte de live é de 20 a 40 s | fonte única + dados gerais no mesmo sentido |
+| Legenda | 2 a 4 palavras por bloco, 600 a 900 ms na tela, no máximo 6 palavras por tela, no máximo 1 palavra destacada por frase (número, substantivo, palavra de emoção), área segura dos 60% centrais; sobe de 200 a 400 ms depois do começo da expressão-chave | fonte única em boa parte, entra em A/B |
+| Área segura | TikTok e assemelhados: 15% embaixo + 8% em cima; Reels: 20% embaixo; Shorts: 12% embaixo; material de recriação em plataforma de vídeo curto: no máximo 90 s | fonte única / oficial |
+| Efeito sonoro | no máximo 3 a 5 por corte; whoosh no quadro do corte seco, pop no quadro em que a legenda sobe, riser de 1 a 2 s antes da entrega, ding quando a ideia aterrissa ou vem a piada | várias fontes |
+| Trilha | 15 a 20 dB abaixo da voz, ducking por sidechain, escolher loop sem emenda | várias fontes |
+| Silêncio | limiar de remoção por faixa: locução sozinha 0,5 a 0,7 s / conversa 0,8 a 1,2 s / ritmo rápido 0,3 s; 50 a 200 ms de folga de cada lado do corte; **proibido remover 1 s antes e depois de um evento de emoção** (preserva a pausa antes da piada) | várias fontes |
+| Vertical | jogo = facecam em cima, jogo embaixo (primeiro a reação, depois o motivo); duas pessoas = empilhadas para os dois rostos (a reação de quem ouve costuma explodir mais); 3 pessoas ou mais = seguir quem está falando | várias fontes |
+| Sinal novo de controle de qualidade | conferência de gancho honrado (a coisa ou o número do gancho tem de aparecer na transcrição); checagem de ritmo (avisar quando o intervalo entre eventos visuais passa de 5 s) | derivado de várias fontes |
 
-## 四、中文生态 2026 硬约束（算法与合规）
+## 4. As restrições duras do ecossistema em chinês em 2026 (algoritmo e conformidade)
 
-- **收藏率成第一权重**（2026-04/05 算法升级后的自媒体共识，方向多源）；慢推流考核拉长到 7 天；**搜索权重上升**（标题/字幕/口播关键词决定搜索曝光，合集与系列化搜索权重翻倍）→ CTA 从「点赞关注」转「**收藏起来/更多看合集**」；文案与字幕要埋搜索关键词；切片按主题组合集有真实流量价值。
-- **原创判定**：「信息熵+表达主体性」仍是核心；被认可的二创=真人出镜 5 秒以上实质点评/独立分析性标注/整体重做音频环境。抖音 2026-03 上线隐形水印溯源录屏搬运。→「口播点评槽位」（用户补录 5s 出镜点评自动拼入）是直接对齐判定标准的差异化特性。
-- **AIGC 标注**（法规红线）：《AI 生成合成内容标识办法》2025-09-01 实施，未标注罚 10-100 万；抖音要求 AI 内容前 5 秒显著标注；纯 AI 批量内容 2026 年反而是限流重灾区。→ AI 配音/AI 生成封面等生成性功能必须引导标注；纯剪辑路径提示用户自行判断。
-- **切片授权收紧**：审核台账化——协议五要素、保留片段**前后各 3 分钟原始录屏**、一视频一条分发记录。→ 我们持有源文件+精确时间戳，「留证」几乎零成本（clips.json 记录源区间，可选导出 ±3min 片段+分发台账 CSV），这是 2026 真实新需求且几乎无工具覆盖。
-- **竞品预警**：鲸剪 WhaleClip（中文长转短，宣称 3h 录播 10-15 分钟出 6-8 条，有 CLI+MCP/Skills 接口，128 元/月）与我们卖点撞车，需持续盯。剪映软肋不变：长视频拆条偏手动、无批处理与 API，SVIP 涨到 758 元/年——「免费本地批量」空位仍在。
+- **A taxa de itens salvos virou o peso número um** (consenso dos criadores depois da atualização de algoritmo de 2026-04/05, direção com várias fontes); a avaliação do alcance lento se estendeu para 7 dias; **o peso da busca subiu** (título, legenda e palavra-chave da fala decidem a exposição na busca, e a coletânea e a serialização dobram o peso de busca) → a chamada para ação sai do «curte e segue» para o «**salva aí / tem mais na coletânea**»; o texto e a legenda precisam enterrar palavras-chave de busca; montar coletâneas de cortes por tema tem valor real de alcance.
+- **Julgamento de originalidade**: «entropia de informação + autoria da expressão» continua sendo o centro; a recriação aceita é aparecer em pessoa por mais de 5 segundos com comentário de substância, anotação analítica própria ou refazer inteiro o ambiente de áudio. Em 2026-03 entrou a marca-d'água invisível para rastrear gravação de tela reaproveitada. → Uma «vaga de comentário falado» (a pessoa grava 5 s de comentário em vídeo e o sistema emenda sozinho) é a funcionalidade diferencial que se alinha direto ao critério do julgamento.
+- **Rotulagem de conteúdo gerado por IA** (linha vermelha legal): as regras de identificação de conteúdo sintético gerado por IA valem desde 2025-09-01, e não rotular dá multa de 100 mil a 1 milhão; a plataforma exige rótulo visível nos primeiros 5 segundos do conteúdo de IA; conteúdo puramente de IA em massa é, aliás, a maior zona de perda de alcance em 2026. → Narração de IA, capa gerada por IA e outras funções generativas precisam levar a pessoa a rotular; no caminho de edição pura, avisamos para ela julgar por conta própria.
+- **Licenciamento de cortes ficou mais apertado**: a revisão virou livro-caixa — os cinco elementos do contrato, guardar **3 minutos de gravação original antes e depois** do trecho usado e um registro de distribuição por vídeo. → Nós temos o arquivo de origem e a marca de tempo exata, então «guardar prova» sai quase de graça (o clips.json registra o intervalo de origem, e dá para exportar opcionalmente o trecho de ±3 min + um CSV de livro-caixa da distribuição), o que é uma necessidade nova e real de 2026 com quase nenhuma ferramenta cobrindo.
+- **Alerta de concorrente**: o WhaleClip (longo para curto em chinês, promete 6 a 8 cortes em 10 a 15 minutos a partir de 3 h de gravação, tem interface de CLI + MCP/Skills, 128 por mês) bate de frente com os nossos argumentos, precisa de acompanhamento contínuo. O ponto fraco do CapCut não mudou: o fatiamento de vídeo longo é bem manual, não tem processamento em lote nem API, e o plano superior subiu para 758 por ano — a vaga do «lote local e grátis» continua aberta.
 
-## 五、第三方 AI 接入清单（效果优先；Atlas 价格为 MCP 实测）
+## 5. Lista de IA de terceiros para integrar (resultado em primeiro lugar; o preço do Atlas foi medido pelo MCP)
 
-> 原则：**本地免费档全链路可跑，云端按量档增强效果**；UI 明示单条成本估算；Atlas Cloud 一个 key 覆盖五类能力，折扣价（80-90% off）是促销口径，成本测算按原价留余量。
+> Princípio: **o nível local e grátis roda a cadeia inteira, e o nível pago por uso na nuvem melhora o resultado**; a interface mostra claramente a estimativa de custo por corte; uma chave do Atlas Cloud cobre cinco tipos de capacidade, e o preço com desconto (80 a 90% off) é promocional, então o cálculo de custo usa o preço cheio para ter folga.
 
-| 能力 | 首选 | 价格 | 说明 |
+| Capacidade | Primeira escolha | Preço | Observação |
 |---|---|---|---|
-| 视觉复核 | MiMo V2.5（Atlas）或 Qwen3-VL-Plus（百炼直连） | $0.14/M 入；¥0.4/M 入 | 候选段 30-90s 抽帧喂 VLM 判品类+描述画面回流选段，单条几分钱；Qwen3-VL 有时间戳对齐利于定位 |
-| 封面 | Seedream 5.0 Lite（Atlas）/Pro（火山） | $0.032/张；0.3 元/张 | 中文大字渲染第一梯队，可直接出成品封面 |
-| ASR 精转档 | Seed-ASR 2.0（Atlas/火山） | $0.002/请求；0.8 元/h | 中英粤混说字节主场；**逐句时间戳**，词级对齐由本地补 |
-| TTS/旁白 | MiniMax Speech 2.6 HD（Atlas） | $0.08/请求 | 中文自然度第一梯队；主播音色克隆场景另看豆包声音复刻（~150 元/年/音色） |
-| SFX | 本地内置 CC0 音效包为主；ElevenLabs SFX 按需 | ~$0.02/个 | 放置逻辑自建（无成熟 API）；一条片 2-3 个音效 ≈ 4 毛 |
-| BGM | 内置 seamless loop CC0 曲库；MiniMax Music 2.6 可选 | $0.15/首 | 商用条款需查 |
-| 动效垫片 | Seedance 2.0 Mini（Atlas） | $0.056/条(5s 720p) | 仅标题动效/转场，低优先级 |
+| Revisão visual | MiMo V2.5 (Atlas) ou Qwen3-VL-Plus (direto no Bailian) | US$ 0,14/M de entrada; ¥ 0,4/M de entrada | quadros do trecho candidato de 30 a 90 s alimentam o VLM, que julga a categoria e devolve a descrição da imagem para a escolha; alguns centavos por corte; o Qwen3-VL tem alinhamento por marca de tempo, o que ajuda a localizar |
+| Capa | Seedream 5.0 Lite (Atlas) / Pro (Volcano) | US$ 0,032 por imagem; 0,3 por imagem | primeiro escalão em renderizar texto grande em chinês, sai capa pronta direto |
+| Transcrição de precisão | Seed-ASR 2.0 (Atlas/Volcano) | US$ 0,002 por requisição; 0,8 por hora | mistura de chinês, inglês e cantonês é a casa deles; **marca de tempo por frase**, e o alinhamento por palavra fica com o local |
+| TTS / narração | MiniMax Speech 2.6 HD (Atlas) | US$ 0,08 por requisição | primeiro escalão em naturalidade no chinês; para clonar a voz de quem apresenta, olhar à parte a clonagem de voz do Doubao (cerca de 150 por ano por voz) |
+| Efeitos sonoros | principalmente o pacote CC0 embutido; ElevenLabs SFX sob demanda | cerca de US$ 0,02 por efeito | a lógica de onde colocar é nossa (não há API madura); 2 a 3 efeitos por corte ≈ 40 centavos |
+| Trilha | biblioteca CC0 embutida de loops sem emenda; MiniMax Music 2.6 opcional | US$ 0,15 por faixa | os termos de uso comercial precisam ser conferidos |
+| Preenchimento animado | Seedance 2.0 Mini (Atlas) | US$ 0,056 por peça (5 s, 720p) | só animação de título e transição, prioridade baixa |
 
-**明确不接**：Sora 2（API 2026-09-24 下线）、Mubert（订阅门槛）、AssemblyAI/Deepgram（中文非主场）、FLUX（中文文字硬伤）、任何「整场直播全量喂 VLM」方案。百炼 Fun-ASR/CosyVoice 价格页未抓全，接入前控制台复核。
+**O que fica claramente de fora**: Sora 2 (API sai do ar em 2026-09-24), Mubert (barreira de assinatura), AssemblyAI/Deepgram (chinês não é a casa deles), FLUX (texto em chinês é um defeito grave) e qualquer plano de «jogar a live inteira no VLM». Os preços do Fun-ASR/CosyVoice do Bailian não foram capturados por inteiro; conferir no console antes de integrar.
 
-## 五点五、FunClip 拆解（2026-08-05 补充,用户点名调研）
+## 5.5. Desmontagem do FunClip (acrescentado em 2026-08-05, pesquisa pedida pelo usuário)
 
-阿里 FunASR 团队的开源切片工具（MIT,6.1k★,2026-08 仍活跃）。模型栈全 PyTorch/funasr:SeACo-Paraformer(中文 ASR+解码期热词)/FSMN-VAD/CT-Transformer 标点/CAM++ 说话人/TwelveLabs 云端视频理解。
+Ferramenta de cortes de código aberto do time FunASR da Alibaba (MIT, 6,1 mil estrelas, ainda ativa em 2026-08). A pilha de modelos é toda PyTorch/funasr: SeACo-Paraformer (ASR em chinês + palavra quente na hora da decodificação) / FSMN-VAD / pontuação CT-Transformer / CAM++ para quem fala / compreensão de vídeo na nuvem da TwelveLabs.
 
-**三个关键判断**:
-1. **词级时间戳是 Paraformer 的真优势**——CIF 机制解码时一体化产出,官方宣称超过 Kaldi 强制对齐(±50ms 级);SenseVoice 结构上没有,funasr 官方兜底也只是 VAD 段边界。连阿里 0.8B 的 Fun-ASR-Nano 都因「无可靠字级时间戳」被 FunClip README 建议让位给 Paraformer。
-2. **SeACo 解码期热词(召回 65-87%)出不了 ONNX**——funasr_onnx/sherpa-onnx 均不支持;sherpa-onnx 的解码期热词只有 transducer 模型支持(英文线换 Parakeet 后可白嫖)。为 SeACo 打包 Python sidecar 违背本地轻量定位,不接。
-3. **sherpa-onnx 生态里只有 `paraformer-zh-2023-09-14` 这一档支持时间戳**(int8 243MB,Apache-2.0),其余 paraformer 档均不支持,别下错。
+**Três avaliações-chave**:
+1. **A marca de tempo por palavra é a vantagem real do Paraformer** — o mecanismo CIF a produz de forma integrada já na decodificação, e a documentação oficial afirma superar o alinhamento forçado do Kaldi (na casa dos ±50 ms); o SenseVoice não tem isso na estrutura, e a saída oficial do funasr é só a borda dos trechos do VAD. Até o Fun-ASR-Nano de 0,8B da própria Alibaba é orientado pelo README do FunClip a ceder lugar ao Paraformer, por «não ter marca de tempo confiável em nível de palavra».
+2. **A palavra quente na decodificação do SeACo (recuperação de 65 a 87%) não sai em ONNX** — nem o funasr_onnx nem o sherpa-onnx dão suporte; no sherpa-onnx, palavra quente na decodificação só existe nos modelos transducer (na linha do inglês, dá para aproveitar de graça trocando pelo Parakeet). Empacotar um sidecar em Python só pelo SeACo contraria o posicionamento local e leve; não entra.
+3. **No ecossistema do sherpa-onnx, só a faixa `paraformer-zh-2023-09-14` suporta marca de tempo** (int8, 243 MB, Apache-2.0); as demais faixas do paraformer não suportam, então não baixe a errada.
 
-**借鉴清单**:①精对齐第二遍(候选段 Paraformer 重解码修时间戳,不换主 ASR——SenseVoice 的情绪/事件标签是第七八路证据来源不能丢)→ **已落地为「精准切点」**;②「用文字剪视频」交互(划选转写文本直接出片)/③切点微调滑块(±500-1000ms)/④按说话人一键选段——三项均低成本待排期;⑤雷达项:Fun-ASR-Nano GGUF(0.8B/Apache-2.0/llama.cpp 纯 CPU,官方称支持热词,但时间戳标 TODO——若落地即为 Electron 解码期热词第一条可行路径)。**不抄**:LLM 选段 prompt(整份 SRT→正则抠时间戳,落后一代)、moviepy 管线(全程重编码)、Pegasus 云端视频理解(与本地定位冲突)。
+**Lista do que aproveitar**: ① segunda passada de alinhamento fino (redecodificar o trecho candidato com o Paraformer para corrigir a marca de tempo, sem trocar o ASR principal — os rótulos de emoção e de evento do SenseVoice são a fonte da sétima e da oitava trilha de prova e não podem sumir) → **já entregue como «ponto de corte preciso»**; ② a interação de «editar vídeo pelo texto» (marcar o texto da transcrição e sair o corte); ③ o controle deslizante de ajuste fino do ponto de corte (±500 a 1000 ms); ④ escolher trechos por quem fala com um clique — os três de custo baixo, aguardando encaixe no cronograma; ⑤ item de radar: Fun-ASR-Nano GGUF (0,8B, Apache-2.0, llama.cpp em CPU pura, oficialmente com suporte a palavra quente, mas a marca de tempo está como TODO — se sair, é o primeiro caminho viável de palavra quente na decodificação dentro do Electron). **O que não copiar**: o prompt de escolha de trecho por LLM (SRT inteiro → extrair a marca de tempo com expressão regular, uma geração atrás), o pipeline do moviepy (recodifica tudo) e a compreensão de vídeo na nuvem da Pegasus (choca com o posicionamento local).
 
-## 五点六、字幕渲染栈与样式趋势（2026-08-05 补充,用户点名调研 Remotion）
+## 5.6. Pilha de renderização de legenda e tendência de estilo (acrescentado em 2026-08-05, pesquisa do Remotion pedida pelo usuário)
 
-用户反馈「卡拉OK字幕卖点很 low,现在很少人用」并问及 Remotion 热潮。三路调研(Remotion 许可与架构 / 替代品与样式趋势 / 自家离屏引擎摸底)结论:
+O usuário comentou que «legenda de karaokê é um argumento meio brega, quase ninguém usa hoje» e perguntou da febre do Remotion. Conclusões das três frentes (licença e arquitetura do Remotion / alternativas e tendência de estilo / sondagem do nosso motor fora da tela):
 
-**术语陷阱先澄清**:英文圈说的「karaoke captions」在 2026 指**逐词高亮**(一屏 1-5 词,当前词换色/弹出)——流行的是它;过时的恰是我们默认的「整句提前可见+扫色填充」老卡拉OK。用户手感与数据完全一致(word-by-word 提升观看时长 12-25%,多来源)。
+**Primeiro, a armadilha do termo**: o que o mundo de língua inglesa chama de «karaoke captions» significa, em 2026, **destaque palavra a palavra** (1 a 5 palavras por tela, com a palavra atual mudando de cor ou saltando) — é isso que está em alta; o que está ultrapassado é justamente o nosso padrão, o karaokê antigo de «a frase inteira já visível + a cor varrendo». A percepção do usuário bate exatamente com os dados (palavra a palavra aumenta o tempo assistido de 12 a 25%, várias fontes).
 
-**Remotion 判定:不引框架,只偷思路**:
-1. 许可是源码可见非开源:个人/≤3 人公司免费可商用可打包 Electron 分发(Terms v5.0 有专门 Native application distribution 条款,要求终端用户与 Remotion 间有抽象层);**团队到 4 人即落 Automators 档「$0.01/render、$100/月起」,终端用户本机每出一条片都计费**,且按渲染计费档遥测强制(上报含终端用户 IP)——对本地优先免费分发的桌面工具是成本与价值观双重冲突。历史多次改条款(5.0 起承包商也计人头)。
-2. 性能:截图式渲染,生产用户实测**渲染耗时≈视频时长 2-4 倍**,比 libass 慢一个数量级;Electron 打包要解 asar、不支持 mac universal。新 web-renderer 摆脱 headless Chrome 但只支持 CSS 子集(canvas 重建 DOM),花式字幕正是命门。
-3. **值得拿的**:@remotion/captions 是独立 MIT 纯数据库——`createTikTokStyleCaptions` 的逐词 token 按时间窗聚合分页算法;Mediabunny(MPL-2.0,前 @remotion/media-parser 的接棒者)可做未来 WebCodecs 快速导出,不碰 Remotion 许可。
-4. 替代品全有阴影:revideo 已易主 midrender(商业产品底座,最新更改不保证回流开源仓);Motion Canvas 原作者淡出、社区 fork Canvas Commons 接棒;editly/FFCreator 半休眠。**没有任何 2026 方案值得换栈——自家「离屏 Chromium 确定性逐帧引擎」本质就是本地版 Remotion**(bubble 模板已实现逐词 spring 弹出+词背景块+关键词渐变),缺的只是模板数量。
+**Veredito sobre o Remotion: não adotar o framework, só roubar a ideia**:
+1. A licença é código visível, não código aberto: pessoa física e empresa de até 3 pessoas usam de graça, podem usar comercialmente e podem empacotar e distribuir em Electron (os Termos v5.0 têm uma cláusula específica de distribuição em aplicação nativa, exigindo uma camada de abstração entre o usuário final e o Remotion); **a partir de 4 pessoas no time cai na faixa Automators, de «US$ 0,01 por render, a partir de US$ 100 por mês», e cada corte que o usuário final gera na própria máquina é cobrado**, além de a faixa cobrada por render ter telemetria obrigatória (o relatório inclui o IP do usuário final) — para uma ferramenta de desktop local e de distribuição gratuita, é conflito de custo e de valores ao mesmo tempo. Os termos já mudaram várias vezes (desde a 5.0, até prestador de serviço conta como cabeça).
+2. Desempenho: a renderização é por captura de tela, e usuários em produção medem **tempo de render de 2 a 4 vezes a duração do vídeo**, uma ordem de grandeza mais lento que o libass; empacotar em Electron exige desfazer o asar e não suporta o mac universal. O novo web-renderer se livra do Chrome sem interface, mas só suporta um subconjunto de CSS (reconstrói o DOM em canvas), e legenda elaborada é exatamente o ponto fraco.
+3. **O que vale a pena pegar**: o @remotion/captions é uma biblioteca de dados pura, MIT e independente — o algoritmo do `createTikTokStyleCaptions`, que agrupa e pagina os tokens palavra a palavra por janela de tempo; o Mediabunny (MPL-2.0, sucessor do antigo @remotion/media-parser) serve para uma futura exportação rápida com WebCodecs, sem encostar na licença do Remotion.
+4. As alternativas todas têm sombra: o revideo já trocou de dono para a midrender (base de produto comercial, sem garantia de que as mudanças novas voltem para o repositório aberto); o autor original do Motion Canvas se afastou e o fork da comunidade, Canvas Commons, assumiu; editly e FFCreator estão meio adormecidos. **Nenhuma opção de 2026 vale a troca de pilha — o nosso «motor determinístico quadro a quadro em Chromium fora da tela» é, na essência, um Remotion local** (o modelo bubble já faz o salto por palavra com mola, o bloco de fundo da palavra e o degradê da palavra-chave); o que falta é só quantidade de modelos.
 
-**样式趋势与默认位判定**(已落地 v0.12):
-- 中文主流 = **一屏一短句 + 关键词换色/放大**(剪映模板生态清一色如此,剪映甚至没有原生逐字变色)→ **默认样式 karaoke→keyword**;
-- 英文主流 = 1-3 词逐词 pop + 当前词换色 → **pop 样式升级**:夸张过冲(0.6→1.35)改阻尼弹入(0.8→1.04→1.0,165ms,拟合 Remotion 模板 spring damping 200/5 帧手感),新增块内**当前词品牌色点亮**(零时长 \t 瞬时换色,提前 80ms「跟手」,libass 实测帧验证通过);
-- 换色 > 背景块 > 放大(多来源一致:换色最自然干扰最小);高亮提前量 50-100ms、整页比音频早 100-200ms;
-- 老卡拉OK扫色**保留为倒数第二档选项**(歌词场景本源用途+无障碍诉求),对外文案全部撤「卡拉OK」改「动态字幕」。
-- 可再抄的参数存档:Remotion TikTok 模板翻页 1200ms/描边≈字号 1/6+`paintOrder:stroke`/距底 350px@1920/高亮 #39E508;vshukla7/remotion-captions-themes 的 11 主题分类学可当未来样式菜单蓝本。
+**Tendência de estilo e decisão do padrão** (já entregue na v0.12):
+- O padrão do chinês é **uma frase curta por tela + palavra-chave trocando de cor ou aumentando** (o ecossistema de modelos do CapCut é todo assim, e o CapCut nem tem troca de cor nativa por caractere) → **estilo padrão muda de karaoke para keyword**;
+- o padrão do inglês é 1 a 3 palavras saltando uma a uma + a palavra atual trocando de cor → **o estilo pop foi atualizado**: o exagero da ultrapassagem (0,6 → 1,35) virou entrada amortecida (0,8 → 1,04 → 1,0, em 165 ms, imitando a sensação da mola com amortecimento 200 / 5 quadros dos modelos do Remotion), e entrou o **acendimento da palavra atual na cor da marca** dentro do bloco (troca instantânea com \t de duração zero, 80 ms adiantada para «ir junto com a voz», verificada quadro a quadro no libass);
+- trocar de cor > bloco de fundo > aumentar (várias fontes concordam: trocar de cor é o mais natural e o que menos atrapalha); o destaque entra de 50 a 100 ms adiantado, e a página inteira de 100 a 200 ms antes do áudio;
+- o karaokê antigo de cor varrendo **fica como penúltima opção** (é a origem do uso em música e atende à demanda de acessibilidade), e todo o texto voltado ao público trocou «karaokê» por «legenda animada».
+- Parâmetros arquivados que ainda dá para copiar: no modelo TikTok do Remotion, virada de página em 1200 ms, contorno ≈ 1/6 do corpo da letra + `paintOrder:stroke`, 350 px do rodapé em 1920 e destaque em #39E508; a taxonomia dos 11 temas do vshukla7/remotion-captions-themes serve de planta para um futuro menu de estilos.
 
-## 六、前沿技术跟踪清单（选段长期升级路径）
+## 6. Lista de acompanhamento de tecnologia de fronteira (caminho de evolução de longo prazo da escolha de trechos)
 
-- **TripleSumm**（ICLR 2026，HF 可下载）：Mr.HiSum 三模态版——训自己的爆点打分头替代手工加权的现成数据。
-- **AHA**（NeurIPS 2025）：在线流式高光检测、常数内存跑无限流——直播边录边切的架构标杆。
-- **SVHighlights/TF-SELECTOR**（KDD 2026）：2 小时长视频、「官方高光对齐自动造标签」管线可照搬造直播切片数据集；training-free LLM 打分与我们现有通道几乎同构。
-- **DAViHD**（ICASSP 2026）+ EVQA-SnapUGC 冠军方案（有代码）：双双证明**音频特征对爆点/engagement 显著有用**——第七八路证据方向正确，可加「音频瞬态突变」细粒度信号。
-- **bilive**（3.3k★ Apache-2.0）：弹幕密度定位高能片段的成熟实现，弹幕证据可对照吸收。
+- **TripleSumm** (ICLR 2026, baixável no HF): a versão de três modalidades do Mr.HiSum — dados prontos para treinar a nossa própria cabeça de pontuação de viralização no lugar do peso feito à mão.
+- **AHA** (NeurIPS 2025): detecção de destaque em fluxo contínuo, rodando em memória constante sobre um fluxo infinito — referência de arquitetura para cortar a live enquanto ela grava.
+- **SVHighlights/TF-SELECTOR** (KDD 2026): vídeo longo de 2 horas, e o pipeline de «criar rótulo automático alinhando com o destaque oficial» dá para copiar na criação de um conjunto de dados de cortes de live; a pontuação por LLM sem treino é quase idêntica ao canal que já temos.
+- **DAViHD** (ICASSP 2026) + a solução campeã do EVQA-SnapUGC (com código): as duas provam que **a característica de áudio serve de verdade para prever viralização e engajamento** — a direção da sétima e da oitava trilha de prova está certa, e dá para acrescentar um sinal fino de «mudança brusca transitória no áudio».
+- **bilive** (3,3 mil estrelas, Apache-2.0): implementação madura que localiza o trecho de alta energia pela densidade dos comentários ao vivo; a prova dos comentários dá para absorver por comparação.
 
 ---
 
-*四份 agent 原始报告（含全部来源 URL）存档于会话 scratchpad research/ 目录；关键来源：BIGVU OpusClip 14 天实测、autoposting.ai 八工具命中率横评、Submagic/Captions(Mirage)/Klap/Riverside 产品页与评测、蝉妈妈原创判定问答、司法部 AIGC 标识办法、商家助手 2026 授权审核、Atlas Cloud MCP 实测模型价格清单、arXiv 论文页。*
+*Os quatro relatórios originais dos agentes (com todas as URLs das fontes) estão arquivados no diretório research/ do scratchpad da sessão; fontes principais: o teste de 14 dias do OpusClip pela BIGVU, a comparação de taxa de acerto de oito ferramentas da autoposting.ai, as páginas de produto e as avaliações de Submagic, Captions (Mirage), Klap e Riverside, o material de perguntas e respostas sobre julgamento de originalidade, as regras oficiais de identificação de conteúdo de IA, a revisão de licenciamento de 2026 para lojistas, a lista de preços de modelos medida no Atlas Cloud MCP e as páginas dos artigos no arXiv.*
