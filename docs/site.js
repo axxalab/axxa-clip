@@ -1,7 +1,7 @@
-/* HotClip 落地页动效 v3(GSAP 3.13,本地 vendor)——中英文页共用
-   结构:切片装置 hero + pin 三幕 scrollytelling + 卡拉OK活演示 + bento */
+/* Animações da página do HotClip v3 (GSAP 3.13, vendor local) — compartilhadas pelas páginas em português e em inglês
+   A estrutura: o hero com a máquina de cortes + os três atos de scrollytelling com pin + a demonstração ao vivo do karaokê + o bento */
 (function () {
-  if (typeof gsap === "undefined") return; // 脚本加载失败时页面保持静态可用
+  if (typeof gsap === "undefined") return; // se o script não carregar, a página continua estática e utilizável
 
   gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, SplitText);
   gsap.defaults({ duration: 0.6, ease: "power2.out" });
@@ -9,13 +9,13 @@
   var $ = function (s, root) { return (root || document).querySelector(s); };
   var $$ = function (s, root) { return gsap.utils.toArray((root || document).querySelectorAll(s)); };
 
-  /* ---- 波形条生成(装饰,JS 生成保持 HTML 干净) ---- */
+  /* ---- As barras da forma de onda (enfeite gerado por JS, para o HTML ficar limpo) ---- */
   function buildWave(el, n, hotRanges) {
     if (!el) return [];
     var bars = [];
     for (var i = 0; i < n; i++) {
       var b = document.createElement("i");
-      var h = 22 + Math.abs(Math.sin(i * 1.7) + Math.sin(i * 0.53)) * 34; // 伪随机但确定
+      var h = 22 + Math.abs(Math.sin(i * 1.7) + Math.sin(i * 0.53)) * 34; // pseudoaleatório, mas determinístico
       b.style.height = h + "%";
       var pos = i / n;
       if (hotRanges && hotRanges.some(function (r) { return pos >= r[0] && pos <= r[1]; })) {
@@ -30,7 +30,7 @@
   var filmBars = buildWave($("#film-wave"), 64, [[0.16, 0.25], [0.455, 0.545], [0.75, 0.84]]);
   buildWave($("#phone-wave"), 22, [[0.3, 0.55]]);
 
-  /* ---- 逐字点亮循环(切片卡字幕 / 手机字幕 / 卡拉OK演示共用) ---- */
+  /* ---- O laço que acende palavra por palavra (usado pela legenda do cartão de corte, pela do celular e pela demonstração de karaokê) ---- */
   function lightLoop(words, step, hold) {
     if (!words.length) return null;
     var tl = gsap.timeline({ repeat: -1, repeatDelay: 0.4 });
@@ -54,7 +54,7 @@
       var isDesktop = context.conditions.isDesktop;
 
       if (reduceMotion) {
-        // 减弱动效:去掉预隐藏,所有动态数值直接写终值,不建任何动画
+        // Movimento reduzido: o pré-ocultamento sai, todo valor dinâmico recebe direto o valor final e nenhuma animação é criada
         document.documentElement.classList.remove("js");
         $$("[data-count]").forEach(function (el) { el.textContent = el.getAttribute("data-count"); });
         $$(".cc-num").forEach(function (el) { el.textContent = el.getAttribute("data-target"); });
@@ -62,7 +62,7 @@
         $$(".clip-cap .w, .ph-cap .w").forEach(function (w) { w.classList.add("lit"); });
         var kd = $("#karaoke-line");
         if (kd) kd.style.color = "var(--brand-2)";
-        // 减弱动效下自动播放的装饰视频也停掉
+        // Com o movimento reduzido, o vídeo de enfeite que tocava sozinho também para
         $$("video.clip-media, video.phone-media").forEach(function (v) {
           v.removeAttribute("autoplay");
           v.pause();
@@ -70,14 +70,14 @@
         return;
       }
 
-      /* ================= 首屏:文案 + 切片装置入场 ================= */
+      /* ================= Primeira tela: a entrada do texto + da máquina de cortes ================= */
       var heroTl = gsap.timeline({ defaults: { duration: 0.7, ease: "power3.out" } });
       heroTl
         .from(".hero .eyebrow", { y: 24, autoAlpha: 0 })
         .from(".hero .sub", { y: 26, autoAlpha: 0 }, "-=0.4")
         .from(".hero .cta .btn", { y: 20, autoAlpha: 0, scale: 0.95, stagger: 0.1 }, "-=0.35")
         .from(".hero .note, .hero .meta-badges", { autoAlpha: 0, duration: 0.5 }, "-=0.25")
-        // 装置:胶片划入 → 波形生长 → 切区点燃 → 成片卡切出升起
+        // A máquina: o filme entra deslizando → a forma de onda cresce → a região de corte se acende → o cartão do vídeo pronto sai recortado e sobe
         .from(".rig .film", { y: 46, autoAlpha: 0, duration: 0.7 }, "-=0.2");
       if (filmBars.length) {
         heroTl.from(filmBars, { scaleY: 0, duration: 0.5, stagger: { each: 0.008, from: "start" }, ease: "power1.out" }, "-=0.3");
@@ -88,7 +88,7 @@
         .from(".rig .clip-card", { y: 130, autoAlpha: 0, rotate: function (i) { return i === 1 ? 0 : (i === 0 ? -5 : 5); }, stagger: 0.14, duration: 0.85, ease: "power3.out" }, "-=0.15")
         .from(".rig .rig-label", { autoAlpha: 0, duration: 0.5 }, "-=0.3");
 
-      // 装置待机动效:卡片漂浮 / 火苗闪烁 / 热区波形脉动
+      // A animação de espera da máquina: o cartão flutua, a chama pisca e a forma de onda da região quente pulsa
       $$(".rig .clip-card").forEach(function (card, i) {
         gsap.to(card, { y: i === 1 ? -10 : -6, duration: 2.2 + i * 0.35, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 1.8 + i * 0.3 });
       });
@@ -96,13 +96,13 @@
       filmBars.filter(function (b) { return b.className === "hot"; }).forEach(function (b, i) {
         gsap.to(b, { scaleY: 0.55, duration: 0.42 + (i % 5) * 0.06, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 2 });
       });
-      // 三张卡的字幕逐字点亮循环
+      // O laço que acende palavra por palavra a legenda dos três cartões
       $$(".rig .clip-card").forEach(function (card, i) {
         var loop = lightLoop($$(".clip-cap .w", card), 0.5, 1.4);
         if (loop) loop.delay(2 + i * 0.6);
       });
 
-      /* ---- H1 逐字入场(等字体就绪,避免断行错位) ---- */
+      /* ---- O H1 entra palavra por palavra (depois de a fonte ficar pronta, para a quebra de linha não sair torta) ---- */
       document.fonts.ready.then(function () {
         var title = $("#hero-title");
         if (!title) return;
@@ -115,7 +115,7 @@
         });
       });
 
-      /* ================= 三幕 scrollytelling ================= */
+      /* ================= Os três atos do scrollytelling ================= */
       var stageWrap = $(".scrolly .stage-wrap");
       if (stageWrap && isDesktop) {
         stageWrap.classList.add("js-pin");
@@ -144,11 +144,11 @@
         });
 
         pinTl
-          // 幕1:文件飞入托盘
+          // Ato 1: o arquivo entra voando na bandeja
           .from(".stage-1 .file-chip", { x: function (i) { return [-120, 140, -90][i]; }, y: function (i) { return [-80, -60, 90][i]; }, autoAlpha: 0, stagger: 0.15, duration: 0.8 })
           .to(".stage-1 .file-chip", { x: 0, y: 0, scale: 0.92, duration: 0.6 })
           .to({}, { duration: 0.4 })
-          // 幕1 → 幕2
+          // Ato 1 → ato 2
           .to(".stage-1", { autoAlpha: 0, y: -30, duration: 0.5 })
           .to(".stage-2", { autoAlpha: 1, duration: 0.5 }, "<0.2")
           .from(".stage-2 .cand-card", { y: 60, duration: 0.6 }, "<")
@@ -162,14 +162,14 @@
           }, "<")
           .from(".stage-2 .cand-mini", { y: 30, autoAlpha: 0, duration: 0.5 }, "<0.4")
           .to({}, { duration: 0.5 })
-          // 幕2 → 幕3
+          // Ato 2 → ato 3
           .to(".stage-2", { autoAlpha: 0, y: -30, duration: 0.5 })
           .to(".stage-3", { autoAlpha: 1, duration: 0.5 }, "<0.2")
           .from(".stage-3 .phone", { y: 90, rotate: -4, duration: 0.7 }, "<")
           .from(".stage-3 .export-item", { x: -40, autoAlpha: 0, stagger: 0.12, duration: 0.45 }, "<0.3")
           .to({}, { duration: 0.6 });
       } else if (stageWrap) {
-        // 移动端/窄屏:不 pin,三幕纵向排列滚动进场
+        // No celular e em telas estreitas: sem pin, os três atos ficam na vertical e entram com a rolagem
         $$(".scrolly .stage").forEach(function (st) {
           gsap.from(st, {
             autoAlpha: 0, y: 50, duration: 0.7,
@@ -193,17 +193,17 @@
         });
         $(".stage-progress") && ($(".stage-progress").style.display = "none");
       }
-      // 手机字幕逐字点亮(两种模式都跑)
+      // A legenda do celular acende palavra por palavra (nos dois modos)
       lightLoop($$(".stage-3 .ph-cap .w"), 0.55, 1.5);
 
-      /* ================= 卡拉OK活演示 ================= */
+      /* ================= A demonstração ao vivo do karaokê ================= */
       var kdLine = $("#karaoke-line");
       if (kdLine) {
         document.fonts.ready.then(function () {
           SplitText.create(kdLine, {
             type: "chars",
             autoSplit: true,
-            aria: "hidden", /* p 元素禁用 aria-label,演示行的语义由外层 region 提供 */
+            aria: "hidden", /* o elemento p desliga o aria-label; o sentido da linha de demonstração vem da region que a envolve */
             onSplit: function (self) {
               var tl = gsap.timeline({ repeat: -1, repeatDelay: 0.9, scrollTrigger: { trigger: kdLine, start: "top 88%" } });
               self.chars.forEach(function (c, i) {
@@ -217,7 +217,7 @@
         });
       }
 
-      /* ================= 通用滚动进场 ================= */
+      /* ================= A entrada geral com a rolagem ================= */
       gsap.set("[data-reveal]", { autoAlpha: 0, y: 40 });
       ScrollTrigger.batch("[data-reveal]", {
         start: "top 85%",
@@ -227,14 +227,14 @@
         }
       });
 
-      /* ---- bento 里的 mini 候选卡:进场时条形生长 ---- */
+      /* ---- O mini cartão de candidato dentro do bento: as barras crescem na entrada ---- */
       $$(".b-hotspot .cc-bar i").forEach(function (bar) {
         gsap.fromTo(bar, { scaleX: 0 }, {
           scaleX: parseFloat(bar.getAttribute("data-w") || 1), duration: 0.9, ease: "power2.out",
           scrollTrigger: { trigger: bar, start: "top 88%", once: true }
         });
       });
-      /* ---- 数字滚动计数 ---- */
+      /* ---- A contagem dos números correndo ---- */
       $$("[data-count]").forEach(function (el) {
         var target = parseFloat(el.getAttribute("data-count"));
         var decimals = parseInt(el.getAttribute("data-decimals") || "0", 10);
@@ -246,7 +246,7 @@
         });
       });
 
-      /* ---- 对比表逐行点亮 ---- */
+      /* ---- A tabela de comparação acendendo linha a linha ---- */
       var rows = $$("#compare-table tbody tr");
       if (rows.length) {
         gsap.set(rows, { autoAlpha: 0, x: -24 });
@@ -256,7 +256,7 @@
         });
       }
 
-      /* ---- 背景光晕视差 + 顶部进度条 ---- */
+      /* ---- O paralaxe do brilho do fundo + a barra de progresso do topo ---- */
       $$(".glow").forEach(function (glow, i) {
         gsap.to(glow, {
           yPercent: i % 2 ? -28 : 22, ease: "none",
@@ -265,7 +265,7 @@
       });
       gsap.to(".progress", { scaleX: 1, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 0.3 } });
 
-      /* ---- 平台跑马灯 ---- */
+      /* ---- O letreiro das plataformas ---- */
       var track = $(".marquee-track");
       if (track && !track.dataset.cloned) {
         track.dataset.cloned = "1";
@@ -275,7 +275,7 @@
         track.parentElement.addEventListener("mouseleave", function () { marquee.play(); });
       }
 
-      /* ---- FAQ 展开小动效 ---- */
+      /* ---- A animaçãozinha de abrir o FAQ ---- */
       $$("#faq details").forEach(function (d) {
         d.addEventListener("toggle", function () {
           if (d.open) gsap.from(d.querySelectorAll("p"), { autoAlpha: 0, y: -8, duration: 0.35 });
@@ -286,7 +286,7 @@
     }
   );
 
-  /* ---- 导航锚点平滑滚动(CSS 未设 scroll-behavior,避免打架) ---- */
+  /* ---- A rolagem suave até a âncora da navegação (o CSS não define scroll-behavior, para não brigar) ---- */
   var NAV_OFFSET = 68;
   document.querySelectorAll('nav a[href^="#"]').forEach(function (link) {
     link.addEventListener("click", function (e) {
@@ -297,7 +297,7 @@
     });
   });
 
-  /* ---- 顶栏滚动后加分隔线 ---- */
+  /* ---- A barra do topo ganha uma linha divisória depois da rolagem ---- */
   var nav = document.getElementById("sitenav");
   if (nav) {
     ScrollTrigger.create({
@@ -307,10 +307,10 @@
     });
   }
 
-  /* ---- 图片全部加载后重算触发位置 ---- */
+  /* ---- Depois de todas as imagens carregarem, as posições de disparo são recalculadas ---- */
   window.addEventListener("load", function () { ScrollTrigger.refresh(); });
 
-  /* ---- GitHub 星数/版本号(失败静默,保留静态兜底) ---- */
+  /* ---- O número de estrelas e a versão do GitHub (a falha é silenciosa, e o valor estático fica de reserva) ---- */
   function fmtStars(n) {
     return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
   }

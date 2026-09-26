@@ -1,4 +1,4 @@
-/* HotClip 落地页样式 v3 — 切片装置 + scrollytelling + bento,配合 GSAP(vendor/gsap) */
+/* Estilos da página do HotClip v3 — a máquina de cortes + scrollytelling + bento, junto com o GSAP (vendor/gsap) */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
   --bg: #0a0705;
@@ -15,7 +15,7 @@
   --radius: 18px;
 }
 html { -webkit-text-size-adjust: 100%; overflow-x: hidden; overflow-x: clip; }
-/* 锚点平滑滚动交给 ScrollToPlugin,不设 scroll-behavior */
+/* A rolagem suave até a âncora fica com o ScrollToPlugin, e o scroll-behavior não é definido */
 body {
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
   background: var(--bg);
@@ -29,7 +29,7 @@ a { color: var(--brand-2); text-decoration: none; }
 a:hover { text-decoration: underline; }
 ::selection { background: rgba(255, 87, 34, 0.4); }
 
-/* 网格背景纹理(全局,极淡) */
+/* A textura de grade do fundo (global, bem clarinha) */
 .gridbg {
   position: fixed; inset: 0; z-index: -2; pointer-events: none;
   background-image:
@@ -40,7 +40,7 @@ a:hover { text-decoration: underline; }
   mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 30%, transparent 75%);
 }
 
-/* 线性 SVG 图标(sprite 内联在页面里,统一描边风格) */
+/* Os ícones SVG de traço (o sprite fica embutido na página, com o mesmo estilo de contorno) */
 .ic {
   width: 1em; height: 1em; flex: none;
   fill: none; stroke: currentColor; stroke-width: 1.8;
@@ -49,13 +49,13 @@ a:hover { text-decoration: underline; }
 }
 .btn .ic { width: 17px; height: 17px; }
 
-/* JS 可用时预隐藏滚动进场元素;JS 挂掉页面照常显示 */
+/* Com o JS disponível, os elementos que entram na rolagem começam escondidos; sem JS, a página aparece normalmente */
 .js [data-reveal] { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .js [data-reveal] { visibility: visible; }
 }
 
-/* 顶部滚动进度条 */
+/* A barra de progresso da rolagem, no topo */
 .progress {
   position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 60;
   background: var(--grad);
@@ -64,7 +64,7 @@ a:hover { text-decoration: underline; }
   pointer-events: none;
 }
 
-/* 背景光晕 */
+/* O brilho do fundo */
 .glow {
   position: absolute; border-radius: 50%;
   filter: blur(110px); pointer-events: none;
@@ -75,7 +75,7 @@ a:hover { text-decoration: underline; }
 .glow-b { width: 34rem; height: 26rem; background: rgba(255, 179, 0, 0.08); top: 34%; left: -18%; }
 .glow-c { width: 40rem; height: 28rem; background: rgba(255, 87, 34, 0.10); bottom: -8%; right: -10%; }
 
-/* ===== 顶栏 ===== */
+/* ===== Barra do topo ===== */
 nav {
   display: flex; align-items: center; gap: 16px; padding: 14px 0;
   position: sticky; top: 0; z-index: 50;
@@ -97,7 +97,7 @@ nav .nav-cta {
 nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
 @media (max-width: 720px) { nav a.plain { display: none; } }
 
-/* ===== Hero:文案 + 切片装置 ===== */
+/* ===== Hero: o texto + a máquina de cortes ===== */
 .hero { padding: 64px 0 24px; text-align: center; position: relative; }
 .hero .eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
@@ -137,7 +137,7 @@ nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
 }
 .hero .meta-badges b { color: var(--brand-2); font-weight: 700; }
 
-/* —— 切片装置(rig):胶片时间轴 + 切出的竖屏卡 —— */
+/* —— A máquina de cortes (rig): a linha de tempo em filme + o cartão vertical recortado —— */
 .rig { margin: 40px auto 0; max-width: 1080px; position: relative; height: 500px; }
 .rig-cards { position: absolute; inset: 0 0 150px 0; display: flex; justify-content: center; gap: 5%; align-items: flex-end; pointer-events: none; }
 .clip-card {
@@ -150,7 +150,7 @@ nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
   box-shadow: 0 0 34px rgba(255, 87, 34, 0.3), 0 26px 60px rgba(0, 0, 0, 0.55);
   will-change: transform;
 }
-.clip-card::after { /* 屏幕反光 */
+.clip-card::after { /* O reflexo da tela */
   content: ""; position: absolute; inset: 0;
   background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.06) 46%, transparent 55%);
   pointer-events: none;
@@ -181,16 +181,16 @@ nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
   display: flex; align-items: center; justify-content: center; color: #fff;
 }
 .clip-card .clip-play .ic { width: 14px; height: 14px; }
-/* 连接线:卡片到胶片 */
+/* A linha de ligação: do cartão até o filme */
 .clip-card .clip-beam {
   content: ""; position: absolute; left: 50%; top: 100%; width: 2px; height: 60px;
   background: linear-gradient(180deg, rgba(255, 138, 60, 0.8), transparent);
 }
 
-/* 胶片时间轴 */
+/* A linha de tempo em filme */
 .film {
   position: absolute; left: 0; right: 0; bottom: 28px; height: 112px;
-  border-radius: 16px; /* overflow 保持可见:切区火苗要露在胶片上方 */
+  border-radius: 16px; /* o overflow continua visível: a chama da região de corte precisa aparecer acima do filme */
   background: linear-gradient(180deg, #1a120a, #100a06);
   border: 1px solid var(--border);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
@@ -211,7 +211,7 @@ nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
   transform-origin: 50% 50%;
 }
 .film .wave i.hot { background: var(--brand-2); box-shadow: 0 0 8px rgba(255, 179, 0, 0.6); }
-/* 切区高亮 */
+/* O destaque da região de corte */
 .film .cut {
   position: absolute; top: 8px; bottom: 8px; width: 9%;
   border: 1.5px solid rgba(255, 179, 0, 0.85); border-radius: 8px;
@@ -224,7 +224,7 @@ nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
   filter: drop-shadow(0 0 8px rgba(255, 138, 60, 0.9));
 }
 .film .cut .flame .ic { width: 22px; height: 22px; }
-.film .cut::before, .film .cut::after { /* 剪刀虚线 */
+.film .cut::before, .film .cut::after { /* A linha tracejada da tesoura */
   content: ""; position: absolute; top: -8px; bottom: -8px; width: 0;
   border-left: 1.5px dashed rgba(255, 179, 0, 0.55);
 }
@@ -246,7 +246,7 @@ nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
   .film { height: 88px; }
 }
 
-/* ===== 平台跑马灯 ===== */
+/* ===== O letreiro das plataformas ===== */
 .marquee { overflow: hidden; margin: 44px 0 0; padding: 12px 0; position: relative;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
@@ -258,13 +258,13 @@ nav .nav-cta:hover { text-decoration: none; filter: brightness(1.1); }
 }
 .marquee .p b { color: var(--fg); font-weight: 700; }
 
-/* ===== 区块通用 ===== */
+/* ===== Comum às seções ===== */
 section { padding: 84px 0 8px; position: relative; }
 section h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 900; text-align: center; margin-bottom: 14px; line-height: 1.3; }
 section h2 .hl { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; margin: 0 auto 44px; font-size: 16.5px; }
 
-/* ===== Scrollytelling 三幕(桌面 pin) ===== */
+/* ===== Os três atos do scrollytelling (com pin no desktop) ===== */
 .scrolly .stage-wrap { position: relative; }
 .stage-progress {
   display: flex; gap: 10px; justify-content: center; margin-bottom: 28px; flex-wrap: wrap;
@@ -288,7 +288,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
   min-height: 400px;
 }
 .stage + .stage { margin-top: 22px; }
-/* 桌面 pin 模式:JS 加 .js-pin 后三幕叠放 */
+/* Modo pin no desktop: depois de o JS acrescentar .js-pin, os três atos se empilham */
 .js-pin .stages { height: 460px; }
 .js-pin .stage { position: absolute; inset: 0; margin: 0 !important; }
 .stage .st-copy .st-k { font-size: 13px; font-weight: 800; letter-spacing: 2px; color: var(--brand-2); }
@@ -306,7 +306,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
   .stage .st-visual { min-height: 240px; }
 }
 
-/* 幕1:文件飞入 */
+/* Ato 1: o arquivo entra voando */
 .import-tray {
   width: 78%; max-width: 380px; padding: 30px 26px;
   border: 1.5px dashed rgba(255, 138, 60, 0.5); border-radius: 20px;
@@ -323,7 +323,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 .file-chip small { color: var(--fg-dim); font-weight: 500; }
 .fc-1 { top: 4%; left: 6%; } .fc-2 { top: 0%; right: 10%; } .fc-3 { bottom: 10%; left: 12%; }
 
-/* 幕2:爆点候选卡 */
+/* Ato 2: os cartões de candidato a estouro */
 .cand-card {
   width: 92%; max-width: 420px;
   border: 1px solid var(--border-hot); border-radius: 18px; padding: 20px 22px;
@@ -355,7 +355,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 }
 .cand-mini b { color: var(--fg); }
 
-/* 幕3:竖屏成片手机 */
+/* Ato 3: o celular com o vídeo vertical pronto */
 .phone {
   width: 210px; aspect-ratio: 9 / 17.2; border-radius: 30px; position: relative;
   background: linear-gradient(180deg, #241408, #100a06 75%);
@@ -396,7 +396,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 }
 @media (max-width: 560px) { .export-list { position: static; margin-top: 14px; grid-template-columns: repeat(2, 1fr); } }
 
-/* ===== 卡拉OK活演示 ===== */
+/* ===== A demonstração ao vivo do karaokê ===== */
 .karaoke-demo { text-align: center; padding: 90px 0 40px; }
 .karaoke-demo .kd-line {
   font-size: clamp(26px, 4.6vw, 52px); font-weight: 900; line-height: 1.4;
@@ -406,7 +406,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 .karaoke-demo .kd-line div.lit { color: var(--brand-2); text-shadow: 0 0 18px rgba(255, 179, 0, 0.55); }
 .karaoke-demo .kd-sub { color: var(--fg-dim); font-size: 14px; margin-top: 16px; }
 
-/* ===== Bento 功能网格 ===== */
+/* ===== A grade bento de recursos ===== */
 .bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .b-cell {
   position: relative; overflow: hidden;
@@ -429,7 +429,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 @media (max-width: 980px) { .bento { grid-template-columns: repeat(2, 1fr); } .b-lg { grid-column: span 2; grid-row: auto; } }
 @media (max-width: 620px) { .bento { grid-template-columns: 1fr; } .b-lg, .b-wide { grid-column: span 1; } }
 
-/* bento 内嵌:mini 候选卡 */
+/* Dentro do bento: o mini cartão de candidato */
 .b-hotspot .mini-cand {
   margin-top: 18px; border: 1px solid var(--border-hot); border-radius: 14px; padding: 16px 18px;
   background: linear-gradient(180deg, #1c1209, #120b06);
@@ -441,7 +441,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 .b-hotspot .mini-cand .cc-bar { height: 5px; border-radius: 4px; background: rgba(255,255,255,0.09); margin-top: 4px; overflow: hidden; }
 .b-hotspot .mini-cand .cc-bar i { display: block; height: 100%; border-radius: 4px; background: var(--grad); transform-origin: 0 50%; }
 
-/* bento 内嵌:隐私盾 */
+/* Dentro do bento: o escudo da privacidade */
 .b-privacy .shield-wrap { display: flex; align-items: center; gap: 18px; margin-top: 18px; }
 .b-privacy .shield {
   width: 74px; height: 74px; border-radius: 22px; flex: 0 0 auto;
@@ -453,12 +453,12 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 .b-privacy .upload-zero { font-size: 40px; font-weight: 900; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1.1; }
 .b-privacy .upload-zero small { display: block; font-size: 13px; color: var(--fg-dim); -webkit-text-fill-color: var(--fg-dim); font-weight: 600; }
 
-/* bento 内嵌:波形剪断 */
+/* Dentro do bento: a forma de onda cortada */
 .b-wave .wave-demo { display: flex; align-items: center; gap: 3px; height: 34px; margin-top: 16px; }
 .b-wave .wave-demo i { flex: 1; height: 55%; border-radius: 2px; background: rgba(255, 138, 60, 0.5); }
 .b-wave .wave-demo i.cut-gap { background: transparent; border: 1px dashed rgba(255, 179, 0, 0.5); height: 90%; }
 
-/* bento 内嵌:真实截图(左解释 + 右限高窗口框,不整张平铺) */
+/* Dentro do bento: a captura de tela real (a explicação à esquerda + uma moldura de altura limitada à direita, sem espalhar a imagem inteira) */
 .b-shot {
   display: grid; grid-template-columns: 0.9fr 1.35fr; gap: 32px; align-items: center;
   padding: 32px;
@@ -478,7 +478,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
   .shot-frame { max-height: 300px; }
 }
 
-/* ===== 宣言墙 ===== */
+/* ===== O mural do manifesto ===== */
 .manifesto { text-align: center; }
 .manifesto .m-line {
   font-size: clamp(24px, 4.2vw, 46px); font-weight: 900; line-height: 1.5;
@@ -502,7 +502,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 .stat .lab { margin-top: 6px; color: var(--fg-dim); font-size: 14px; }
 @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
 
-/* ===== 人群横条 ===== */
+/* ===== A faixa de públicos ===== */
 .who-row {
   display: grid; grid-template-columns: 200px 1fr auto; gap: 20px; align-items: center;
   border: 1px solid var(--border); border-radius: var(--radius);
@@ -522,7 +522,7 @@ section .lead { text-align: center; color: var(--fg-dim); max-width: 720px; marg
 .who-row .who-ico .ic { width: 30px; height: 30px; stroke-width: 1.6; }
 @media (max-width: 760px) { .who-row { grid-template-columns: 1fr; gap: 10px; } .who-row .who-ico { display: none; } }
 
-/* ===== 对比表 ===== */
+/* ===== A tabela de comparação ===== */
 .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raise); }
 table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 720px; }
 th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -550,7 +550,7 @@ details[open] summary::after { transform: translateY(-50%) rotate(45deg); }
 details p { margin-top: 10px; color: var(--fg-dim); font-size: 15px; }
 details p b, details p strong { color: var(--fg); }
 
-/* ===== 末尾 CTA ===== */
+/* ===== A chamada final ===== */
 .final-cta {
   margin-top: 90px; padding: 80px 28px; text-align: center;
   border: 1px solid var(--border); border-radius: 28px; overflow: hidden; position: relative;
@@ -570,7 +570,7 @@ footer .foot-links { display: flex; gap: 18px; justify-content: center; flex-wra
 footer .foot-links a { text-decoration: none; }
 footer .foot-links a:hover { color: var(--fg); }
 
-/* ===== 文章页(对比页,保持兼容) ===== */
+/* ===== A página de artigo (a de comparação, mantida compatível) ===== */
 .article { max-width: 780px; margin: 0 auto; }
 .article h1 { font-size: clamp(28px, 4.5vw, 40px); line-height: 1.35; font-weight: 800; margin: 40px 0 18px; }
 .article h2 { font-size: 24px; text-align: left; margin: 40px 0 16px; }
