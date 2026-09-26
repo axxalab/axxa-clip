@@ -22,11 +22,13 @@ import { analysisVideoIdentity, type AnalysisVideoOptions } from "@core/analysis
 import { SenseVoiceEngine } from "@core/transcribe/sensevoice";
 import { ParaformerEngine } from "@core/transcribe/paraformer";
 import { FireRedEngine } from "@core/transcribe/firered";
+import { ParakeetEngine } from "@core/transcribe/parakeet";
+import { WhisperLargeV3Engine, WhisperTurboEngine } from "@core/transcribe/whisper";
 import { ElevenLabsEngine } from "@core/transcribe/elevenlabs";
 import { readTranscriptCache, writeTranscriptCache } from "@core/transcribe/cache";
 import { importSubtitleText } from "@core/subtitle-import";
 import { validateSubtitleInput } from "../shared/subtitle-import";
-import { isModelInstalled, ensureModel, SENSEVOICE_MODEL, PARAFORMER_MODEL, FIRERED_MODEL, SEGMENTATION_MODEL, SPEAKER_EMBEDDING_MODEL } from "@core/models";
+import { isModelInstalled, ensureModel, SENSEVOICE_MODEL, PARAFORMER_MODEL, FIRERED_MODEL, PARAKEET_MODEL, WHISPER_LARGE_V3_MODEL, WHISPER_TURBO_MODEL, SEGMENTATION_MODEL, SPEAKER_EMBEDDING_MODEL } from "@core/models";
 import { runDiarization, labelTranscript } from "@core/diarize";
 import { ASR_CATALOG } from "../shared/asr-catalog";
 import { detectHighlights, chatComplete } from "@core/highlight/detect";
@@ -643,6 +645,9 @@ const ASR_ENGINES = {
   sensevoice: { make: () => new SenseVoiceEngine(modelsRoot()), asset: SENSEVOICE_MODEL },
   paraformer: { make: () => new ParaformerEngine(modelsRoot()), asset: PARAFORMER_MODEL },
   fireredasr: { make: () => new FireRedEngine(modelsRoot()), asset: FIRERED_MODEL },
+  parakeet: { make: () => new ParakeetEngine(modelsRoot()), asset: PARAKEET_MODEL },
+  "whisper-turbo": { make: () => new WhisperTurboEngine(modelsRoot()), asset: WHISPER_TURBO_MODEL },
+  "whisper-large-v3": { make: () => new WhisperLargeV3Engine(modelsRoot()), asset: WHISPER_LARGE_V3_MODEL },
 } as const;
 
 ipcMain.handle("hotclip:list-asr-engines", async () => {

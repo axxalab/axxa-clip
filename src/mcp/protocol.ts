@@ -38,7 +38,7 @@ export const MCP_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         videoPath: { type: "string", description: "o caminho absoluto do arquivo de vídeo local" },
-        engineId: { type: "string", description: "o motor de ASR local; por padrão sensevoice. O qwen3 exige subir o serviço de voz local à parte.", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"] },
+        engineId: { type: "string", description: "o motor de ASR local; por padrão sensevoice. O qwen3 exige subir o serviço de voz local à parte.", enum: ["sensevoice", "paraformer", "fireredasr", "parakeet", "whisper-turbo", "whisper-large-v3", "qwen3"] },
         localServiceUrl: { type: "string", description: "o endereço do serviço local do Qwen3; só 127.0.0.1 / ::1, por padrão http://127.0.0.1:8766." },
         restart: { type: "boolean", description: "transcrever de novo, sem reaproveitar o progresso por trecho deste material no motor atual; por padrão a transcrição continua de onde parou." },
         subtitlePath: { type: "string", description: "opcional: o caminho absoluto de uma legenda original em UTF-8 SRT/WebVTT, de trilha única, alinhada com este material (até 5 MB, sem sobreposição). O ASR é pulado e o tempo das frases originais é mantido; o tempo das palavras dentro da frase é estimado e precisa de revisão." },
@@ -61,7 +61,7 @@ export const MCP_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         videoPath: { type: "string", description: "o caminho absoluto do arquivo de vídeo local" },
-        engineId: { type: "string", description: "o motor de ASR local; por padrão sensevoice. O qwen3 exige subir o serviço de voz local à parte.", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"] },
+        engineId: { type: "string", description: "o motor de ASR local; por padrão sensevoice. O qwen3 exige subir o serviço de voz local à parte.", enum: ["sensevoice", "paraformer", "fireredasr", "parakeet", "whisper-turbo", "whisper-large-v3", "qwen3"] },
         localServiceUrl: { type: "string", description: "o endereço do serviço local do Qwen3; só 127.0.0.1 / ::1, por padrão http://127.0.0.1:8766." },
         restart: { type: "boolean", description: "transcrever de novo, sem reaproveitar o progresso por trecho deste material no motor atual; por padrão a transcrição continua de onde parou." },
         subtitlePath: { type: "string", description: "opcional: o caminho absoluto de uma legenda original em UTF-8 SRT/WebVTT, de trilha única, alinhada com este material (até 5 MB, sem sobreposição). O ASR é pulado e o tempo das frases originais é mantido; o tempo das palavras dentro da frase é estimado e precisa de revisão." },
@@ -79,7 +79,7 @@ export const MCP_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         videoPath: { type: "string", description: "o caminho absoluto do arquivo de vídeo/áudio local" },
-        engineId: { type: "string", description: "o motor de ASR local; por padrão sensevoice. O qwen3 exige subir o serviço de voz local à parte.", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"] },
+        engineId: { type: "string", description: "o motor de ASR local; por padrão sensevoice. O qwen3 exige subir o serviço de voz local à parte.", enum: ["sensevoice", "paraformer", "fireredasr", "parakeet", "whisper-turbo", "whisper-large-v3", "qwen3"] },
         localServiceUrl: { type: "string", description: "o endereço do serviço local do Qwen3; só 127.0.0.1 / ::1, por padrão http://127.0.0.1:8766." },
         restart: { type: "boolean", description: "transcrever de novo, sem reaproveitar o progresso por trecho deste material no motor atual; por padrão a transcrição continua de onde parou." },
         subtitlePath: { type: "string", description: "opcional: importa uma legenda original em UTF-8 SRT/WebVTT já existente e pula o ASR (até 5 MB, sem sobreposição). O tempo das palavras dentro da frase é estimado e precisa de revisão." },

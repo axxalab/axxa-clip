@@ -40,6 +40,27 @@ export function loadSherpa(): any {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
+ * Reparte os tokens por igual dentro da janela, quando o motor não deu marca de tempo alguma.
+ * O peso de cada token é o tamanho do texto, de modo que uma palavra longa ocupe mais tempo que um
+ * sinal de pontuação; o resultado é sempre marcado como estimado, nunca como nativo.
+ */
+function spreadTokens(tokens: string[], offsetSec: number, windowEndSec: number): TranscriptWord[] {
+  const kept = tokens.map((x) => (x ?? "").trim()).filter(Boolean);
+  if (kept.length === 0) return [];
+  const span = Math.max(0, windowEndSec - offsetSec);
+  const weights = kept.map((x) => Math.max(1, x.replace(/\s+/g, "").length));
+  const total = weights.reduce((a, b) => a + b, 0);
+  const words: TranscriptWord[] = [];
+  let at = offsetSec;
+  for (let i = 0; i < kept.length; i++) {
+    const end = i === kept.length - 1 ? windowEndSec : at + (span * weights[i]) / total;
+    words.push({ text: kept[i], startSec: at, endSec: Math.max(end, at), timingSource: "estimated" });
+    at = end;
+  }
+  return words;
+}
+
+/**
  * Convert one window's sherpa result into timed words offset to absolute time.
  * Engines emit per-token start times; each token's end is the next token's
  * start (last token gets +0.3s tail).
@@ -47,6 +68,10 @@ export function loadSherpa(): any {
 export function tokensToWords(result: SherpaResult, offsetSec: number, windowEndSec: number): TranscriptWord[] {
   const tokens = result.tokens ?? [];
   const stamps = result.timestamps ?? [];
+  // Um modelo encoder-decoder (o Whisper) não devolve marca de tempo nenhuma. Sem isto, todos os tokens
+  // cairiam no mesmo instante — o começo da janela —, e a legenda sairia empilhada. Espalhar por igual
+  // dentro da janela é honesto (fica marcado como "estimated") e é a entrada de que o alinhamento precisa.
+  if (stamps.length === 0 && tokens.length > 0) return spreadTokens(tokens, offsetSec, windowEndSec);
   const words: TranscriptWord[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const text = tokens[i];
@@ -64,12 +89,34 @@ export function tokensToWords(result: SherpaResult, offsetSec: number, windowEnd
   return words;
 }
 
+/**
+ * O execution provider passado ao sherpa-onnx.
+ *
+ * Fica em "cpu" de propósito: os pacotes de sherpa-onnx publicados no npm (sherpa-onnx-win-x64,
+ * -linux-x64, -darwin-*) embutem o onnxruntime só de CPU, então pedir "cuda" ali não acelera nada —
+ * o runtime apenas avisa e volta para a CPU. Quem compilou o sherpa-onnx com SHERPA_ONNX_ENABLE_GPU=ON
+ * e apontou o addon para essa build pode ligar a GPU com HOTCLIP_SHERPA_PROVIDER=cuda.
+ */
+export function sherpaProvider(): string {
+  const value = (process.env.HOTCLIP_SHERPA_PROVIDER ?? "").trim().toLowerCase();
+  return value === "cuda" || value === "directml" || value === "coreml" ? value : "cpu";
+}
+
 export interface SherpaEngineSpec {
   id: string;
   label: string;
   asset: ModelAsset;
-  /** sherpa OfflineRecognizer modelConfig for this tier (paths inside `dir`). */
-  buildModelConfig(dir: string): Record<string, unknown>;
+  /**
+   * sherpa OfflineRecognizer modelConfig for this tier (paths inside `dir`).
+   * `options` chega junto porque o Whisper precisa da dica de idioma já na construção do
+   * reconhecedor; os tiers que não dependem disso simplesmente ignoram o segundo parâmetro.
+   */
+  buildModelConfig(dir: string, options: TranscribeOptions): Record<string, unknown>;
+  /**
+   * O nome do arquivo de tokens dentro da pasta do modelo. Quase todo pacote usa "tokens.txt"; os do
+   * Whisper trazem o nome do modelo no arquivo ("large-v3-tokens.txt"), e por isso isto é ajustável.
+   */
+  tokensFile?: string;
   /** Fixed language, or a reader that pulls it from the first decode result. */
   language: string | ((result: SherpaResult) => string | undefined);
   /** Restore punctuation via CT-Transformer (models that emit none). */
@@ -115,10 +162,10 @@ export class SherpaOfflineEngine implements TranscribeEngine {
     const recognizer = new sh.OfflineRecognizer({
       featConfig: { sampleRate: 16000, featureDim: 80 },
       modelConfig: {
-        ...spec.buildModelConfig(dir),
-        tokens: join(dir, "tokens.txt"),
+        ...spec.buildModelConfig(dir, options),
+        tokens: join(dir, spec.tokensFile ?? "tokens.txt"),
         numThreads: spec.numThreads ?? 2,
-        provider: "cpu",
+        provider: sherpaProvider(),
         debug: 0,
       },
     });
@@ -134,7 +181,7 @@ export class SherpaOfflineEngine implements TranscribeEngine {
       : null;
 
     return transcribeWindows(filePath, this.id,
-      JSON.stringify([this.id, spec.asset, spec.buildModelConfig("MODEL"), spec.punctuate, "sherpa-1.13-v2"]), options,
+      JSON.stringify([this.id, spec.asset, spec.buildModelConfig("MODEL", options), spec.punctuate, "sherpa-1.13-v2"]), options,
       async (samples, startSec, endSec) => {
         signal?.throwIfAborted();
         const stream = recognizer.createStream();

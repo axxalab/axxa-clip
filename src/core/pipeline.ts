@@ -1,6 +1,8 @@
 import { QwenLocalEngine } from "./transcribe/qwen-local";
 import { ParaformerEngine } from "./transcribe/paraformer";
 import { FireRedEngine } from "./transcribe/firered";
+import { ParakeetEngine } from "./transcribe/parakeet";
+import { WhisperLargeV3Engine, WhisperTurboEngine } from "./transcribe/whisper";
 import type { SpeechRunOptions } from "../shared/api-types";
 /**
  * A esteira comum do corte automático (sem depender de interface): transcrição (com cache) → coleta de
@@ -94,12 +96,16 @@ export async function transcribeCached(
   const fileStat = { size: s.size, mtimeMs: s.mtimeMs };
   const applied = (t: Transcript): Transcript => applyGlossaryToTranscript(t, glossary ?? []).transcript;
   const engineId = asr.engineId ?? "sensevoice";
-  if (!["sensevoice", "paraformer", "fireredasr", "qwen3"].includes(engineId)) throw new Error("Unknown local ASR engine");
+  if (!["sensevoice", "paraformer", "fireredasr", "parakeet", "whisper-turbo", "whisper-large-v3", "qwen3"].includes(engineId)) throw new Error("Unknown local ASR engine");
   const cached = !asr.restart && engineId !== "qwen3" ? await readTranscriptCache(cacheDir, videoPath, fileStat, engineId) : undefined;
   if (cached) return applied(cached);
   const engine = engineId === "qwen3" ? new QwenLocalEngine(asr.localServiceUrl)
     : engineId === "paraformer" ? new ParaformerEngine(modelsRoot)
-    : engineId === "fireredasr" ? new FireRedEngine(modelsRoot) : new SenseVoiceEngine(modelsRoot);
+    : engineId === "fireredasr" ? new FireRedEngine(modelsRoot)
+    : engineId === "parakeet" ? new ParakeetEngine(modelsRoot)
+    : engineId === "whisper-turbo" ? new WhisperTurboEngine(modelsRoot)
+    : engineId === "whisper-large-v3" ? new WhisperLargeV3Engine(modelsRoot)
+    : new SenseVoiceEngine(modelsRoot);
   const t = await engine.transcribe(videoPath, { ...asr, signal, cacheDir });
   if (engineId !== "qwen3") await writeTranscriptCache(cacheDir, videoPath, fileStat, engineId, t).catch(() => {});
   return applied(t);

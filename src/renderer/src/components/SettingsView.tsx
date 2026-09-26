@@ -68,6 +68,9 @@ const ENGINE_TEXT: Record<string, { name: string; desc: string }> = {
   paraformer: { name: "engineParaformerName", desc: "engineParaformerDesc" },
   qwen3: { name: "engineQwenName", desc: "engineQwenDesc" },
   fireredasr: { name: "engineFireredName", desc: "engineFireredDesc" },
+  parakeet: { name: "engineParakeetName", desc: "engineParakeetDesc" },
+  "whisper-turbo": { name: "engineWhisperTurboName", desc: "engineWhisperTurboDesc" },
+  "whisper-large-v3": { name: "engineWhisperLargeName", desc: "engineWhisperLargeDesc" },
   elevenlabs: { name: "engineElevenlabsName", desc: "engineElevenlabsDesc" },
 };
 

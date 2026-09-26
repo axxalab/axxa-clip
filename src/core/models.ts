@@ -87,6 +87,48 @@ export const FIRERED_MODEL: ModelAsset = {
 };
 
 /**
+ * Parakeet TDT 0.6B v3 int8 (NVIDIA, CC-BY-4.0) pelo sherpa-onnx — a edição local de português.
+ * É um transducer, e por isso traz marca de tempo por token NATIVA, que é do que a legenda palavra a
+ * palavra e o alinhamento reverso dependem; cobre 25 idiomas europeus, entre eles o português.
+ * Exige sherpa-onnx >= 1.13 (o tipo de modelo nemo_transducer).
+ */
+export const PARAKEET_MODEL: ModelAsset = {
+  id: "nemo-parakeet-tdt-0.6b-v3-int8",
+  url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
+  mirrors: ["https://ghfast.top/", "https://gh-proxy.com/"],
+  extractedDir: "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+  // Content-Length real do anexo do release (conferido em 26/09/2026): sem este número a barra de progresso mente
+  approxBytes: 487_170_055,
+};
+
+/**
+ * Whisper large-v3 int8 (OpenAI, MIT) pelo sherpa-onnx — a edição local de maior cobertura de idiomas
+ * (99), útil em material com troca de idioma ou sotaque difícil.
+ * Atenção ao que ele NÃO faz: o Whisper é encoder-decoder e o sherpa-onnx não devolve marca de tempo
+ * por token nenhuma, então o tempo das palavras sai estimado dentro da janela e precisa do alinhamento
+ * para virar palavra a palavra. Para legenda karaokê, prefira o Parakeet.
+ */
+export const WHISPER_LARGE_V3_MODEL: ModelAsset = {
+  id: "whisper-large-v3",
+  url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-large-v3.tar.bz2",
+  mirrors: ["https://ghfast.top/", "https://gh-proxy.com/"],
+  extractedDir: "sherpa-onnx-whisper-large-v3",
+  approxBytes: 1_068_482_488,
+};
+
+/**
+ * Whisper large-v3-turbo int8 (OpenAI, MIT) pelo sherpa-onnx — o mesmo encoder do large-v3 com um
+ * decoder podado: bem mais rápido em CPU, com perda pequena de qualidade. Mesma ressalva de tempo.
+ */
+export const WHISPER_TURBO_MODEL: ModelAsset = {
+  id: "whisper-large-v3-turbo",
+  url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2",
+  mirrors: ["https://ghfast.top/", "https://gh-proxy.com/"],
+  extractedDir: "sherpa-onnx-whisper-turbo",
+  approxBytes: 563_790_207,
+};
+
+/**
  * Detector de rosto YuNet (233KB, MIT, do zoo da OpenCV) — é ele que move o reenquadramento vertical
  * ciente de rosto. A variante de entrada fixa em 640×640 (com decodificação conferida); é tão pequeno
  * que o download é instantâneo mesmo sem espelho.

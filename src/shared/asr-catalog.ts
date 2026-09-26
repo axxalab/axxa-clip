@@ -22,10 +22,22 @@ export interface AsrEngineFacts {
 }
 
 /**
- * Order = display order. The first entry is the zero-config default:
- * smallest download, fully offline, five languages.
+ * Order = display order, recommendation first. It is NOT the default: the engine that runs when
+ * nobody chose one lives in the renderer's asr-store and in the pipeline fallback, and it is still
+ * SenseVoice — trocar isso baixaria 465MB na primeira execução de quem só queria transcrever.
  */
 export const ASR_CATALOG: AsrEngineFacts[] = [
+  {
+    // A edição de português: é o único tier local treinado em pt, e por isso encabeça a lista.
+    // A escolha guardada continua mandando — quem já usa outro motor não é trocado sem pedir.
+    id: "parakeet",
+    kind: "local",
+    langs: ["pt", "en", "es", "fr", "de", "+20"],
+    sizeMB: 465,
+    speed: 2,
+    accuracy: 3,
+    uploads: false,
+  },
   {
     id: "sensevoice",
     kind: "local",
@@ -50,6 +62,24 @@ export const ASR_CATALOG: AsrEngineFacts[] = [
     langs: ["zh", "dialetos", "en"],
     sizeMB: 520,
     speed: 2,
+    accuracy: 3,
+    uploads: false,
+  },
+  {
+    id: "whisper-turbo",
+    kind: "local",
+    langs: ["99 idiomas", "pt", "en"],
+    sizeMB: 538,
+    speed: 2,
+    accuracy: 2,
+    uploads: false,
+  },
+  {
+    id: "whisper-large-v3",
+    kind: "local",
+    langs: ["99 idiomas", "pt", "en"],
+    sizeMB: 1019,
+    speed: 1,
     accuracy: 3,
     uploads: false,
   },

@@ -28,7 +28,7 @@ const USAGE = `HotClip CLI — corte com IA local, e o material não sai do comp
 Uso:
   pnpm cli transcribe <caminho do vídeo>
       transcrição local palavra por palavra (por padrão SenseVoice, continuando sozinha os trechos já reconhecidos)
-      --engine sensevoice|paraformer|fireredasr|qwen3
+      --engine sensevoice|paraformer|fireredasr|parakeet|whisper-turbo|whisper-large-v3|qwen3
       --asr-url http://127.0.0.1:8766   serviço local opcional do Qwen3
       --restart-transcription          descarta o progresso por trecho do motor atual e refaz
       transcribe / highlights / clip aceitam --subtitles <original.srt|original.vtt>
@@ -101,7 +101,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
     else if (a === "--restart-transcription") args.restart = true;
     else if (a === "--engine") {
       const value = rest[++i];
-      if (!["sensevoice", "paraformer", "fireredasr", "qwen3"].includes(value)) throw new Error("--engine: sensevoice | paraformer | fireredasr | qwen3");
+      if (!["sensevoice", "paraformer", "fireredasr", "parakeet", "whisper-turbo", "whisper-large-v3", "qwen3"].includes(value)) throw new Error("--engine: sensevoice | paraformer | fireredasr | parakeet | whisper-turbo | whisper-large-v3 | qwen3");
       args.engineId = value;
     } else if (a === "--asr-url") {
       const value = rest[++i];
