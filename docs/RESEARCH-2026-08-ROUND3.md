@@ -1,133 +1,134 @@
-# 2026-08 三轮调研：用户流程校准 + 整场视频选段翻案
+# Pesquisa da terceira rodada, 2026-08: calibragem do fluxo do usuário + revisão da escolha de trechos a partir do vídeo inteiro
 
-> 2026-08-09 完成。缘起：用户判断「最开始的项目起点就跑偏了」，要求按 2026 最新切片方法特性与用户真实流程完整校准项目，且明确「可接第三方付费 AI，前提效果好、体验友好」。
-> 四路并行调研（①中文切片用户全链路 ②国际竞品 2026-06 后增量 ③付费视频理解 AI 盘点 ④爆款工艺与平台算法），合计约 110 次检索/抓取，官方文档与三方评测交叉验证。与二轮（[RESEARCH-2026-08-CLIP-QUALITY.md](./RESEARCH-2026-08-CLIP-QUALITY.md)）冲突处**以本文为准**。
-> 可信度标注沿用：[多源]≥2 独立来源交叉；[单源]谨慎采信；厂商口径单独注明。
-
----
-
-## 一、总诊断：起点偏没偏？——三句话答案
-
-1. **定位没偏，且被 2026 下半年趋势反向加强**。行业两头挤压成型：上方 TikTok Smart Split（免费+平台原生+字节开源 Vidi2 加持）抽走轻度用户，下方 Mosaic 等 agent 编排平台拿下 B 端（TubeScience/News Corp 已采购）；中间的订阅切片 SaaS 最难受（Submagic 被迫转型、Captions/Mirage 干脆离场做生成模型）。HotClip 的三个立足点——免费无计量（对撞 OpusClip 计费敌意，Trustpilot 22% 一星主因）、本地（对撞云端「处理挂起数小时」第一大投诉）、中文直播场景（Smart Split 不覆盖抖音/B站）——恰好都躲开挤压。且「AI slop 疲劳」有了硬数据（TikTok 新号 feed 59% 是 AI slop、90% 听众希望内容由人类创作），「审阅台+人工掌控」的叙事正顺风。[多源]
-2. **但目标用户画像偏了一半**。「带货切片散户」正在消失：授权收紧+AIGC 打击+主播去中间化三面挤压，散户月收入 <1000 元为主流（小杨哥 1.1 万授权者人均年入仅 1.7 万），钱在向「拥有素材的工作室」收拢。真正的甜蜜区是**拥有素材的人**：主播自己的团队、商家自播、知识口播博主、游戏切片创作者——他们授权天然干净，且只有他们对「成片质量」有付费意义（散户对质量付费意愿≈0，他们要的是量产变体过审）。对外叙事应从「帮切片手」校准为「**帮主播和口播博主切自己**」。[多源]
-3. **选段技术路线要翻案**。二轮判「整场直播全量喂 VLM 不可行」——按 2026-08 价格**正式作废**：视频 token 化价格塌方（低清 1fps ≈ 100 tok/s）+ 1M 上下文，「3 小时直播完整喂给视频模型」成本已降到**每场 ¥0.7～12**（国产 Flash 档不到 1 块钱）。这是本轮唯一「付费买质变」级别的机会，也是纯文本选段管线三大盲区（画面梗/动作爆点/笑声前的画面原因）的正解。[多源，算式见第三节]
+> Concluída em 2026-08-09. Motivo: o usuário concluiu que «o ponto de partida do projeto já saiu torto desde o começo» e pediu uma calibragem completa do projeto pelas características mais recentes dos métodos de corte de 2026 e pelo fluxo real de quem usa, deixando claro que «dá para contratar IA paga de terceiros, desde que o resultado seja bom e a experiência amigável».
+> Quatro frentes em paralelo (① a jornada completa de quem corta em chinês ② o que os concorrentes internacionais lançaram depois de 2026-06 ③ levantamento das IAs pagas de compreensão de vídeo ④ o ofício da viralização e o algoritmo das plataformas), somando cerca de 110 buscas e capturas, com documentação oficial e avaliação de terceiros se cruzando. Onde houver conflito com a segunda rodada ([RESEARCH-2026-08-CLIP-QUALITY.md](./RESEARCH-2026-08-CLIP-QUALITY.md)), **vale este texto**.
+> A marcação de confiança é a mesma: [várias fontes] = duas ou mais fontes independentes se cruzam; [fonte única] = aceitar com cuidado; o que vem do fabricante é anotado à parte.
 
 ---
 
-## 二、用户画像与流程校准（第一路）
+## 1. Diagnóstico geral: o ponto de partida está torto? — a resposta em três frases
 
-### 2.1 全链路 2026 现状
+1. **O posicionamento não está torto, e a tendência do segundo semestre de 2026 o reforça pelo avesso.** O setor se moldou apertado nas duas pontas: em cima, o Smart Split do TikTok (grátis + nativo da plataforma + apoiado no Vidi2 aberto pela ByteDance) leva embora o usuário leve; embaixo, plataformas de orquestração de agentes como a Mosaic tomam o mercado corporativo (TubeScience e News Corp já compraram); quem fica espremido no meio é o SaaS de cortes por assinatura (a Submagic foi obrigada a se reinventar, e a Captions/Mirage simplesmente saiu para fazer modelo generativo). Os três pés do HotClip — grátis e sem medição (bate de frente com a hostilidade à cobrança do OpusClip, principal motivo dos 22% de uma estrela no Trustpilot), local (bate de frente com a queixa número um da nuvem, «processamento pendurado por horas») e o cenário de live em chinês (que o Smart Split não cobre) — escapam todos da pressão. E a «fadiga de lixo de IA» ganhou dados duros (59% do feed de uma conta nova no TikTok é lixo de IA; 90% dos ouvintes querem conteúdo feito por gente), então a narrativa de «mesa de revisão + controle humano» está com o vento a favor. [várias fontes]
+2. **Mas metade do perfil do público-alvo está errada.** O «cortador avulso de vídeo de venda» está desaparecendo: o aperto no licenciamento, a repressão ao conteúdo de IA e a desintermediação de quem apresenta espremem dos três lados, a renda mensal do avulso é majoritariamente abaixo de mil (entre os 11 mil licenciados de um grande apresentador, a média anual é de só 17 mil), e o dinheiro está se concentrando nos «estúdios que têm o material». A zona doce de verdade é **quem tem o material**: a equipe do próprio apresentador, o comerciante que transmite sozinho, o criador de locução de conteúdo e quem faz cortes de jogo — o licenciamento deles já nasce limpo, e só eles têm razão econômica para pagar por «qualidade do corte» (a disposição do avulso a pagar por qualidade é ≈ 0; o que ele quer é variação em massa que passe na moderação). A narrativa pública deve sair de «ajudar quem corta» para «**ajudar quem apresenta e quem faz locução a cortar a si mesmo**». [várias fontes]
+3. **A escolha técnica na seleção de trechos precisa ser revista.** A segunda rodada julgou que «jogar a live inteira no VLM é inviável» — com os preços de 2026-08 isso está **formalmente revogado**: o preço de tokenizar vídeo despencou (baixa resolução a 1 fps ≈ 100 tok/s) e o contexto chegou a 1M, então «entregar 3 horas de live inteiras ao modelo de vídeo» já custa **de R$ 0,7 a 12 por transmissão** (menos de 1 nas faixas Flash nacionais). É a única oportunidade desta rodada no nível de «pagar e ganhar salto de qualidade», e é a resposta certa para os três pontos cegos do pipeline de escolha só por texto (piada visual, pico de ação e o motivo na imagem por trás da risada). [várias fontes; a conta está na seção 3]
 
-- **授权**：免费是常态、收费即割韭菜（交个朋友 2980 元课被公开质疑后官方澄清「授权本身免费」）；分成「五五」是上限口径，个人经第三方实拿约 30%；蝉选类平台 KPI 严苛（授权后 3 天必须开发、周 ≥10 条、30 天 GMV<500 清退）。[多源]
-- **素材获取**：官方回放下载 + 开源值守录制；事实标准是 DouyinLiveRecorder（40+ 平台开播即录，可录弹幕）。**链路第一步在我们工具之外**。[多源]
-- **剪辑**：人工 47 分钟～1 小时/条；外包行情 30-50 元/条；剪映是绝对底座（AI 字幕/拆条口碑最好，吐槽在功能逐步收费）；OpusClip 中文软肋=字幕需人工校对。[多源]
-- **分发**：瓶颈已从「发得快」转向「**发得不像同一条**」——同素材多号群发被判低质重复（案例：5 号群发一周内播放 10 万+→200 以下；20 矩阵号连坐封禁）。[多源，载体多为风控营销内容，方向与平台规则一致]
-- **变现**：行业未死但「工作室化」；B站激励已砍到约 1 万播放 3-8 元且明确减少直播切片类内容。[多源]
+---
 
-### 2.2 付费意愿排序（交叉证据）
+## 2. Perfil de quem usa e calibragem do fluxo (primeira frente)
 
-**效率（批量/省时）> 分发合规（多账号活着）> 效果（成片质量）**。效果付费的主体不是散户，而是口播博主/商家自播团队（极睿 iCut 面向商家 99-199 元/月、企业客单 4-5 万）。[多源]
+### 2.1 Como está a jornada completa em 2026
 
-### 2.3 分人群匹配度
+- **Licenciamento**: o normal é ser grátis, e cobrar já é golpe (depois de um curso de 2.980 ser publicamente questionado, a empresa esclareceu que «o licenciamento em si é grátis»); a divisão «meio a meio» é o teto do discurso, e a pessoa física, via intermediário, fica com cerca de 30%; as plataformas de licenciamento têm metas duras (publicar em até 3 dias depois de licenciar, pelo menos 10 cortes por semana, e exclusão se o faturamento em 30 dias ficar abaixo de 500). [várias fontes]
+- **Obtenção do material**: download da gravação oficial + gravação automática de código aberto; o padrão de fato é o DouyinLiveRecorder (grava assim que a live começa em mais de 40 plataformas, inclusive os comentários ao vivo). **O primeiro passo da jornada está fora da nossa ferramenta.** [várias fontes]
+- **Edição**: de 47 minutos a 1 hora por corte, feito à mão; o preço de mercado do freelance é de 30 a 50 por corte; o CapCut é a base absoluta (a legenda por IA e o fatiamento têm a melhor reputação, e a reclamação é a cobrança chegando aos poucos nas funções); o ponto fraco do OpusClip em chinês é que a legenda precisa de revisão humana. [várias fontes]
+- **Distribuição**: o gargalo saiu de «publicar rápido» para «**publicar sem parecer o mesmo vídeo**» — postar o mesmo material em várias contas é classificado como repetição de baixa qualidade (caso real: 5 contas postando junto, de mais de 100 mil visualizações para menos de 200 em uma semana; 20 contas de uma rede banidas em conjunto). [várias fontes; o suporte costuma ser conteúdo de marketing sobre controle de risco, mas a direção bate com as regras das plataformas]
+- **Monetização**: o setor não morreu, mas «virou estúdio»; o incentivo de uma das plataformas caiu para algo como 3 a 8 por 10 mil visualizações, e ela diz explicitamente que vai reduzir o conteúdo de cortes de live. [várias fontes]
 
-| 人群 | 与 HotClip 匹配度 | 说明 |
+### 2.2 Ordem da disposição a pagar (provas cruzadas)
+
+**Eficiência (lote e economia de tempo) > conformidade na distribuição (manter várias contas vivas) > resultado (qualidade do corte).** Quem paga por resultado não é o avulso, e sim o criador de locução e a equipe de transmissão do comerciante (uma ferramenta voltada a lojistas cobra de 99 a 199 por mês, com ticket corporativo de 40 a 50 mil). [várias fontes]
+
+### 2.3 Encaixe por grupo
+
+| Grupo | Encaixe com o HotClip | Observação |
 |---|---|---|
-| 知识口播博主自剪 | **最高** | 词级字幕/文稿选段/审阅台正中靶心；付费点是省时 |
-| 主播团队/商家自播（切自己） | 高 | 无授权问题、有质量付费意愿、素材天然在手 |
-| 游戏切片创作者 | 内容形态高、变现空间萎缩 | 梗文化是 AI 盲区（见第六节） |
-| 带货切片散户 | 偏了一半 | 要量产变体过审，不要单条精品；且人群在消失 |
-| 娱乐综艺二创 | 低 | 版权高压区（10-100 万索赔案例） |
+| Criador de locução de conteúdo editando a si mesmo | **o maior** | legenda por palavra, escolha pelo texto e mesa de revisão acertam no centro do alvo; o que ele paga é o tempo economizado |
+| Equipe do apresentador / comerciante que transmite (cortando a si mesmo) | alto | sem problema de licença, com disposição a pagar por qualidade, e o material já está na mão |
+| Criador de cortes de jogo | formato do conteúdo é ótimo, mas a monetização encolheu | a cultura da piada interna é ponto cego da IA (ver seção 6) |
+| Cortador avulso de vídeo de venda | metade errada | ele quer variação em massa que passe na moderação, não uma peça caprichada; e o grupo está sumindo |
+| Recriação de entretenimento e programas de TV | baixo | zona de alta pressão de direitos autorais (casos de indenização de 100 mil a 1 milhão) |
 
 ---
 
-## 三、翻案：整场视频喂 video-native 模型（第三路）
+## 3. Revisão: entregar o vídeo inteiro a um modelo nativo de vídeo (terceira frente)
 
-### 3.1 成本测算（3 小时直播，2026-08-09 官方牌价，1 USD≈¥7.2）
+### 3.1 Conta do custo (3 horas de live, preço oficial de 2026-08-09, 1 USD ≈ R$ 5,4)
 
-Gemini 视频 token 化：低清 66 tok/帧@1fps + 32 tok/s 音频 ≈ **100 tok/s**；1M 上下文=低清 3 小时。3h ≈ 1.08M tokens：
+Tokenização de vídeo do Gemini: 66 tokens por quadro em baixa resolução a 1 fps + 32 tokens/s de áudio ≈ **100 tok/s**; contexto de 1M = 3 horas em baixa resolução. 3 h ≈ 1,08M tokens:
 
-| 方案 | 每场成本 | 备注 |
+| Opção | Custo por transmissão | Observação |
 |---|---|---|
-| qwen3-vl-flash（百炼/302.ai） | **¥0.3-0.7** | 国内价 $0.022/M 起；单请求 ≤1h 需切 3 段 |
-| GLM-4.6V（智谱） | ≈¥1.3 | 128K 上下文切 ~9 段；**4.6V-Flash 免费**可当零成本云端档试水 |
-| doubao-seed-1.6/1.8（火山） | ≈¥1.6 | 1.8 官方主打「低帧率超长视频理解」，与直播切片完全对口 |
-| MiniMax M3 | ≈¥2.3 | 1M 上下文+原生视频输入且**开源**（唯一可能兼得本地跑的候选，算力门槛高） |
-| Gemini 3.5 Flash-Lite | $0.32（Batch $0.16） | 国际档试探下限 |
-| Gemini 3.5 Flash | $1.62（Batch $0.81） | 国际档质量安全垫 |
-| Gemini 3.1 Pro（分段绕 >200K 双倍价档） | $2.16 | 只留给难场次仲裁 |
-| TwelveLabs Pegasus | $9-12 | **不接**：贵 6-10 倍、无国内付款、中文直播无公开证据 |
+| qwen3-vl-flash (Bailian / 302.ai) | **R$ 0,3 a 0,7** | preço nacional a partir de US$ 0,022/M; a requisição única aceita no máximo 1 h, então precisa de 3 partes |
+| GLM-4.6V (Zhipu) | ≈ R$ 1,3 | contexto de 128K, cerca de 9 partes; o **4.6V-Flash é grátis** e serve de faixa de nuvem sem custo para experimentar |
+| doubao-seed-1.6/1.8 (Volcano) | ≈ R$ 1,6 | o 1.8 é oficialmente vendido como «compreensão de vídeo muito longo em baixa taxa de quadros», encaixe perfeito com corte de live |
+| MiniMax M3 | ≈ R$ 2,3 | contexto de 1M + entrada de vídeo nativa e **código aberto** (o único candidato que também poderia rodar local, mas a exigência de computação é alta) |
+| Gemini 3.5 Flash-Lite | US$ 0,32 (em lote, US$ 0,16) | sondar o piso na faixa internacional |
+| Gemini 3.5 Flash | US$ 1,62 (em lote, US$ 0,81) | colchão de qualidade na faixa internacional |
+| Gemini 3.1 Pro (fatiado para escapar da faixa dobrada acima de 200K) | US$ 2,16 | reservado para arbitrar as transmissões difíceis |
+| TwelveLabs Pegasus | US$ 9 a 12 | **não entra**: de 6 a 10 vezes mais caro, sem pagamento nacional e sem prova pública em live em chinês |
 
-再压一档：0.5fps + 低清（保留音频轨——笑声/语气是关键信号）→ 65 tok/s，成本再打 ~65 折。
+Dá para apertar mais uma faixa: 0,5 fps + baixa resolução (preservando a trilha de áudio, porque risada e tom de voz são sinais essenciais) → 65 tok/s, e o custo cai para cerca de 65%.
 
-### 3.2 推荐工程形态：分段喂
+### 3.2 Forma de engenharia recomendada: alimentar por partes
 
-ffmpeg 切 10 分钟段（已有能力）× 18 段 → Files API/各家上传并行请求（每段带前情提要 prompt）→ 文本汇总层融合排序（复用现有选段汇总）。收益：①绕开高价档②并行等于单段延迟③时间戳漂移从小时级降到 10 分钟内④单段可重试。
+O ffmpeg corta em partes de 10 minutos (capacidade que já temos) × 18 partes → upload pela Files API ou pela via de cada fornecedor, com requisições em paralelo (cada parte leva no prompt o resumo do que veio antes) → a camada de texto funde e ordena (reaproveitando o resumo de seleção que já existe). Ganhos: ① escapa da faixa cara ② o paralelo faz a latência ser a de uma parte só ③ o desvio de marca de tempo cai da escala de horas para menos de 10 minutos ④ dá para repetir uma parte isolada.
 
-### 3.3 效果证据水位（诚实评估）
+### 3.3 Nível de prova do resultado (avaliação honesta)
 
-- 支持：Video-MME-v2 显示 Gemini-3-Pro 在长视频时序/跨段推理/画面+音频融合显著领先（恰是爆点选段核心能力）；工具评测证实视频原生模型能抓「转写稿看不出的高光」，纯文本打分在软性口播漏钩子。[多源]
-- 泼冷水：动作细粒度/物理推理 SOTA 仍 <30 分（快速游戏操作类爆点未必抓得准）；**没有任何「原生视频 vs 转写稿选段」的严格公开 A/B**。[多源]
-- **判断**：证据支持「上线做 A/B」，不支持「推倒重来」。正确姿势：全场视频分析作为**第九路信号**并入现有融合层（八路启发式+文本 LLM 是免费档底盘，不删）；付费档让它**吸收 VLM 九宫格复核**（选段与复核一步完成，省一轮调用）。HotClip 手里还有弹幕这路模型没有的信号——「视频模型+弹幕+转写稿同 context」可能比任何单一方案都强。
+- A favor: o Video-MME-v2 mostra o Gemini-3-Pro bem à frente em ordem temporal em vídeo longo, raciocínio entre partes e fusão de imagem com áudio (exatamente as capacidades centrais de escolher o pico); as avaliações de ferramentas confirmam que um modelo nativo de vídeo pega «o destaque que a transcrição não mostra», e que a pontuação só por texto perde o gancho em locução mais suave. [várias fontes]
+- Água fria: o estado da arte em granularidade de ação e raciocínio físico ainda fica abaixo de 30 pontos (o pico de uma jogada rápida pode não ser pego direito); e **não existe nenhum A/B público rigoroso de «vídeo nativo contra escolha por transcrição»**. [várias fontes]
+- **Veredito**: a prova sustenta «colocar no ar e fazer A/B», não «derrubar e recomeçar». A postura certa é a análise do vídeo inteiro entrar como **nona trilha de sinal** na camada de fusão que já existe (as oito trilhas heurísticas + o LLM de texto são a base da faixa grátis, e não saem); na faixa paga, deixar que ela **absorva a revisão em folha de nove quadros do VLM** (escolha e revisão em um passo só, economizando uma rodada de chamada). O HotClip ainda tem nas mãos os comentários ao vivo, um sinal que os modelos não têm — «modelo de vídeo + comentários ao vivo + transcrição no mesmo contexto» pode ser melhor que qualquer opção isolada.
 
-### 3.4 其他付费杠杆（按性价比）
+### 3.4 Outras alavancas pagas (por custo-benefício)
 
-- **封面**：Nano Banana Pro（Gemini 3 Pro Image）$0.134/张、**文字渲染业界最强**——「中文大字糊脸」封面主场；Seedream 5.0 Lite $0.032/张走量。双档策略。[官方牌价]
-- **版权安全 BGM**：ElevenLabs Music $0.30/分钟（训练数据全 licensed，法律风险最低）；切片 BGM ≤1 分钟即每条 ¥1-2，直接消除投稿下架风险。[三方转述]
-- **云 ASR 可选档**：火山 Seed-ASR 2.0 **¥0.8/小时**，买说话人分离+方言鲁棒——对 v0.12 文稿选段/按说话人筛选是直接补强；是渐进提升不是质变，默认档保持本地 SenseVoice。[官方牌价]
-- **聚合平台**：国内默认 302.ai（人民币、官方对齐价、覆盖 qwen3-vl/豆包/Gemini）；OpenRouter 的统一 video_url 接口适合国际档路由（5.5% 充值费摊入成本）；Atlas 挂牌是促销口径留余量。
-- **不值得**：GPT-5.x 做视频选段（无原生视频 API，自建抽帧=重复现有 VLM 复核）；Qwen-Omni 音频档（比 ASR→文本贵 10 倍+）；第三方运镜 SaaS（本地人脸检测+固定构图已覆盖 90% 场景）。
+- **Capa**: Nano Banana Pro (Gemini 3 Pro Image) a US$ 0,134 por imagem, **a melhor renderização de texto do mercado** — é a casa da capa de «letra grande cobrindo o rosto»; o Seedream 5.0 Lite a US$ 0,032 por imagem faz volume. Estratégia de duas faixas. [preço oficial]
+- **Trilha segura em direitos**: ElevenLabs Music a US$ 0,30 por minuto (todos os dados de treino licenciados, risco jurídico mínimo); como a trilha de um corte tem no máximo 1 minuto, dá de R$ 1 a 2 por corte e elimina de vez o risco de o vídeo ser tirado do ar. [relato de terceiros]
+- **Faixa opcional de ASR na nuvem**: Seed-ASR 2.0 da Volcano a **R$ 0,8 por hora**, comprando separação de quem fala + robustez a sotaque — reforço direto para a escolha pelo texto e o filtro por locutor da v0.12; é melhoria gradual, não salto, então a faixa padrão continua o SenseVoice local. [preço oficial]
+- **Plataformas agregadoras**: no mercado nacional, 302.ai por padrão (em moeda local, preço alinhado ao oficial, cobrindo qwen3-vl, Doubao e Gemini); a interface unificada de video_url do OpenRouter serve para rotear a faixa internacional (a taxa de 5,5% na recarga entra no custo); o preço de tabela do Atlas é promocional, então fica com folga.
+- **Não vale a pena**: GPT-5.x para escolher trechos (não tem API nativa de vídeo, e extrair quadros por conta própria é repetir a revisão por VLM que já existe); a faixa de áudio do Qwen-Omni (mais de 10 vezes o custo de ASR → texto); SaaS de movimento de câmera de terceiros (a detecção de rosto local + a composição fixa já cobrem 90% dos casos).
 
-### 3.5 默认云端档组合与单条成本（一场 3h 出 10 条计）
+### 3.5 Combinação padrão na nuvem e custo por corte (uma transmissão de 3 h rendendo 10 cortes)
 
-- **国内档**：qwen3-vl-flash 或 doubao-seed-1.6 全场分段（¥0.7-1.6）+ Seed-ASR（¥2.4）+ Seedream 封面（¥2.3/10 张）≈ **每场 ¥5.4-6.3，单条 ¥0.54-0.63**
-- **国际档**：Gemini 3.5 Flash 全场（$1.05-1.62）+ 本地 ASR + Seedream 封面 ≈ **每场 $1.5-2.1**
-- UI 铁律不变：明示单条成本估算；本地免费档全链路可跑。
-
----
-
-## 四、竞品格局 2026-08（第二路）
-
-- **OpusClip**：7 月十连发后消化期；增量=Contextual Prompting（自然语言指定要什么+**排除主题**）、ClipAnything 支持 URL 直切；MCP 27 工具、按渲染分钟计量。口碑未好转（处理挂起/积分敌意/退订难）。[多源]
-- **Reap**：最激进 agent 化，$9.99/月全开 API+CLI+MCP；prompt clipping（一句话出 trailer/主题切片）；开创「outcome-tagged 数据集反哺选段」的卖法（自称 1/5 达标，自测口径）。[多源]
-- **Descript**：NAB 2026 发 API+agentic automation，「录音落 S3→自动出切片→打开电脑成品已就绪」的无人值守 pipeline 产品化。[多源]
-- **新物种**：Mosaic（YC W25，节点画布 agent 工作流+同素材多变体 A/B，$3.8M 种子轮，B 端已采购）；ByteDance **Vidi2**（2025-12 开源 12B，时空定位+叙事脚本+完整 timeline，撑起 TikTok 免费 Smart Split）。[多源]
-- **MCP 已从卖点变清单项**（一年内人手一个）；「免费+本地+隐私」的 agent 剪辑入口目前是**市场空位**。[多源]
-- 缺口核对（已 grep 代码）：Bad Takes 清理**我们已有**（retakes.ts 已接导出，竞品报告误判）；真缺口=①prompt 选段/排除主题②本地 MCP server③首帧文字 hook 模板④无人值守 watch folder。
-
-## 五、平台算法与合规硬约束 2026 H2（第四路）
-
-- **抖音**：收藏率权重据称 >40%，慢推流 7 天长效评估（第 4-7 天补收藏引导有真实价值）；「有用性/回搜」入模；账号标签精准化。[多源，具体阈值单源]
-- **视频号**：DAU 5.5 亿+，业内判断 2026H2-2027H1 是切片带货窗口期；规则年变 2-3 次→**平台参数做成可配置不硬编码**。[单源体系]
-- **快手**：2026-07「老铁私域」转「全域兴趣」，内容标签精准度取代粉丝量。[单源体系]
-- **Reels**：**视觉指纹检测「保留源视听元素 ≥70%」判搬运**；30 天 10 条转载→整号移出推荐——切片的「变形量」是硬性生存指标不只是美学。[多源]
-- **YouTube Shorts**：排名信号转 watch time per impression；「Inauthentic Content」扩容打量产模板/回收切片（1 月清 47 亿播放）；带 TikTok 水印立即降权；合成内容标签只是透明度信号**不是降权标记**。[多源]
-- **TikTok**：Duet/Stitch 不符合创作者奖励资格——切片必须「原创上传+实质加工」；搜索价值计入 RPM。[多源]
-- **合规**：2026-07 网信办短视频标注新规「AI 内容/搬运剪辑/商业推广必须标注，违规三次封号」；小红书真人内容 ≥50% 才给推荐。**「藏 AI」是错误策略，「标 AI+显性人工价值」才是**——AI 标注开关是刚需功能不是锦上添花。[多源]
-
-## 六、成片工艺残余差距 Top 5（第四路，按对爆款率影响排序）
-
-1. **舍弃判断/质量门**：AI 出片 30-45% 是废片（不完整思想/弱钩子/烂结尾），多说话人场景命中仅 4/10；职业流程实际 71 分钟/集审片。2026 发废片代价是账号级的（Shorts 留存阈值压全频道）。→ 三层方案：规则（句边界完整性：开头不悬空「所以/但是」、结尾落完整句+情绪落点；说话人重叠超阈值降权）+ LLM 零上下文可懂性二审（「不看直播能懂吗、结尾像结尾吗」→建议发/需人审/弃三档）+ 审阅台一屏快审（把 71 分钟压到 10 分钟）。[多源]
-2. **收藏/回搜导向的价值设计**：选段目标函数还是「精彩度」，但第一权重已是「有用/可收藏/可搜索」→ 新增「实用密度」信号（步骤/清单/数字/金句命中加分）、命中时封面标题切搜索词句式、导出附建议搜索关键词。
-3. **原创化变形深度（反指纹）**：现有能力（竖屏重排/字幕层/autozoom/flash-forward/SFX）已覆盖大半，缺的是汇总成**变形度评分**给用户看（低于阈值黄牌「此片有搬运判定风险」）+ 账号内模板受控微扰（同号不同片字幕位置/色板/SFX 组合不重样——量产指纹是同质化）。
-4. **社群语境/玩梗层**：赛事梗/主播黑话决定分享率（DM 分享=TikTok 3 倍权重、Reels 第一信号）。工具只定位「哪里可玩梗」（情绪峰值/反差/弹幕爆点标记+插入槽位）+用户自维护梗素材库，玩什么留给人。
-5. **AI 味抑制**：静音删除**保留呼吸口/笑前吸气**（79% 听众对无呼吸克隆音潜意识不信任）；字幕音素级同步（漂移是拼装感第一暴露点）；导出面板 AI 标注开关按平台生成合规文案。
-
-其他修正与新知：英文播客切片 45-90s（「20-40s 最优」不适用该品类，按品类分档）；**每集 3-5 条上限**防算法自我蚕食（单场限产提示的依据）；「主播口令打点」（voice-activated clipping，回放里检测「这段剪下来」类口令）是 2026 新趋势、极强选段信号；带货三段式公式=痛点→演示→价格（本质是多片段拼接，与 pieces 机制天然契合，可做成叙事模板）；字幕风格需「档位」而非单一最优（brainrot 高密度 vs 反潮流极简并存）。
-新论文/仓库：Lighthouse（LINE，MR+HD 统一库，基线对比首选）、BEAT（音乐节拍驱动剪辑点）、KLive（快手 1.9 万小时直播三模态数据集，评论+ASR 联合预测高光最大公开参照）、montage-ai（OTIO/EDL 交接 NLE 的参考实现）。
-
-## 七、明确不做（三轮增补）
-
-沿用二轮不做清单（AI B-roll/绝对分/去重混剪/绿幕伪在场），新增：
-- **自建多平台群发/矩阵账号管理**：红海（688 元/年价格战）+灰色（连坐封号）+与开源本地工具维护模式冲突。输出标准发布包对接现有工具即可。
-- **像素级伪原创**：做「表达层变体」而非「规避检测」，配合 AIGC 标注而不是对抗平台。
-- **卷电影级调色/特效**：质量投入止于「字幕准、切点顺、开场炸、能过审」。
-- **授权撮合平台**：蝉选/众小二已占位且法务重。
-- **TwelveLabs / GPT-5.x 视频选段 / Qwen-Omni 音频档 / 第三方运镜 SaaS**（理由见 3.4）。
-
-## 八、修订路线图
-
-见 [PRODUCT-PLAN.md](./PRODUCT-PLAN.md) 第九节（与第八节冲突处以第九节为准）。
+- **Faixa nacional**: qwen3-vl-flash ou doubao-seed-1.6 na transmissão inteira em partes (R$ 0,7 a 1,6) + Seed-ASR (R$ 2,4) + capa Seedream (R$ 2,3 por 10 imagens) ≈ **R$ 5,4 a 6,3 por transmissão, R$ 0,54 a 0,63 por corte**
+- **Faixa internacional**: Gemini 3.5 Flash na transmissão inteira (US$ 1,05 a 1,62) + ASR local + capa Seedream ≈ **US$ 1,5 a 2,1 por transmissão**
+- A regra de ferro da interface não muda: mostrar a estimativa de custo por corte, e a faixa local e grátis roda a cadeia inteira.
 
 ---
 
-*四份 agent 原始报告全文（含全部来源 URL）产出于 2026-08-09 会话；关键来源：Gemini 官方定价与视频文档、百炼/火山/智谱官方牌价、302.ai/OpenRouter 挂牌、Video-MME-v2(arXiv 2604.05015)、BIGVU/Choppity OpusClip 实测、Reap 基准报告（自测口径）、a16z「agentic video editing」、Mosaic 种子轮、TikTok Smart Split 官方新闻、Vidi2 GitHub/论文、Forbes clipping economy、meikuio TikTok 算法 2026、OutlierKit YouTube 2026、SyncStudio Reels 2026、河馬創作 AI 合规、21 经济网/澎湃/界面切片行业报道、萌娘百科赛事梗、Kapwing AI slop 测算。*
+## 4. Cenário competitivo em 2026-08 (segunda frente)
+
+- **OpusClip**: em digestão depois dos dez lançamentos de julho; o que veio de novo foi o Contextual Prompting (dizer em linguagem natural o que se quer e **excluir temas**) e o ClipAnything cortando direto de uma URL; 27 ferramentas de MCP, medido por minuto renderizado. A reputação não melhorou (processamento pendurado, hostilidade aos créditos, dificuldade de cancelar). [várias fontes]
+- **Reap**: a mais radical na virada para agentes, US$ 9,99 por mês com API, CLI e MCP liberados; prompt clipping (uma frase e sai o trailer ou o corte temático); inventou a venda do «conjunto de dados rotulado por resultado realimentando a escolha» (diz que 1 em 5 atinge a meta, medição própria). [várias fontes]
+- **Descript**: na NAB 2026 lançou API + automação por agentes, transformando em produto o pipeline sem supervisão de «a gravação cai no S3 → o corte sai sozinho → você abre o computador e o material está pronto». [várias fontes]
+- **Espécies novas**: Mosaic (YC W25, fluxo de agentes em tela de nós + várias variantes do mesmo material em A/B, US$ 3,8 milhões de investimento-semente, já vendendo para empresas); ByteDance **Vidi2** (12B aberto em 2025-12, localização espaço-temporal + roteiro narrativo + linha do tempo completa, sustentando o Smart Split grátis do TikTok). [várias fontes]
+- **O MCP deixou de ser argumento e virou item de lista** (em um ano, todo mundo tem um); o ponto de entrada de edição por agente que seja «grátis + local + privado» hoje é **uma vaga vazia no mercado**. [várias fontes]
+- Conferência das lacunas (já com grep no código): a limpeza das tomadas ruins **nós já temos** (o retakes.ts já está ligado à exportação, e o relatório sobre concorrentes errou aí); as lacunas reais são ① escolha por prompt e exclusão de temas ② servidor MCP local ③ modelo de gancho em texto no primeiro quadro ④ pasta monitorada sem supervisão.
+
+## 5. Algoritmo das plataformas e restrições duras de conformidade no segundo semestre de 2026 (quarta frente)
+
+- **Plataforma de vídeo curto principal**: dizem que o peso da taxa de itens salvos passa de 40%, com avaliação de longo prazo do alcance lento em 7 dias (reforçar o convite a salvar entre o 4º e o 7º dia tem valor real); «utilidade e retorno pela busca» entraram no modelo; o rótulo da conta ficou mais preciso. [várias fontes; o limiar exato é de fonte única]
+- **Canal de vídeo de mensageiro**: mais de 550 milhões de usuários diários, e o setor avalia que a janela para vender por cortes vai do segundo semestre de 2026 ao primeiro de 2027; as regras mudam de 2 a 3 vezes por ano → **os parâmetros de plataforma vão como configuração, nunca fixos no código**. [sistema de fonte única]
+- **Outra plataforma de vídeo curto**: em 2026-07 saiu do «círculo próximo» para o «interesse amplo», e a precisão do rótulo do conteúdo substituiu o número de seguidores. [sistema de fonte única]
+- **Reels**: **a detecção por impressão digital visual classifica como reaproveitamento quando «70% ou mais dos elementos audiovisuais da origem são preservados»**; 10 repostagens em 30 dias tiram a conta inteira da recomendação — ou seja, «quanto o corte foi transformado» é um indicador duro de sobrevivência, não só estética. [várias fontes]
+- **YouTube Shorts**: o sinal de ranqueamento virou tempo assistido por impressão; a política de «conteúdo inautêntico» se ampliou e atinge modelo produzido em massa e corte reciclado (em janeiro foram limpos 4,7 bilhões de visualizações); marca-d'água de TikTok derruba o alcance na hora; o rótulo de conteúdo sintético é só um sinal de transparência, **não uma marca de punição**. [várias fontes]
+- **TikTok**: Duet e Stitch não contam para o programa de recompensa — o corte precisa ser «upload original + trabalho de substância»; o valor de busca entra no cálculo de receita por mil. [várias fontes]
+- **Conformidade**: em 2026-07 saiu a nova norma de rotulagem em vídeo curto, «conteúdo de IA, edição de material reaproveitado e divulgação comercial precisam de rótulo, e três infrações banem a conta»; uma das redes só recomenda quando pelo menos 50% do conteúdo é de gente real. **«Esconder a IA» é estratégia errada; o certo é «rotular a IA + mostrar o valor humano»** — a chave de rotulagem de IA é função obrigatória, não enfeite. [várias fontes]
+
+## 6. As 5 maiores lacunas restantes no ofício do corte final (quarta frente, em ordem de impacto na taxa de viralização)
+
+1. **Julgar o que descartar / portão de qualidade**: de 30 a 45% do que a IA entrega é refugo (pensamento incompleto, gancho fraco, final ruim), e em cena com vários locutores o acerto é de só 4 em 10; o fluxo profissional gasta de fato 71 minutos por episódio revisando. Em 2026, publicar refugo custa no nível da conta (o limiar de retenção do Shorts pune o canal inteiro). → Solução em três camadas: regras (integridade da borda da frase: a abertura não pode ficar solta em «então» ou «mas», o fim tem de fechar a frase com um ponto emocional; sobreposição de locutores acima do limiar perde peso) + segunda leitura de compreensibilidade sem contexto por LLM («dá para entender sem ter visto a live? o final parece um final?» → recomendar publicar / precisa de olho humano / descartar) + revisão rápida em uma tela na mesa de revisão (espremendo os 71 minutos para 10). [várias fontes]
+2. **Desenho de valor orientado a salvar e a voltar pela busca**: a função-objetivo da escolha ainda é «o quanto é bom», mas o primeiro peso já é «útil / salvável / buscável» → entra um sinal de «densidade prática» (passo a passo, lista, número e frase de efeito somam pontos), o título da capa vira formato de termo de busca quando o sinal aparece, e a exportação acompanha uma sugestão de palavras-chave de busca.
+3. **Profundidade da transformação para originalidade (anti-impressão digital)**: o que já temos (recomposição vertical, camada de legenda, zoom automático, flash-forward, efeitos sonoros) cobre boa parte; falta consolidar tudo em uma **nota de transformação** visível para quem usa (cartão amarelo abaixo do limiar: «este corte corre risco de ser classificado como reaproveitamento») + perturbação controlada do modelo dentro da conta (posição da legenda, paleta e combinação de efeitos diferentes entre os cortes da mesma conta — a impressão digital da produção em massa é a homogeneidade).
+4. **Camada de contexto de comunidade e de piada interna**: a piada da partida e o jargão de quem apresenta decidem a taxa de compartilhamento (compartilhar por mensagem privada vale 3 vezes mais no TikTok e é o primeiro sinal no Reels). A ferramenta só localiza «onde dá para brincar» (marcando o pico de emoção, o contraste e o pico dos comentários ao vivo + uma vaga para inserir) e mantém uma biblioteca de piadas cuidada pela pessoa; o que brincar fica com ela.
+5. **Conter o «cheiro de IA»**: a remoção de silêncio **preserva a respiração e a inspirada antes da risada** (79% dos ouvintes desconfiam inconscientemente de uma voz clonada sem respiração); sincronia da legenda no nível do fonema (o desvio é o que mais denuncia montagem); e o painel de exportação, com a chave de rotulagem de IA, gera o texto de conformidade conforme a plataforma.
+
+Outras correções e aprendizados: corte de podcast em inglês vai de 45 a 90 s («20 a 40 s é o ideal» não vale para essa categoria, então a faixa é por categoria); **teto de 3 a 5 cortes por episódio** para o algoritmo não se canibalizar (é a razão do aviso de limite de produção por transmissão); «comando falado por quem apresenta» (clipping ativado por voz, detectando na gravação frases do tipo «corta esse trecho aqui») é tendência nova de 2026 e um sinal fortíssimo de seleção; a fórmula de três etapas da venda é dor → demonstração → preço (na essência é a junção de vários trechos, que combina naturalmente com o mecanismo de pieces e dá para virar um modelo narrativo); o estilo de legenda precisa de «faixas», não de um único ótimo (a alta densidade convive com o minimalismo na contramão).
+Artigos e repositórios novos: Lighthouse (LINE, biblioteca unificada de MR + HD, primeira escolha para comparar com a linha de base), BEAT (ponto de corte guiado pela batida da música), KLive (conjunto de dados de três modalidades com 19 mil horas de live de uma plataforma chinesa, a maior referência pública de previsão de destaque juntando comentário e ASR) e montage-ai (implementação de referência de entrega para NLE via OTIO/EDL).
+
+## 7. O que claramente não vamos fazer (acréscimo da terceira rodada)
+
+Vale a lista da segunda rodada (B-roll de IA, nota absoluta, mixagem para fugir de duplicata, fundo verde fingindo presença), e acrescentamos:
+
+- **Construir nosso próprio disparo para várias plataformas / administração de rede de contas**: mercado saturado (guerra de preço a 688 por ano) + zona cinza (banimento em conjunto) + conflito com o modelo de manutenção de uma ferramenta local e aberta. Basta entregar um pacote de publicação padrão que converse com as ferramentas que já existem.
+- **Falsa originalidade no nível do pixel**: fazemos «variação na camada da expressão», não «fuga da detecção», acompanhando a rotulagem de IA em vez de brigar com a plataforma.
+- **Entrar na disputa de correção de cor e efeitos de cinema**: o investimento em qualidade para em «legenda certa, corte fluido, abertura explosiva e aprovação na moderação».
+- **Plataforma de intermediação de licenças**: já ocupada e pesada no jurídico.
+- **TwelveLabs / GPT-5.x para escolher trechos / faixa de áudio do Qwen-Omni / SaaS de movimento de câmera de terceiros** (os motivos estão em 3.4).
+
+## 8. Roteiro revisado
+
+Ver a seção 9 do [PRODUCT-PLAN.md](./PRODUCT-PLAN.md) (onde houver conflito com a seção 8, vale a seção 9).
+
+---
+
+*Os quatro relatórios originais dos agentes (com todas as URLs das fontes) saíram da sessão de 2026-08-09; fontes principais: os preços oficiais e a documentação de vídeo do Gemini, as tabelas oficiais de Bailian, Volcano e Zhipu, os preços de tabela de 302.ai e OpenRouter, o Video-MME-v2 (arXiv 2604.05015), os testes do OpusClip pela BIGVU e pela Choppity, o relatório de referência da Reap (medição própria), o texto «agentic video editing» da a16z, o investimento-semente da Mosaic, o anúncio oficial do TikTok Smart Split, o GitHub e o artigo do Vidi2, a reportagem da Forbes sobre a economia dos cortes, as análises de algoritmo de TikTok, YouTube e Reels para 2026, os materiais sobre conformidade de IA, as reportagens da imprensa econômica sobre o setor de cortes, as enciclopédias colaborativas de piadas de e-sports e o cálculo de lixo de IA da Kapwing.*
