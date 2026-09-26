@@ -1,0 +1,17 @@
+# O que nunca deve entrar na imagem: o que é gerado, o que é da máquina de quem builda,
+# e o que só serve para o aplicativo de desktop.
+.git
+.github
+node_modules
+out
+dist
+release
+docs
+*.md
+!README.md
+.vscode
+.idea
+coverage
+quality-fixtures
+resources/caption-templates
+screenshots

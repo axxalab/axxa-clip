@@ -81,7 +81,7 @@ Cortes, cortes secos, vídeos de onda sonora, compilados e legendas renderizadas
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/01-import.png" alt="Importar um vídeo longo"><br/><sub>① <b>Importe</b> um podcast, uma gravação de live ou uma aula — tudo é processado localmente e nada é enviado para a internet</sub></td>
-    <td width="50%"><img src="docs/screenshots/02-engines.png" alt="Escolher o motor de transcrição"><br/><sub>② <b>Escolha o motor de transcrição</b> — a origem fica ancorada na bancada; três níveis locais (SenseVoice / Paraformer / FireRedASR2) mais um nível opcional na nuvem</sub></td>
+    <td width="50%"><img src="docs/screenshots/02-engines.png" alt="Escolher o motor de transcrição"><br/><sub>② <b>Escolha o motor de transcrição</b> — a origem fica ancorada na bancada; seis níveis locais (Parakeet TDT v3 para português, Whisper large-v3 e turbo para 99 idiomas, SenseVoice / Paraformer / FireRedASR2) mais um nível opcional na nuvem</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/03-transcript.png" alt="Transcrição com marcação por palavra"><br/><sub>③ <b>Aba de transcrição</b> — com marcação de tempo, corrigível no clique, e clicar num horário salta a prévia; é a base dos destaques e das legendas</sub></td>
@@ -289,6 +289,8 @@ Modo automático de um clique + pasta monitorada 24 horas por dia + CLI sem inte
   pnpm cli feedback-report                     # mostra os padrões de alto e baixo desempenho aprendidos
   pnpm cli doctor --download                   # autodiagnóstico do ambiente + download prévio dos modelos
   ```
+
+- **Contêiner para o caminho sem interface**: a CLI e o MCP rodam em Docker, com o LLM local junto se você quiser a esteira inteira sem nuvem — `docker compose run --rm hotclip clip /media/live.mp4 --vertical --out /out`. A janela do aplicativo continua sendo o desktop; o contêiner é para fila, automação e agente. Ver o [guia de Docker](docs/docker.md)
 
 - **Servidor MCP local** (para registrar no Claude Code ou no Claude Desktop) — três ferramentas: `clip_video`, `detect_highlights` e `transcribe_video`:
 

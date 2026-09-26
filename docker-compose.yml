@@ -1,0 +1,56 @@
+# Duas formas de usar:
+#
+#   docker compose run --rm hotclip clip /media/live.mp4 --max-clips 5 --vertical --out /out
+#   docker compose --profile local-llm up -d ollama   # sobe o LLM na sua máquina, sem nuvem
+#
+# O serviço mcp é separado porque o MCP fala por stdin/stdout: ele é chamado pelo cliente
+# (Claude Desktop e afins) com `docker compose run --rm -T mcp`, não com `up`.
+services:
+  hotclip:
+    build: .
+    image: hotclip:local
+    volumes:
+      # Os modelos e os caches. É o volume que importa: sem ele, cada contêiner rebaixa ~500MB.
+      - hotclip-data:/data
+      # O material de entrada; :ro porque o HotClip nunca escreve no arquivo de origem.
+      - ./media:/media:ro
+      - ./out:/out
+    environment:
+      # Um endpoint compatível com a OpenAI. Com o perfil local-llm abaixo, é o ollama daqui.
+      HOTCLIP_LLM_BASE_URL: ${HOTCLIP_LLM_BASE_URL:-http://ollama:11434/v1}
+      HOTCLIP_LLM_MODEL: ${HOTCLIP_LLM_MODEL:-qwen3:8b}
+      HOTCLIP_LLM_API_KEY: ${HOTCLIP_LLM_API_KEY:-ollama}
+      # GPU: no Linux o onnxruntime do npm só tem CPU, então isto fica em branco de propósito.
+      # (No Windows, fora do contêiner, HOTCLIP_ONNX_PROVIDER=dml acelera rosto/emoção/planos.)
+      HOTCLIP_ONNX_PROVIDER: ${HOTCLIP_ONNX_PROVIDER:-}
+    # Descomente para a saída em /out nascer com o seu usuário, e não como root:
+    # user: "${UID:-1000}:${GID:-1000}"
+
+  mcp:
+    build: .
+    image: hotclip:local
+    entrypoint: ["./node_modules/.bin/tsx", "src/mcp/server.ts"]
+    stdin_open: true
+    volumes:
+      - hotclip-data:/data
+      - ./media:/media:ro
+      - ./out:/out
+    environment:
+      HOTCLIP_LLM_BASE_URL: ${HOTCLIP_LLM_BASE_URL:-http://ollama:11434/v1}
+      HOTCLIP_LLM_MODEL: ${HOTCLIP_LLM_MODEL:-qwen3:8b}
+      HOTCLIP_LLM_API_KEY: ${HOTCLIP_LLM_API_KEY:-ollama}
+
+  # Opcional: o LLM na sua própria máquina, para a esteira inteira rodar sem nuvem nenhuma.
+  #   docker compose --profile local-llm up -d ollama
+  #   docker compose --profile local-llm exec ollama ollama pull qwen3:8b
+  ollama:
+    profiles: ["local-llm"]
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+
+volumes:
+  hotclip-data:
+  ollama-models:
