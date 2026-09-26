@@ -1,21 +1,22 @@
 /**
- * 时间线 EDL 导出(CMX3600):把 AI 选出的切点——含跳剪在片内的每一段
- * 保留区间——写成剪辑软件通用的 EDL 时间线,DaVinci Resolve / Premiere /
- * Final Cut 里重链源片就能继续精修。"AI 粗剪 → 人精修"的工作流桥梁:
- * 切点是机器找的,最后一刀永远可以是人的。
+ * Exportação de EDL de linha de tempo (CMX3600): os pontos de corte escolhidos pela IA — inclusive cada
+ * intervalo preservado do corte seco dentro do trecho — são escritos como uma linha de tempo EDL, o formato
+ * comum dos editores, e no DaVinci Resolve, no Premiere ou no Final Cut basta relinkar o vídeo de origem
+ * para seguir com o acabamento. É a ponte do fluxo «corte bruto da IA → acabamento humano»: os pontos de
+ * corte são da máquina, e o último corte pode sempre ser de uma pessoa.
  *
- * CMX3600 是纯文本、最通用的时间线交换格式;每个保留区间一个 event,
- * record 侧按顺序连续拼接。纯字符串构建,零依赖,可逐字节断言。
+ * O CMX3600 é texto puro e o formato de troca de linha de tempo mais universal; cada intervalo preservado é
+ * um event, e o lado record é colado em sequência. Montado só com strings, sem dependência, e testável byte a byte.
  */
 
 export interface EdlClip {
-  /** 切片标题(注释行,Resolve 会显示为 clip name)。 */
+  /** O título do trecho (numa linha de comentário; o Resolve mostra isso como nome do clipe). */
   title: string;
-  /** 该切片的保留区间(源片绝对秒;跳剪时一条切片有多段)。 */
+  /** Os intervalos preservados deste trecho (em segundos absolutos da origem; no corte seco um trecho tem vários). */
   segments: Array<{ startSec: number; endSec: number }>;
 }
 
-/** 秒 → SMPTE 非丢帧时间码 HH:MM:SS:FF。 */
+/** Segundos → o código de tempo SMPTE sem descarte de quadro, HH:MM:SS:FF. */
 export function secToTimecode(sec: number, fps: number): string {
   const fpsInt = Math.max(1, Math.round(fps));
   const totalFrames = Math.round(Math.max(0, sec) * fpsInt);
@@ -29,8 +30,9 @@ export function secToTimecode(sec: number, fps: number): string {
 }
 
 /**
- * 组装 CMX3600 EDL。事件按传入顺序排,record 侧从 0 连续累计——
- * 导入后就是"成片顺序"的时间线,每段都反链回源片对应位置。
+ * Monta o EDL CMX3600. Os eventos ficam na ordem em que chegaram, e o lado record acumula de 0 em sequência
+ * — depois de importar, a linha de tempo já está na «ordem do vídeo pronto», e cada pedaço aponta de volta
+ * para a posição correspondente na origem.
  */
 export function buildEdl(opts: { title: string; sourceName: string; fps: number; clips: EdlClip[] }): string {
   const { title, sourceName, fps, clips } = opts;
@@ -47,7 +49,7 @@ export function buildEdl(opts: { title: string; sourceName: string; fps: number;
       const srcOut = secToTimecode(seg.endSec, fps);
       const recIn = secToTimecode(recordSec, fps);
       const recOut = secToTimecode(recordSec + dur, fps);
-      // AX = 辅助卷号(现代软件按 FROM CLIP NAME 重链);B = 视频+音频一起切
+      // AX = o número de rolo auxiliar (os editores modernos relinkam pelo FROM CLIP NAME); B = o vídeo e o áudio são cortados juntos
       lines.push(`${num}  AX       B     C        ${srcIn} ${srcOut} ${recIn} ${recOut}`);
       lines.push(`* FROM CLIP NAME: ${sourceName}`);
       lines.push(`* COMMENT: ${clip.title}`);

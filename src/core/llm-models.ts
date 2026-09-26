@@ -1,13 +1,14 @@
 /**
- * 拉取某个 OpenAI 兼容端点当前真正提供的模型清单(GET {baseUrl}/models)。
+ * Busca a lista de modelos que um endpoint compatível com a OpenAI realmente oferece agora (GET {baseUrl}/models).
  *
- * 为什么要有:模型 id 是会烂的——厂商几个月就换一代(deepseek-chat 已于
- * 2026-07-24 下线,换成 deepseek-v4-*),写死在预设里的名字迟早 404。base_url
- * 基本不变,`/models` 也是 OpenAI 兼容协议里最稳的一个接口,所以让用户一键
- * 拉真实清单,比我们猜一个名字靠谱得多。
+ * Por que isto existe: o id de um modelo apodrece — os fornecedores trocam de geração em poucos meses (o
+ * deepseek-chat saiu do ar em 24/07/2026 e virou deepseek-v4-*), e um nome fixo num preset dá 404 cedo ou
+ * tarde. A base_url quase não muda, e o `/models` é o endpoint mais firme do protocolo compatível com a
+ * OpenAI, então deixar a pessoa buscar a lista real com um clique é bem mais confiável que a gente adivinhar um nome.
  *
- * 不是所有端点都实现了 /models(智谱这类自定义路径的尤其可能没有),
- * 拉不到就返回空清单 + 原因,UI 退回手填——绝不因此挡住用户跑检测。
+ * Não são todos os endpoints que implementam /models (os de caminho personalizado especialmente podem não
+ * ter), e quando a busca não traz nada voltam uma lista vazia + o motivo, com a interface pedindo o nome à
+ * mão — nunca se barra a detecção por causa disso.
  */
 
 import type { ModelListResult } from "../shared/api-types";
@@ -15,12 +16,12 @@ import { llmRequestBudget, modelErrorDetail, requestLlmText } from "./llm-transp
 
 export type { ModelListResult };
 
-/** 清单上限:聚合平台(OpenRouter/硅基流动)动辄几百个,截断防止撑爆下拉。 */
+/** O teto da lista: uma plataforma agregadora (OpenRouter e afins) tem centenas de modelos, e o corte evita estourar a lista do menu. */
 export const MODEL_LIST_MAX = 400;
-/** 拉取超时:这是个交互按钮,不能让用户干等。 */
+/** O tempo limite da busca: isto é um botão de interação, e a pessoa não pode ficar esperando de graça. */
 export const MODEL_LIST_TIMEOUT_MS = 12_000;
 
-/** 从各家 /models 响应里挖出 id 列表——OpenAI 是 {data:[{id}]},个别家直接给数组。 */
+/** Escava a lista de id da resposta /models de cada fornecedor — a da OpenAI é {data:[{id}]}, e algum fornecedor devolve o array direto. */
 export function parseModelIds(body: unknown): string[] {
   const rows = Array.isArray(body)
     ? body
@@ -38,8 +39,8 @@ export function parseModelIds(body: unknown): string[] {
 }
 
 /**
- * 拉清单。fail-open:任何失败都返回 {ids: [], error} 而不是抛异常——
- * 这只是个填表帮手,不该有能力打断任何流程。
+ * Busca a lista. Falha em aberto: qualquer falha devolve {ids: [], error} em vez de lançar exceção — isto é
+ * só um ajudante de preenchimento, e não deve ter o poder de interromper nada.
  */
 export async function listModels(baseUrl: string, apiKey: string, signal?: AbortSignal): Promise<ModelListResult> {
   const url = `${baseUrl.replace(/\/+$/, "")}/models`;
@@ -54,7 +55,7 @@ export async function listModels(baseUrl: string, apiKey: string, signal?: Abort
     const ids = parseModelIds(JSON.parse(text));
     return ids.length > 0
       ? { ids, error: null }
-      : { ids: [], error: "该端点没有返回模型清单 / endpoint returned no models" };
+      : { ids: [], error: "este endpoint não devolveu lista de modelos / endpoint returned no models" };
   } catch (e) {
     return { ids: [], error: modelErrorDetail(e instanceof Error ? e.message : String(e), apiKey, 300) };
   }

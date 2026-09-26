@@ -1,26 +1,28 @@
 /**
- * SRT 字幕文件导出:每条切片旁落同名 .srt——平台原生字幕上传(B站/YouTube
- * 都吃)、剪辑器二次精修、无障碍全靠它;烧录字幕是"看的",SRT 是"用的"。
+ * Exportação do arquivo de legenda SRT: cada trecho leva ao lado um .srt de mesmo nome — é dele que dependem
+ * o envio de legenda nativa da plataforma (YouTube e afins aceitam), o acabamento no editor e a
+ * acessibilidade; a legenda queimada é «para ver», e o SRT é «para usar».
  *
- * 词与译文都来自导出管线(跳剪重映射/口水词剔除已生效),分行沿用烧录字幕
- * 的同一套断行规则,保证 .srt 与画面里的字幕逐行一致。纯字符串构建,零依赖。
+ * As palavras e a tradução vêm da esteira de exportação (o remapeamento do corte seco e a remoção das
+ * palavras de preenchimento já valeram), e a divisão em linhas segue as mesmas regras de quebra da legenda
+ * queimada, o que garante que o .srt e a legenda na imagem batam linha por linha. Montado só com strings, sem dependência.
  */
 import type { TranscriptWord } from "../shared/api-types";
 import { groupWordsIntoLines, needsSpaceAfter, CAPTION_HOLD_MAX_SEC, planReadableCaptions, type CaptionReadabilityOptions } from "./subtitle";
 import type { TranslationLine } from "./translate";
 
-/** SRT 行宽(视觉单位:CJK=2/latin=1)——比竖屏字幕宽,接近通用播放器习惯。 */
+/** A largura de linha do SRT (em unidades visuais: ideograma=2, letra latina=1) — mais larga que a da legenda vertical, perto do costume dos tocadores comuns. */
 export const SRT_MAX_LINE_UNITS = 36;
 
 export interface SrtLine {
   startSec: number;
   endSec: number;
   text: string;
-  /** 双语时的译文(渲染为第二行)。 */
+  /** A tradução, quando é bilíngue (renderizada como a segunda linha). */
   secondary?: string;
 }
 
-/** SRT 时间格式 HH:MM:SS,mmm(负数夹为 0)。 */
+/** O formato de tempo do SRT, HH:MM:SS,mmm (um valor negativo é preso em 0). */
 export function formatSrtTime(sec: number): string {
   const total = Math.max(0, Math.round(sec * 1000));
   const ms = total % 1000;
@@ -32,8 +34,9 @@ export function formatSrtTime(sec: number): string {
 }
 
 /**
- * 词 → SRT 行(时间为切片相对时间;words 传入前先做好 clipStartSec 平移
- * 与跳剪重映射,与烧录字幕同一时间基)。译文按时间重叠附为第二行。
+ * Palavras → linhas de SRT (o tempo é relativo ao trecho; antes de passar words, o deslocamento de
+ * clipStartSec e o remapeamento do corte seco já foram feitos, na mesma base de tempo da legenda queimada).
+ * A tradução é anexada como segunda linha conforme a sobreposição de tempo.
  */
 export function srtLinesFromWords(
   words: TranscriptWord[],
@@ -55,7 +58,7 @@ export function srtLinesFromWords(
       .join("")
       .trim();
     if (!text || endSec <= startSec) continue;
-    // 译文:取与本行时间重叠最长的一条
+    // A tradução: vale a que se sobrepõe por mais tempo a esta linha
     let secondary: string | undefined;
     let bestOverlap = 0;
     for (const t of translation) {
@@ -70,7 +73,7 @@ export function srtLinesFromWords(
   return out;
 }
 
-/** 组装完整 SRT 文档。 */
+/** Monta o documento SRT completo. */
 export function buildSrt(lines: SrtLine[]): string {
   return lines
     .map((l, i) => {

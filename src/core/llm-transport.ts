@@ -1,4 +1,4 @@
-/** 模型 HTTP 请求的边界：总时限、可取消等待、有限重试和响应体上限。 */
+/** As fronteiras do pedido HTTP a um modelo: o tempo total, a espera cancelável, a repetição limitada e o teto do corpo da resposta. */
 export const LLM_REMOTE_TIMEOUT_MS = 180_000;
 export const LLM_LOCAL_TIMEOUT_MS = 300_000;
 export const LLM_RESPONSE_MAX_BYTES = 2 * 1024 * 1024;
@@ -12,20 +12,20 @@ export function llmRequestBudget(timeoutMs: number, retries = 0): LlmRequestBudg
 export class LlmTransportError extends Error {
   constructor(readonly kind: "timeout" | "response-too-large") {
     super(kind === "timeout"
-      ? "模型响应超时，请稍后重试或选择更小的模型。/ Model response timed out; retry later or choose a smaller model."
-      : "模型响应过大，已停止读取；请检查接口地址或换一个模型。/ Model response too large; check the endpoint or choose another model.");
+      ? "a resposta do modelo levou tempo demais; tente de novo mais tarde ou escolha um modelo menor. / Model response timed out; retry later or choose a smaller model."
+      : "a resposta do modelo é grande demais e a leitura foi interrompida; confira o endereço da API ou troque de modelo. / Model response too large; check the endpoint or choose another model.");
     this.name = "LlmTransportError";
   }
 }
 
-/** Retry-After 同时支持秒数与 HTTP 日期；非法值不作为服务端等待指示。 */
+/** O Retry-After aceita tanto segundos quanto uma data HTTP; valor inválido não conta como instrução de espera do servidor. */
 export function retryAfterMs(value: string | null, now = Date.now()): number | null {
   if (!value?.trim()) return null;
   if (/^\d+(?:\.\d+)?$/.test(value.trim())) {
     const ms = Number(value) * 1000;
     return Number.isFinite(ms) ? ms : null;
   }
-  // 避免 Date.parse 把负数或畸形数字解释成日期。
+  // Evita que o Date.parse interprete um número negativo ou malformado como data.
   if (!/[A-Za-z]/.test(value)) return null;
   const date = Date.parse(value);
   return Number.isFinite(date) ? Math.max(0, date - now) : null;
@@ -69,7 +69,7 @@ async function readBounded(response: Response, maxBytes: number, signal: AbortSi
   }
 }
 
-/** 只对明确的限流/暂时不可用响应重试；断网、超时和已成功返回的正文不重发。 */
+/** A repetição só acontece numa resposta clara de limite de uso ou de indisponibilidade momentânea; queda de rede, tempo esgotado e um corpo que já chegou com sucesso não são reenviados. */
 export async function requestLlmText(url: string, init: Omit<RequestInit, "signal">, options: {
   signal?: AbortSignal; budget?: LlmRequestBudget; maxBytes?: number;
 } = {}): Promise<{ ok: boolean; status: number; headers: Headers; text: string }> {
@@ -86,7 +86,8 @@ export async function requestLlmText(url: string, init: Omit<RequestInit, "signa
       const response = await fetch(url, { ...init, signal });
       const text = await readBounded(response, response.ok ? options.maxBytes ?? LLM_RESPONSE_MAX_BYTES : 64 * 1024, signal);
       const wait = retryAfterMs(response.headers.get("retry-after")) ?? 1_000;
-      const quotaFailure = /insufficient_quota|quota_exhausted|billing_hard_limit|credit[_ ]balance|余额不足|欠费/i.test(text);
+      // As mensagens de saldo/crédito dos fornecedores, em inglês, em português e em mandarim (os ideogramas ficam como escapes Unicode)
+      const quotaFailure = /insufficient_quota|quota_exhausted|billing_hard_limit|credit[_ ]balance|saldo insuficiente|sem saldo|cr[eé]dito insuficiente|\u4f59\u989d\u4e0d\u8db3|\u6b20\u8d39/i.test(text);
       if ((response.status === 429 || response.status === 503) && !quotaFailure && budget.retriesRemaining > 0 &&
           wait <= LLM_RETRY_WAIT_MAX_MS && wait < budget.deadline - Date.now()) {
         budget.retriesRemaining--;
@@ -104,14 +105,14 @@ export async function requestLlmText(url: string, init: Omit<RequestInit, "signa
   }
 }
 
-/** 对用户保留服务端诊断，但不把供应商回显的 Key 带进错误提示。 */
+/** O diagnóstico do servidor é preservado para a pessoa, mas a chave que o fornecedor devolve no eco não entra no aviso de erro. */
 export function modelErrorDetail(text: string, apiKey: string, maxLength = 300): string {
   let detail = text;
   try {
     const body = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown };
     const message = typeof body?.error === "string" ? body.error : body?.error?.message ?? body?.message;
     if (typeof message === "string") detail = message;
-  } catch { /* 非 JSON 错误仍保留有界诊断。 */ }
+  } catch { /* um erro que não é JSON também mantém o diagnóstico limitado. */ }
   if (apiKey) detail = detail.split(apiKey).join("[redacted]");
   return detail.replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [redacted]").slice(0, maxLength);
 }

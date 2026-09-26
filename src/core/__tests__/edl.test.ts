@@ -2,49 +2,49 @@ import { describe, it, expect } from "vitest";
 import { secToTimecode, buildEdl } from "../edl";
 
 describe("secToTimecode", () => {
-  it("SMPTE 非丢帧时间码,帧数按 fps 换算", () => {
+  it("código de tempo SMPTE sem descarte de quadro, com o número de quadros convertido pelo fps", () => {
     expect(secToTimecode(0, 30)).toBe("00:00:00:00");
     expect(secToTimecode(65.5, 30)).toBe("00:01:05:15");
     expect(secToTimecode(3661.2, 25)).toBe("01:01:01:05");
   });
 
-  it("非整数 fps(29.97)舍入到整数帧基;负数夹零", () => {
+  it("fps não inteiro (29,97) é arredondado para uma base de quadros inteira; negativo é preso em zero", () => {
     expect(secToTimecode(1, 29.97)).toBe("00:00:01:00");
     expect(secToTimecode(-5, 30)).toBe("00:00:00:00");
   });
 });
 
 describe("buildEdl", () => {
-  it("CMX3600 结构:标题/FCM/事件行/注释行,record 侧连续累计", () => {
+  it("a estrutura do CMX3600: título / FCM / linha de evento / linha de comentário, com o lado record acumulando em sequência", () => {
     const edl = buildEdl({
-      title: "回放 - HotClip",
-      sourceName: "回放.mp4",
+      title: "gravacao - HotClip",
+      sourceName: "gravacao.mp4",
       fps: 30,
       clips: [
-        { title: "爆点一", segments: [{ startSec: 60, endSec: 70 }] },
-        { title: "爆点二", segments: [{ startSec: 200, endSec: 215 }] },
+        { title: "estouro um", segments: [{ startSec: 60, endSec: 70 }] },
+        { title: "estouro dois", segments: [{ startSec: 200, endSec: 215 }] },
       ],
     });
-    expect(edl).toContain("TITLE: 回放 - HotClip");
+    expect(edl).toContain("TITLE: gravacao - HotClip");
     expect(edl).toContain("FCM: NON-DROP FRAME");
     expect(edl).toContain("001  AX       B     C        00:01:00:00 00:01:10:00 00:00:00:00 00:00:10:00");
-    // 第二条 record 从 10s 继续
+    // O segundo record continua de 10s
     expect(edl).toContain("002  AX       B     C        00:03:20:00 00:03:35:00 00:00:10:00 00:00:25:00");
-    expect(edl).toContain("* FROM CLIP NAME: 回放.mp4");
-    expect(edl).toContain("* COMMENT: 爆点一");
+    expect(edl).toContain("* FROM CLIP NAME: gravacao.mp4");
+    expect(edl).toContain("* COMMENT: estouro um");
   });
 
-  it("跳剪多段:一条切片拆成多个事件,源片跳跃 record 连续", () => {
+  it("corte seco com vários pedaços: um trecho vira vários eventos, com saltos na origem e o record em sequência", () => {
     const edl = buildEdl({
       title: "t",
       sourceName: "s.mp4",
       fps: 30,
       clips: [
         {
-          title: "跳剪片",
+          title: "trecho com corte seco",
           segments: [
             { startSec: 100, endSec: 104 },
-            { startSec: 106, endSec: 110 }, // 中间 2s 被跳剪剪掉
+            { startSec: 106, endSec: 110 }, // os 2s do meio foram cortados pelo corte seco
           ],
         },
       ],
@@ -55,7 +55,7 @@ describe("buildEdl", () => {
     expect(events[1]).toContain("00:01:46:00 00:01:50:00 00:00:04:00 00:00:08:00");
   });
 
-  it("零时长段跳过,事件编号仍连续", () => {
+  it("pedaço de duração zero é pulado, e a numeração dos eventos continua em sequência", () => {
     const edl = buildEdl({
       title: "t",
       sourceName: "s.mp4",
