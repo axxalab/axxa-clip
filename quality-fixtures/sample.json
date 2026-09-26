@@ -1,20 +1,20 @@
 {
   "transcriptCases": [
     {
-      "id": "sample-zh",
-      "referenceText": "今天直播间只要九十九",
-      "actualText": "今天直播间只要九十九",
+      "id": "exemplo-pt",
+      "referenceText": "hoje na live sai por noventa e nove",
+      "actualText": "hoje na live sai por noventa e nove",
       "referenceWords": [
-        { "text": "今天", "startSec": 0, "endSec": 0.5 },
-        { "text": "直播间", "startSec": 0.5, "endSec": 1.2 },
-        { "text": "只要", "startSec": 1.2, "endSec": 1.6 },
-        { "text": "九十九", "startSec": 1.6, "endSec": 2.2 }
+        { "text": "hoje", "startSec": 0, "endSec": 0.4 },
+        { "text": "na live", "startSec": 0.4, "endSec": 1.0 },
+        { "text": "sai por", "startSec": 1.0, "endSec": 1.5 },
+        { "text": "noventa e nove", "startSec": 1.5, "endSec": 2.2 }
       ],
       "actualWords": [
-        { "text": "今天", "startSec": 0.03, "endSec": 0.53 },
-        { "text": "直播间", "startSec": 0.52, "endSec": 1.23 },
-        { "text": "只要", "startSec": 1.22, "endSec": 1.62 },
-        { "text": "九十九", "startSec": 1.61, "endSec": 2.23 }
+        { "text": "hoje", "startSec": 0.03, "endSec": 0.43 },
+        { "text": "na live", "startSec": 0.42, "endSec": 1.03 },
+        { "text": "sai por", "startSec": 1.02, "endSec": 1.52 },
+        { "text": "noventa e nove", "startSec": 1.51, "endSec": 2.23 }
       ]
     }
   ],
