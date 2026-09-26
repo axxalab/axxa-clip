@@ -1,10 +1,12 @@
 /**
- * 候选切片审阅台:真实视频预览 + 波形时间轴。
- * - 拖两端手柄逐词微调切点(自动吸附字词边界,拖动时视频跟随蹭帧)
- * - 整句伸缩复用 adjustCandidateBoundary;一键还原 AI 原始切点
- * - 多片段拼接的候选:波形轨换成段清单,播放按段顺序自动跳段(见 shared/pieces)
- * - 播放严格停在切点上,"查结尾"只播最后几秒验收收尾
- * 浏览器预览(mock)没有本地文件 → 视频区退化为提示,时间轴照常可用。
+ * Mesa de revisão dos trechos candidatos: a pré-visualização real do vídeo + a linha de tempo com a forma de onda.
+ * - As duas alças são arrastadas para ajustar o ponto de corte palavra a palavra (com encaixe automático na
+ *   borda das palavras, e o vídeo acompanhando quadro a quadro durante o arrasto)
+ * - O esticar por frase inteira reaproveita adjustCandidateBoundary; um clique devolve o ponto de corte original da IA
+ * - Num candidato colado de vários pedaços: a trilha da forma de onda vira a lista de pedaços, e a reprodução
+ *   salta de pedaço em pedaço na ordem (veja shared/pieces)
+ * - A reprodução para exatamente no ponto de corte, e o «ver o final» toca só os últimos segundos para conferir o fecho
+ * Na pré-visualização do navegador (mock) não há arquivo local → a área de vídeo vira um aviso, e a linha de tempo continua funcionando.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -28,9 +30,9 @@ import { SAFE_ZONE_PLATFORMS, zonesFor, fitContain, cropRect9x16 } from "../../.
 import type { Transcript, HighlightCandidate, AudioPeaks, ClipPiece } from "../../../shared/api-types";
 import { ModalShell } from "./ui";
 
-/** 查结尾:只回放最后这么多秒。 */
+/** Ver o final: só estes últimos segundos são reproduzidos. */
 const TAIL_PREVIEW_SEC = 2.5;
-/** 安全区偏好持久化(开关 + 平台选择)。 */
+/** A persistência das preferências de zona segura (a chave + a plataforma escolhida). */
 const SAFEZONE_LS_KEY = "hotclip-safezone";
 
 function loadSafeZonePref(): { on: boolean; platform: string } {
@@ -42,7 +44,7 @@ function loadSafeZonePref(): { on: boolean; platform: string } {
   }
 }
 
-/** 平台遮挡区遮罩:百分比定位,挂在「代表 9:16 画面」的父盒里,事件全穿透。 */
+/** A máscara da área coberta pela plataforma: posicionada em porcentagem, pendurada na caixa-mãe que «representa a imagem 9:16», e transparente a todo evento. */
 function SafeZoneMasks({ platformId }: { platformId: string }): React.JSX.Element {
   const p = zonesFor(platformId);
   return (
@@ -57,7 +59,7 @@ function SafeZoneMasks({ platformId }: { platformId: string }): React.JSX.Elemen
     </>
   );
 }
-/** 吸附容差(像素)——换算成秒后交给 snapToWordEdge。 */
+/** A tolerância do encaixe (em pixels) — convertida em segundos antes de ir para snapToWordEdge. */
 const SNAP_TOLERANCE_PX = 8;
 
 function formatClock(totalSeconds: number): string {
@@ -80,7 +82,7 @@ export function ClipReviewModal({
   clip: HighlightCandidate;
   transcript: Transcript;
   filePath?: string;
-  /** 源片总时长,决定上下文窗口的右边界。 */
+  /** A duração total do vídeo de origem, que define a borda direita da janela de contexto. */
   durationSec: number;
   onSave: (patch: { startSec: number; endSec: number; text: string; pieces?: ClipPiece[] }) => void;
   onClose: () => void;
@@ -89,21 +91,21 @@ export function ClipReviewModal({
   const tc = useT("common");
   const [startSec, setStartSec] = useState(clip.startSec);
   const [endSec, setEndSec] = useState(clip.endSec);
-  // 多片段拼接:这条由相隔很远的几段拼成,审阅台要能看清「哪几段、中间跳了多少」
+  // Colagem de vários pedaços: este candidato é feito de pedaços bem distantes, e a mesa de revisão precisa deixar claro «quais pedaços e quanto foi saltado no meio»
   const [pieces, setPieces] = useState<ClipPiece[]>(clip.pieces ?? []);
   const stitched = pieces.length > 1;
   const [peaks, setPeaks] = useState<AudioPeaks | null>(null);
-  // 画面速览:3×3 接触表(打开时按 AI 原始切点取一次;空串 = 不支持/失败,不展示)
+  // Olhada rápida na imagem: a folha de contato 3×3 (tirada uma vez, ao abrir, pelo ponto de corte original da IA; string vazia = sem suporte ou falha, e nada é mostrado)
   const [sheet, setSheet] = useState("");
   const [playing, setPlaying] = useState(false);
   const [playheadSec, setPlayheadSec] = useState(clip.startSec);
   const [videoFailed, setVideoFailed] = useState(false);
-  // [FIX] 记下 MediaError.code,占位文案里如实报出来。
-  // 2 = MEDIA_ERR_NETWORK(流读取中断,协议层问题),4 = MEDIA_ERR_SRC_NOT_SUPPORTED。
-  // 之前不分因由一律说"这个格式无法预览",把读取故障错报成格式不支持,
-  // 用户会去转码白白折腾一圈。
+  // [CORREÇÃO] O MediaError.code é registrado e aparece com honestidade no texto do lugar vazio.
+  // 2 = MEDIA_ERR_NETWORK (a leitura do fluxo foi interrompida, um problema da camada de protocolo) e 4 = MEDIA_ERR_SRC_NOT_SUPPORTED.
+  // Antes tudo dizia «este formato não dá para pré-visualizar», sem distinguir a causa, e uma falha de leitura
+  // era reportada como formato não suportado — a pessoa ia transcodificar à toa.
   const [videoErrCode, setVideoErrCode] = useState(0);
-  // 安全区预览:开关+平台选择持久化;裁窗几何随容器尺寸/视频纵横比实时算
+  // Pré-visualização da zona segura: a chave e a plataforma escolhida são guardadas; a geometria da janela de recorte é calculada na hora, conforme o tamanho do contêiner e a proporção do vídeo
   const [safeZone, setSafeZone] = useState(loadSafeZonePref);
   const [videoAr, setVideoAr] = useState(16 / 9);
   const [contSize, setContSize] = useState({ w: 0, h: 0 });
@@ -116,13 +118,13 @@ export function ClipReviewModal({
       try {
         localStorage.setItem(SAFEZONE_LS_KEY, JSON.stringify(next));
       } catch {
-        /* 持久化尽力而为 */
+        /* a persistência é feita na medida do possível */
       }
       return next;
     });
   };
 
-  // 视频显示盒尺寸跟踪(窗口缩放/视频加载都要重算裁窗)
+  // Acompanhamento do tamanho da caixa de vídeo (redimensionar a janela e carregar o vídeo pedem os dois um novo cálculo da janela de recorte)
   useEffect(() => {
     const el = videoBoxRef.current;
     if (!el) return;
@@ -132,7 +134,7 @@ export function ClipReviewModal({
     return () => ro.disconnect();
   }, []);
 
-  // 窗口按打开时的切点固定,波形只取一次;整句伸缩可能越窗,显示时钳到边缘
+  // A janela é fixada pelo ponto de corte de quando abriu, e a forma de onda é tirada uma vez só; o esticar por frase pode passar da janela, e na exibição é aparado na borda
   const win = useMemo(
     () => contextWindow(clip.startSec, clip.endSec, durationSec),
     [clip.startSec, clip.endSec, durationSec]
@@ -142,10 +144,10 @@ export function ClipReviewModal({
     () => (stitched ? piecesText(transcript, pieces) : clipText(transcript, startSec, endSec)),
     [transcript, stitched, pieces, startSec, endSec]
   );
-  // [FIX] view 走 pathname 第 2 段(原为 `?view=review`)。query 不参与 Chromium
-  // 的媒体资源判定,且主进程 serveMedia 只取 pathname,原写法等于没区分。
+  // [CORREÇÃO] A view passou para o 2º trecho do pathname (antes era `?view=review`). A query não entra na
+  // decisão de mídia do Chromium, e o serveMedia do processo principal só olha o pathname, então a forma antiga não distinguia nada.
   const src = useMemo(() => (filePath ? getApi().mediaUrl(filePath, "review") : ""), [filePath]);
-  // 成片时长:拼接片是各段之和,不是跨度
+  // A duração do vídeo pronto: num trecho colado é a soma dos pedaços, não o intervalo total
   const outDurationSec = stitched ? piecesDurationSec(pieces) : endSec - startSec;
   const dirty =
     Math.abs(startSec - clip.startSec) > 1e-3 ||
@@ -156,15 +158,15 @@ export function ClipReviewModal({
   const laneRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
-  // 播放循环里读最新切点,避免闭包吃到旧值
+  // O laço de reprodução lê o ponto de corte mais recente, para o fechamento não pegar um valor velho
   const boundsRef = useRef({ startSec, endSec });
   boundsRef.current = { startSec, endSec };
   const piecesRef = useRef(pieces);
   piecesRef.current = pieces;
 
-  // ---- 波形 ----
-  // 拼接片跳过:跨度可能有几十分钟,画出来的波形绝大部分是根本不会进成片的
-  // 内容,既误导又要白解码一遍音频
+  // ---- Forma de onda ----
+  // Num trecho colado ela é pulada: o intervalo total pode ter dezenas de minutos, e a forma de onda desenhada
+  // seria quase toda de conteúdo que nem entra no vídeo, o que engana e ainda decodificaria o áudio à toa
   useEffect(() => {
     if (!filePath || stitched) return;
     let alive = true;
@@ -174,16 +176,17 @@ export function ClipReviewModal({
         if (alive) setPeaks(p);
       })
       .catch(() => {
-        /* 波形失败不致命——时间轴退化为纯色轨 */
+        /* uma forma de onda que falha não é fatal — a linha de tempo vira uma trilha de cor sólida */
       });
     return () => {
       alive = false;
     };
   }, [filePath, win, stitched]);
 
-  // ---- 画面速览(接触表) ----
-  // 只按打开时的切点取一次(拖动手柄不重拼——ffmpeg 不该被拖动打爆);失败静默不展示。
-  // 拼接片跳过:3×9 均匀抽帧会抽出一堆被剪掉的画面,看着像成片其实不是
+  // ---- Olhada rápida na imagem (a folha de contato) ----
+  // Tirada uma vez só, pelo ponto de corte de quando abriu (arrastar a alça não remonta nada — o ffmpeg não deve
+  // ser estourado por um arrasto); uma falha não aparece, fica em silêncio.
+  // Num trecho colado é pulada: amostrar 3×9 quadros por igual traria um monte de imagem que foi cortada, o que parece o vídeo pronto mas não é
   useEffect(() => {
     if (!filePath || stitched) return;
     let alive = true;
@@ -193,7 +196,7 @@ export function ClipReviewModal({
         if (alive) setSheet(url);
       })
       .catch(() => {
-        /* 速览失败不致命 */
+        /* uma olhada rápida que falha não é fatal */
       });
     return () => {
       alive = false;
@@ -205,7 +208,7 @@ export function ClipReviewModal({
     [win]
   );
 
-  // 波形绘制:选中范围内画火焰色,范围外压暗
+  // O desenho da forma de onda: dentro do intervalo escolhido na cor de chama, e fora dele escurecido
   const drawWave = useCallback((): void => {
     const canvas = canvasRef.current;
     const lane = laneRef.current;
@@ -247,7 +250,7 @@ export function ClipReviewModal({
     return () => window.removeEventListener("resize", drawWave);
   }, [drawWave]);
 
-  // ---- 播放控制 ----
+  // ---- Controle de reprodução ----
   const stopLoop = useCallback((): void => cancelAnimationFrame(rafRef.current), []);
 
   const tick = useCallback((): void => {
@@ -256,8 +259,8 @@ export function ClipReviewModal({
     setPlayheadSec(v.currentTime);
     const ps = piecesRef.current;
     if (ps.length > 1) {
-      // 拼接预览:播到本段末尾就跳到下一段开头,最后一段放完即停——
-      // 用户在这里看到的顺序就是成片的顺序
+      // Pré-visualização da colagem: ao chegar no fim de um pedaço, salta para o começo do seguinte, e depois do
+      // último para — a ordem que a pessoa vê aqui é a ordem do vídeo pronto
       const i = ps.findIndex((p) => v.currentTime < p.endSec - 0.03);
       if (i < 0) {
         v.pause();
@@ -265,7 +268,7 @@ export function ClipReviewModal({
       }
       if (v.currentTime < ps[i].startSec - 0.05) v.currentTime = ps[i].startSec;
     } else if (v.currentTime >= boundsRef.current.endSec - 0.03) {
-      // 严格停在切点:审阅的就是"到点收不收得住"
+      // Para exatamente no ponto de corte: o que se revisa é justamente «no ponto, ele fecha ou não»
       v.pause();
       return;
     }
@@ -276,8 +279,9 @@ export function ClipReviewModal({
     (at: number): void => {
       const v = videoRef.current;
       if (!v) return;
-      // Windows 上自定义协议偶发首个 Range 请求失败时，保留 video 元素并允许再次加载。
-      // 之前失败状态会卸载 video，按钮也随之置灰，用户只能关闭审阅台重开。
+      // No Windows, quando o primeiro pedido de Range do protocolo próprio falha de vez em quando, o elemento video
+      // é preservado e um novo carregamento é permitido. Antes o estado de falha descarregava o video, o botão ficava
+      // cinza junto, e a pessoa só podia fechar a mesa de revisão e abrir de novo.
       if (videoFailed) {
         setVideoFailed(false);
         v.load();
@@ -291,7 +295,7 @@ export function ClipReviewModal({
           rafRef.current = requestAnimationFrame(tick);
         })
         .catch(() => {
-          /* 播放被浏览器拒绝(极少)——按钮再点一次即可 */
+          /* a reprodução foi recusada pelo navegador (raríssimo) — basta clicar no botão outra vez */
         });
     },
     [stopLoop, tick, videoFailed]
@@ -303,9 +307,9 @@ export function ClipReviewModal({
     setPlayheadSec(at);
   }, []);
 
-  useEffect(() => stopLoop, [stopLoop]); // 卸载时停掉播放循环
+  useEffect(() => stopLoop, [stopLoop]); // ao desmontar, o laço de reprodução é parado
 
-  // Esc 关闭(不保存)
+  // Esc fecha (sem salvar)
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === "Escape") onClose();
@@ -314,7 +318,7 @@ export function ClipReviewModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // ---- 拖拽手柄 ----
+  // ---- Arrasto das alças ----
   const onHandleDown = useCallback(
     (edge: "start" | "end") =>
       (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -333,7 +337,7 @@ export function ClipReviewModal({
           const next = clampDrag(edge, snapped, other, win);
           if (edge === "start") setStartSec(next);
           else setEndSec(next);
-          seekTo(next); // 拖动即蹭帧——手上的位置就是画面里的位置
+          seekTo(next); // arrastar já mexe o quadro — a posição na mão é a posição na imagem
         };
         const up = (): void => {
           window.removeEventListener("pointermove", move);
@@ -345,7 +349,7 @@ export function ClipReviewModal({
     [win, words, seekTo]
   );
 
-  // 点时间轴空白处 → 跳播到该处
+  // Um clique num espaço vazio da linha de tempo → a reprodução salta para ali
   const onLaneDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>): void => {
       const lane = laneRef.current;
@@ -357,16 +361,16 @@ export function ClipReviewModal({
     [win, seekTo]
   );
 
-  // ---- 整句伸缩(复用现有语义句逻辑) ----
+  // ---- Esticar por frase inteira (reaproveitando a lógica de frases que já existe) ----
   const sentence = useCallback(
     (edge: "start" | "end", dir: 1 | -1): void => {
-      // 拼接片只动第一段的起点 / 最后一段的终点(中间段是 AI 挑来做对照的)
+      // Num trecho colado só o início do primeiro pedaço e o fim do último se movem (os do meio a IA escolheu para o contraste)
       const adj = adjustCandidateBoundary(transcript, { startSec, endSec, pieces }, edge, dir);
       if (!adj) return;
       setStartSec(adj.startSec);
       setEndSec(adj.endSec);
       if (adj.pieces) setPieces(adj.pieces);
-      // 查结尾要落在最后一段里,不能拿跨度去减(那会跳到两段中间的空隙)
+      // O «ver o final» tem de cair dentro do último pedaço, e não se subtrai do intervalo total (isso cairia no vão entre dois pedaços)
       const lastStart = adj.pieces?.[adj.pieces.length - 1].startSec ?? adj.startSec;
       seekTo(edge === "start" ? adj.startSec : Math.max(lastStart, adj.endSec - TAIL_PREVIEW_SEC));
     },
@@ -388,7 +392,7 @@ export function ClipReviewModal({
         className="card rise-in flex max-h-[92vh] w-full max-w-3xl flex-col overflow-y-auto rounded-2xl p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 头部 */}
+        {/* Cabeçalho */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
@@ -406,7 +410,7 @@ export function ClipReviewModal({
           </button>
         </div>
 
-        {/* 视频预览(相对定位承载安全区遮罩) */}
+        {/* Pré-visualização do vídeo (posicionada em relativo para carregar a máscara da zona segura) */}
         <div ref={videoBoxRef} className="relative mt-4 overflow-hidden rounded-xl bg-black/60">
           {src !== "" && (
             <video
@@ -428,7 +432,7 @@ export function ClipReviewModal({
               onError={(e) => {
                 setPlaying(false);
                 stopLoop();
-                // [FIX] 顺手把 MediaError.code 带进占位文案,便于判断是流故障还是格式问题
+                // [CORREÇÃO] O MediaError.code entra de passagem no texto do lugar vazio, para ficar claro se é falha de fluxo ou problema de formato
                 setVideoErrCode(e.currentTarget.error?.code ?? 0);
                 setVideoFailed(true);
               }}
@@ -444,7 +448,7 @@ export function ClipReviewModal({
                     ? t("reviewNoVideoCode").replace("{code}", String(videoErrCode))
                     : t("reviewNoVideo")}
               </p>
-              {/* 浏览器预览没有画面:给一块 9:16 演示框,遮罩形态照常可看 */}
+              {/* A pré-visualização do navegador não tem imagem: uma caixa 9:16 de demonstração mantém a forma da máscara visível */}
               {safeZone.on && (
                 <div
                   className="relative mx-auto mt-2 rounded-md border border-dashed border-fg/40 bg-panel-2"
@@ -455,7 +459,7 @@ export function ClipReviewModal({
               )}
             </div>
           )}
-          {/* 安全区遮罩:先画 9:16 中心裁窗(竖屏成片范围),再叠平台遮挡区 */}
+          {/* A máscara da zona segura: primeiro a janela de recorte 9:16 pelo centro (a área do vídeo vertical) e depois a área coberta pela plataforma */}
           {safeZone.on && showVideo && contSize.w > 0 && (() => {
             const box = cropRect9x16(fitContain(contSize.w, contSize.h, videoAr));
             return (
@@ -469,7 +473,7 @@ export function ClipReviewModal({
           })()}
         </div>
 
-        {/* 播放控制 + 时码 */}
+        {/* Controle de reprodução + código de tempo */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -523,8 +527,9 @@ export function ClipReviewModal({
           </span>
         </div>
 
-        {/* 拼接片:段清单代替波形时间轴——跨度几十分钟的波形毫无意义,
-            用户真正要核对的是「剪进去哪几段、中间跳过了多久、拼起来还是不是原意」 */}
+        {/* Num trecho colado: a lista de pedaços no lugar da linha de tempo com forma de onda — uma forma de onda
+            de dezenas de minutos não significa nada, e o que a pessoa precisa conferir é «quais pedaços entraram,
+            quanto foi saltado no meio e se, colado, continua querendo dizer a mesma coisa» */}
         {stitched && (
           <div className="mt-3 rounded-xl border border-ember/40 bg-ember/5 p-3">
             <div className="mb-2 text-[11.5px] font-semibold text-ember">
@@ -558,7 +563,7 @@ export function ClipReviewModal({
           </div>
         )}
 
-        {/* 时间轴:波形 + 选区 + 手柄 + 播放头(拼接片没有连续时间轴可画) */}
+        {/* Linha de tempo: forma de onda + seleção + alças + cabeça de reprodução (num trecho colado não há linha de tempo contínua para desenhar) */}
         {!stitched && (
         <div
           ref={laneRef}
@@ -566,17 +571,17 @@ export function ClipReviewModal({
           className="relative mt-3 h-16 cursor-pointer touch-none overflow-hidden rounded-xl bg-panel-2"
         >
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-          {/* 选区 */}
+          {/* Seleção */}
           <div
             className="pointer-events-none absolute inset-y-0 border-x-2 border-ember/80 bg-ember/10"
             style={{ left: `${secToFrac(startSec) * 100}%`, width: `${(secToFrac(endSec) - secToFrac(startSec)) * 100}%` }}
           />
-          {/* 播放头 */}
+          {/* Cabeça de reprodução */}
           <div
             className="pointer-events-none absolute inset-y-0 w-px bg-fg/90"
             style={{ left: `${secToFrac(playheadSec) * 100}%` }}
           />
-          {/* 起止手柄 */}
+          {/* Alças de início e fim */}
           {(["start", "end"] as const).map((edge) => (
             <div
               key={edge}
@@ -597,7 +602,7 @@ export function ClipReviewModal({
         </div>
         )}
 
-        {/* 整句伸缩 */}
+        {/* Esticar por frase inteira */}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[11.5px]">
           {(
             [
@@ -619,7 +624,7 @@ export function ClipReviewModal({
           ))}
         </div>
 
-        {/* 画面速览:3×3 接触表,不点播放也能一眼扫完片段画面 */}
+        {/* Olhada rápida na imagem: a folha de contato 3×3, que mostra o trecho inteiro de relance sem precisar dar play */}
         {sheet && (
           <div className="mt-3">
             <div className="mb-1 text-[10.5px] text-mut/80">{t("reviewSheet")}</div>
@@ -627,12 +632,12 @@ export function ClipReviewModal({
           </div>
         )}
 
-        {/* 当前范围文字(校对听不清的地方) */}
+        {/* O texto do intervalo atual (para conferir o que não se entendeu de ouvido) */}
         <div className="mt-3 max-h-24 overflow-y-auto rounded-xl bg-panel-2 px-3.5 py-2.5 text-[12.5px] leading-relaxed text-fg/85">
           {text || <span className="text-mut">{t("reviewTextEmpty")}</span>}
         </div>
 
-        {/* 底部动作 */}
+        {/* Ações do rodapé */}
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-dashed border-line pt-4">
           <button
             type="button"
