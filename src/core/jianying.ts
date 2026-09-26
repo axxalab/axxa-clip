@@ -1,37 +1,39 @@
 /**
- * 剪映草稿导出(v0.14):把 AI 定的切点——含跳剪在片内的每一段保留区间——
- * 生成剪映专业版草稿文件夹(draft_content.json + draft_meta_info.json),
- * 整个文件夹拷进剪映草稿目录即可打开精修。EDL 面向 DaVinci/Premiere,
- * 而中文创作者的主力剪辑器是剪映、且剪映不认 EDL——这是「AI 粗剪 →
- * 人精修」工作流在国民级剪辑器上的落地。
+ * Exportação de rascunho do JianYing / CapCut (v0.14): os pontos de corte que a IA definiu — incluindo
+ * cada intervalo preservado do corte seco dentro do trecho — viram uma pasta de rascunho do JianYing
+ * Pro (draft_content.json + draft_meta_info.json); é só copiar a pasta inteira para a pasta de rascunhos
+ * do editor e abrir para o acabamento. O EDL atende ao DaVinci e ao Premiere, mas o JianYing (o CapCut
+ * chinês) não lê EDL — e este é o caminho de «corte bruto da IA → acabamento humano» dentro do editor
+ * mais popular desse público.
  *
- * 格式口径:pyJianYingDraft(GuanYixuan)的明文 draft_content 结构,
- * 模板标 5.9(剪映 6/7+ 能打开明文生成的草稿;新版的草稿加密只影响
- * 「读取既有草稿当模板」,与生成无关)。素材引用源片绝对路径,换机器
- * 打开时剪映会提示重新链接媒体——与 EDL 同语义。时间单位微秒。
- * 纯函数(id 生成可注入以便单测),文件写入由 export.ts 负责。
+ * Sobre o formato: a estrutura de draft_content em texto puro do pyJianYingDraft (GuanYixuan), com o
+ * modelo marcado como 5.9 (o JianYing 6/7+ abre rascunho gerado em texto puro; a criptografia de rascunho
+ * das versões novas só afeta «ler um rascunho existente como modelo», e não a geração). O material aponta
+ * para o caminho absoluto do vídeo de origem, então abrir em outra máquina faz o editor pedir para
+ * relinkar a mídia — a mesma semântica do EDL. A unidade de tempo é o microssegundo.
+ * Função pura (a geração de id é injetável para o teste unitário), e a escrita dos arquivos fica com export.ts.
  */
 import { randomUUID } from "crypto";
 import type { EdlClip } from "./edl";
 
-/** 注入式 id 生成器(默认 uuid v4);hex 形态供轨道/片段/素材 id 用。 */
+/** O gerador de id injetável (por padrão uuid v4); a forma hex serve para os id de trilha, de trecho e de material. */
 export type IdGen = () => string;
 const defaultIdGen: IdGen = () => randomUUID();
 const hexOf = (id: string): string => id.replace(/-/g, "");
 
 export interface DraftContentInput {
-  /** 源片绝对路径(素材直接反链源片,媒体不复制)。 */
+  /** O caminho absoluto do vídeo de origem (o material aponta direto para ele, sem copiar mídia). */
   sourcePath: string;
-  /** 源文件名(素材面板显示名)。 */
+  /** O nome do arquivo de origem (o nome exibido no painel de materiais). */
   sourceName: string;
-  /** 源片总时长(秒)——素材对象的时长上限。 */
+  /** A duração total do vídeo de origem (segundos) — o teto de duração do objeto de material. */
   sourceDurationSec: number;
-  /** 源片画幅(草稿画布 = 原画幅,「回源片精修」与 EDL 同定位)。 */
+  /** O enquadramento do vídeo de origem (a tela do rascunho = o enquadramento original, com o mesmo propósito do EDL: «voltar ao original para o acabamento»). */
   width: number;
   height: number;
-  /** 草稿帧率(取整;剪映内部用它做时间轴吸附)。 */
+  /** A taxa de quadros do rascunho (arredondada; o editor a usa internamente para encaixar na linha de tempo). */
   fps: number;
-  /** 该切片的保留区间(源片绝对秒,跳剪时一条多段,按序拼接)。 */
+  /** Os intervalos preservados deste trecho (em segundos absolutos do vídeo de origem; no corte seco são vários, colados em ordem). */
   clip: EdlClip;
 }
 
@@ -39,15 +41,15 @@ const SEC_US = 1_000_000;
 const toUs = (sec: number): number => Math.round(sec * SEC_US);
 
 /**
- * 组装一条切片的 draft_content.json 对象:一条视频轨,保留区间按序
- * 排上时间轴(source_timerange 反链源片,target_timerange 连续拼接),
- * 跳剪的每一刀都是时间轴上可拖的独立片段。
+ * Monta o objeto draft_content.json de um trecho: uma trilha de vídeo, com os intervalos preservados
+ * postos em ordem na linha de tempo (source_timerange aponta de volta para o original e target_timerange
+ * os cola em sequência), e cada corte do corte seco vira um trecho independente, arrastável na linha de tempo.
  */
 export function buildDraftContent(input: DraftContentInput, newId: IdGen = defaultIdGen): Record<string, unknown> {
   const { sourcePath, sourceName, sourceDurationSec, width, height, fps, clip } = input;
   const segs = clip.segments.filter((s) => s.endSec > s.startSec);
   const materialId = hexOf(newId());
-  // 素材时长必须 ≥ 任何片段的截取终点,否则剪映按「越界素材」拒载
+  // A duração do material precisa ser ≥ o fim de qualquer trecho recortado, senão o editor recusa carregar por «material fora do intervalo»
   const maxEndUs = segs.reduce((m, s) => Math.max(m, toUs(s.endSec)), 0);
   const materialDurationUs = Math.max(toUs(sourceDurationSec), maxEndUs);
 
@@ -118,8 +120,8 @@ export function buildDraftContent(input: DraftContentInput, newId: IdGen = defau
     width,
   };
 
-  // 骨架与 pyJianYingDraft 的 5.9 模板逐字段一致(materials 的空数组分类
-  // 必须齐全,剪映按键取值,缺键会视为损坏草稿)
+  // O esqueleto bate campo a campo com o modelo 5.9 do pyJianYingDraft (as categorias de array vazio de
+  // materials precisam estar todas presentes: o editor lê por chave, e uma chave faltando conta como rascunho corrompido)
   return {
     canvas_config: { height, ratio: "original", width },
     color_space: 0,
@@ -202,7 +204,7 @@ export function buildDraftContent(input: DraftContentInput, newId: IdGen = defau
   };
 }
 
-/** draft_meta_info.json:逐字段抄模板,只换 draft_id(剪映打开时自补其余)。 */
+/** draft_meta_info.json: o modelo é copiado campo a campo, trocando só o draft_id (o editor completa o resto ao abrir). */
 export function buildDraftMetaInfo(newId: IdGen = defaultIdGen): Record<string, unknown> {
   return {
     cloud_package_completed_time: "",

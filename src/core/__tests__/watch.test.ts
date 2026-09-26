@@ -4,14 +4,14 @@ import { FolderWatcher, isVideoFile, isSeen, type WatchedFile, type SeenMap } fr
 const f = (path: string, size: number, mtimeMs = 1000): WatchedFile => ({ path, size, mtimeMs });
 
 describe("isVideoFile", () => {
-  it("识别录播常见容器,拒绝隐藏文件与非视频", () => {
+  it("reconhece os contêineres comuns de gravação e recusa arquivo oculto e o que não é vídeo", () => {
     for (const ok of ["a.mp4", "b.FLV", "c.ts", "d.mkv", "e.webm"]) expect(isVideoFile(ok)).toBe(true);
     for (const no of [".part.mp4", "a.txt", "b.jpg", "clips.json", "noext"]) expect(isVideoFile(no)).toBe(false);
   });
 });
 
 describe("isSeen", () => {
-  it("同路径同指纹算已处理;文件被覆盖(指纹变)算新文件", () => {
+  it("mesmo caminho com a mesma impressão conta como processado; arquivo sobrescrito (impressão diferente) conta como novo", () => {
     const seen: SeenMap = { "/r/a.mp4": { size: 100, mtimeMs: 1000 } };
     expect(isSeen(seen, f("/r/a.mp4", 100, 1000))).toBe(true);
     expect(isSeen(seen, f("/r/a.mp4", 200, 2000))).toBe(false);
@@ -40,25 +40,25 @@ describe("FolderWatcher", () => {
     return { watcher, processed };
   }
 
-  it("增长中的文件不触发;连续两轮稳定才处理,且只处理一次", async () => {
+  it("arquivo crescendo não dispara; só duas rodadas estáveis seguidas processam, e uma vez só", async () => {
     let size = 100;
     const { watcher, processed } = makeWatcher({ files: () => [f("/r/rec.flv", size)] });
-    await watcher.tick(); // 首见
-    size = 200; // 还在写盘
+    await watcher.tick(); // visto pela primeira vez
+    size = 200; // ainda sendo escrito
     await watcher.tick();
     expect(processed).toEqual([]);
-    await watcher.tick(); // 稳定第 1 轮
+    await watcher.tick(); // 1ª rodada estável
     expect(processed).toEqual([]);
-    await watcher.tick(); // 稳定第 2 轮 → 触发
+    await watcher.tick(); // 2ª rodada estável → dispara
     await watcher.idle();
     expect(processed).toEqual(["/r/rec.flv"]);
-    await watcher.tick(); // 已 seen,不再触发
+    await watcher.tick(); // já está em seen, não dispara de novo
     await watcher.tick();
     await watcher.idle();
     expect(processed).toEqual(["/r/rec.flv"]);
   });
 
-  it("已在 seen 里的旧录播永不触发(重启不重切)", async () => {
+  it("a gravação antiga que já está em seen nunca dispara (reiniciar não corta de novo)", async () => {
     const { watcher, processed } = makeWatcher({
       files: () => [f("/r/old.mp4", 500, 42)],
       seen: { "/r/old.mp4": { size: 500, mtimeMs: 42 } },
@@ -68,7 +68,7 @@ describe("FolderWatcher", () => {
     expect(processed).toEqual([]);
   });
 
-  it("多文件按序串行处理,单文件失败不影响后续", async () => {
+  it("vários arquivos são processados em série e na ordem, e a falha de um não atrapalha os seguintes", async () => {
     const order: string[] = [];
     let concurrent = 0;
     const seen: SeenMap = {};
@@ -77,22 +77,22 @@ describe("FolderWatcher", () => {
       seen,
       onStable: async (file) => {
         concurrent += 1;
-        expect(concurrent).toBe(1); // 串行保证
+        expect(concurrent).toBe(1); // a garantia de que é em série
         await new Promise((r) => setTimeout(r, 5));
         seen[file.path] = { size: file.size, mtimeMs: file.mtimeMs };
         concurrent -= 1;
-        if (file.path === "/r/b.mp4") throw new Error("这条坏了");
+        if (file.path === "/r/b.mp4") throw new Error("este aqui quebrou");
         order.push(file.path);
       },
     });
     await watcher.tick();
     await watcher.tick();
-    await watcher.tick(); // 稳定 → 三个都入队
+    await watcher.tick(); // estável → os três entram na fila
     await watcher.idle();
-    expect(order).toEqual(["/r/a.mp4", "/r/c.mp4"]); // b 失败被跳过
+    expect(order).toEqual(["/r/a.mp4", "/r/c.mp4"]); // o b falhou e foi pulado
   });
 
-  it("目录暂不可读(网络盘抖动)该轮静默跳过", async () => {
+  it("pasta ilegível no momento (oscilação de disco de rede) pula a rodada em silêncio", async () => {
     let fail = true;
     const files = [f("/r/x.mp4", 9)];
     const seen: SeenMap = {};
@@ -117,7 +117,7 @@ describe("FolderWatcher", () => {
     expect(processed).toEqual(["/r/x.mp4"]);
   });
 
-  it("消失的文件(被移走)停止跟踪,不误触发", async () => {
+  it("arquivo que sumiu (foi movido) deixa de ser acompanhado e não dispara por engano", async () => {
     let present = true;
     const { watcher, processed } = makeWatcher({ files: () => (present ? [f("/r/gone.mp4", 7)] : []) });
     await watcher.tick();

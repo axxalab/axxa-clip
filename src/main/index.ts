@@ -1151,7 +1151,7 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
       translateLang: translations ? opts.translate!.targetLang : undefined,
       subtitleFile: Boolean(opts.subtitleFile),
       timeline: Boolean(opts.timeline),
-      // Rascunho do CapCut (v0.14): o corte da IA entra na linha de tempo do CapCut, o caminho popular de «corte bruto → acabamento»
+      // Rascunho do JianYing / CapCut (v0.14): o corte da IA entra na linha de tempo do editor, o caminho popular de «corte bruto → acabamento»
       jianyingDraft: Boolean(opts.jianyingDraft),
       aigcLabel: Boolean(opts.aigcLabel),
       // Pacote de comprovação (v0.14): 3 minutos antes e depois do material original, copiados em fluxo para arquivo (exigência nova das análises de autorização)
