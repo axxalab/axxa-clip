@@ -59,7 +59,10 @@ export function defaultFontName(platform: NodeJS.Platform = process.platform): s
   return BUNDLED_FONT_FAMILY;
 }
 
-const CJK_RE = /[぀-ヿ㐀-鿿豈-﫿가-힯]/;
+// Faixas de escritas ideográficas (kana, ideogramas CJK e hangul). Escritas como
+// escapes Unicode: o código-fonte deste projeto não carrega esses caracteres, mas a
+// medição de largura precisa continuar correta para material gravado nesses idiomas.
+const CJK_RE = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
 
 /** Visual width units of a token: CJK chars count double. */
 export function widthUnits(text: string): number {
@@ -81,7 +84,7 @@ export function sliceWords(transcript: Transcript, startSec: number, endSec: num
   return out.sort((a, b) => a.startSec - b.startSec);
 }
 
-const HARD_PUNCT_END = /[。.!?！？…]$/;
+const HARD_PUNCT_END = /[.!?…\u3002\uff01\uff1f]$/;
 /**
  * Clause-boundary punctuation (comma / ideographic comma / semicolon / colon).
  * The ASR punctuation model places these at real syntactic pauses, so breaking
@@ -90,17 +93,44 @@ const HARD_PUNCT_END = /[。.!?！？…]$/;
  * substantial (SOFT_BREAK_MIN_FRAC of the width cap) so short clauses still
  * merge into one readable line instead of fragmenting on every comma.
  */
-const SOFT_PUNCT_END = /[，,、；;：]$/;
+const SOFT_PUNCT_END = /[,;:\uff0c\u3001\uff1b\uff1a]$/;
 const SOFT_BREAK_MIN_FRAC = 0.5;
 /**
  * Structural / aspectual / modal particles a Chinese line may safely end on.
  * When a comma-free clause is longer than the width cap it would otherwise
  * split mid-phrase; backing the break up to the nearest such particle keeps
- * phrases intact ("…十几块的 / 到底…" not "…十几块的到 / 底…"). Keyless stand-in
+ * expressão inteira ("…o preço de / dez reais…" e não "…o preço de dez / reais…"). É o
  * for an LLM semantic break on long clauses; falls back to a width cut when the
  * run has no particle either.
  */
-const BREAK_AFTER_PARTICLE = /(的|了|着|过|地|得|吧|呢|吗|啊|嘛|呀)$/;
+/**
+ * Palavras funcionais em que uma linha de legenda em português NÃO deve terminar.
+ * Quando uma oração sem vírgula é mais longa que o limite de largura, ela seria
+ * partida no meio da expressão; recuar a quebra até a última palavra que não é uma
+ * dessas mantém a expressão inteira ("…o preço de / dez reais…" e não
+ * "…o preço de dez / reais…"). É o substituto sem chave de API para a quebra
+ * semântica que um LLM faria em orações longas.
+ */
+const NO_BREAK_AFTER_PT =
+  /^(?:de|da|do|das|dos|a|o|as|os|um|uma|uns|umas|em|na|no|nas|nos|para|pra|por|pelo|pela|pelos|pelas|com|sem|sob|sobre|entre|e|ou|mas|que|se|ao|aos|à|às|meu|minha|seu|sua|nosso|nossa|este|esta|esse|essa|aquele|aquela|mais|menos|muito|bem|já|só|não|é)$/i;
+
+/**
+ * Partículas estruturais, de aspecto e modais em que uma linha em escrita ideográfica
+ * pode terminar com segurança (escritas como escapes Unicode, para o código-fonte não
+ * carregar ideogramas). Material gravado nesses idiomas continua quebrando a linha no
+ * lugar certo.
+ */
+const BREAK_AFTER_PARTICLE_CJK =
+  /[\u7684\u4e86\u7740\u8fc7\u5730\u5f97\u5427\u5462\u5417\u554a\u561b\u5440]$/;
+
+/** Diz se uma linha pode terminar depois desta palavra sem partir a expressão no meio. */
+function isPhraseBreakAfter(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (CJK_RE.test(t)) return BREAK_AFTER_PARTICLE_CJK.test(t);
+  const bare = t.replace(/[^\p{L}\p{N}]/gu, "");
+  return bare.length > 0 && !NO_BREAK_AFTER_PT.test(bare);
+}
 const LOOKBACK_MIN_FRAC = 0.35;
 
 /**
@@ -160,16 +190,17 @@ export function planReadableCaptions(words: TranscriptWord[], maxUnits: number, 
 }
 
 /**
- * On a width-overflow break, find the latest word inside `line` that ends on a
- * particle boundary and still leaves a substantial head (≥ LOOKBACK_MIN_FRAC of
- * the cap). Returns the break-after index, or -1 when no good boundary exists.
+ * Numa quebra por transbordo de largura, encontra dentro de `line` a última palavra
+ * limite bom que não parte a expressão, e que ainda deixa um começo substancial (de
+ * LOOKBACK_MIN_FRAC do limite ou mais). Devolve o índice depois do qual quebrar, ou -1
+ * quando não existe limite bom.
  */
 function particleBreakIndex(line: TranscriptWord[], maxLineUnits: number): number {
   const min = maxLineUnits * LOOKBACK_MIN_FRAC;
   let prefix = 0;
   const prefixUnits = line.map((wd) => (prefix += widthUnits(wd.text)));
   for (let k = line.length - 2; k >= 0; k--) {
-    if (prefixUnits[k] >= min && BREAK_AFTER_PARTICLE.test(line[k].text)) return k;
+    if (prefixUnits[k] >= min && isPhraseBreakAfter(line[k].text)) return k;
   }
   return -1;
 }
@@ -315,12 +346,13 @@ function karaokeText(line: TranscriptWord[]): string {
 }
 
 /**
- * 说话人标签色板(与 bubble 模板的说话人配色同源;标签不用白色——要和
- * 白色正文区分开)。按「首次发言顺序」循环取色。
+ * Paleta das marcas de falante (a mesma origem das cores de falante do template de
+ * balão; a marca não usa branco, porque precisa se distinguir do texto branco).
+ * As cores são escolhidas em laço, na "ordem da primeira fala".
  */
 const SPEAKER_LABEL_HEX = ["#7FD4FF", "#FFD36B", "#9DFF8F", "#FF9DC4"];
 
-/** 行/块的主导说话人:按词时长多数票;没有任何说话人标注返回 undefined。 */
+/** O falante dominante de uma linha ou bloco: por maioria da duração das palavras; sem nenhuma identificação de falante, devolve undefined. */
 export function lineSpeaker(line: TranscriptWord[]): number | undefined {
   const byId = new Map<number, number>();
   for (const w of line) {
@@ -336,11 +368,17 @@ export function lineSpeaker(line: TranscriptWord[]): number | undefined {
 }
 
 /**
- * 说话人标签器(v0.14「对谈静音观看」):词表里 ≥2 个说话人才激活;每当
- * 行/块的主导说话人相对上一行变化,行首加一个彩色「A:」小标签(字母按
- * 整段词表的首次发言顺序分配,跨行稳定)。标签只在换人时出现不刷屏——
- * 静音刷对谈切片时能看清是谁在说,这是 2026 对谈类切片的标配。
- * 返回的函数带状态(记住上一行的说话人),每条切片新建一个。
+ * Marcador de falante (a v0.14 e o "assistir conversa sem som"): só é ativado quando a
+ * lista de palavras tem 2 ou mais falantes; sempre que o falante dominante da linha ou
+ * do bloco muda em relação à linha anterior, uma pequena marca colorida "A:" é
+ * colocada no começo da linha (as letras são atribuídas na ordem da primeira fala
+ * dentro da lista inteira, e ficam estáveis de uma linha para a outra). A marca só
+ * aparece quando a pessoa muda, e não fica repetindo — assim quem assiste um corte de
+ * conversa sem som consegue ver quem está falando, o que é padrão nos cortes desse tipo
+ * em 2026.
+ * A função devolvida guarda estado (lembra quem era o falante da linha anterior), e
+ * cada clipe cria uma nova.
+ * A função devolvida guarda estado (lembra quem era o falante da linha anterior), e cada clipe cria uma nova.
  */
 export function createSpeakerLabeler(
   words: TranscriptWord[],
@@ -359,7 +397,7 @@ export function createSpeakerLabeler(
     const idx = order.get(sp) ?? order.size;
     const letter = String.fromCharCode(65 + (idx % 26));
     const color = hexToAssInline(SPEAKER_LABEL_HEX[idx % SPEAKER_LABEL_HEX.length]) ?? WHITE_INLINE;
-    // 小一号的彩色「A:」;裸 \c / \fscx100 把颜色和缩放交还给样式默认值
+    // O "A:" colorido, um tamanho menor; o \c e o \fscx100 sozinhos devolvem a cor e a escala aos valores padrão do estilo
     return `{\\c${color}\\fscx85\\fscy85}${letter}:{\\c\\fscx100\\fscy100}`;
   };
 }
@@ -378,11 +416,15 @@ const WHITE_INLINE = "&HFFFFFF&";
  *  - keyword: whole line visible, LLM-picked keywords tinted & slightly larger
  *  - pop: 2-4 character chunks appear one at a time with a damped bounce,
  *    current word lit in the highlight color (word-by-word emphasis)
- *  - hormozi: 大字爆点——短块、特大加粗、硬阴影、居中偏上,逐词卡拉OK点亮,
- *    拉丁词全大写(海外带货/营销短视频通行的 Hormozi 风格)
- *  - minimal: 动态极简——2026 年 Hormozi 疲劳后的主流:短块卡点上屏、白字
- *    细描边软阴影、不全大写、每块至多 1 个词高亮成品牌色(数字/关键词优先),
- *    克制的 96%→100% 顶入(调研出处:RESEARCH-2026-08-CLIP-QUALITY.md 第二节)
+ *  - hormozi: letras grandes de impacto — blocos curtos, corpo enorme em negrito,
+ *    sombra dura, centralizado um pouco acima, com o karaokê acendendo palavra por
+ *    palavra e as palavras latinas em maiúsculas (o estilo Hormozi, comum em vídeo
+ *    curto de venda e de marketing lá fora)
+ *  - minimal: minimalista dinâmico — o que virou padrão em 2026, depois do cansaço do
+ *    Hormozi: blocos curtos entrando no tempo da fala, letras brancas com contorno fino
+ *    e sombra suave, sem maiúsculas, e no máximo 1 palavra por bloco destacada na cor
+ *    da marca (com prioridade para número e palavra-chave), mais uma entrada contida de
+ *    96% para 100% (fonte da pesquisa: RESEARCH-2026-08-CLIP-QUALITY.md, seção 2)
  */
 export type CaptionStyle = "karaoke" | "keyword" | "pop" | "hormozi" | "minimal";
 
@@ -395,22 +437,25 @@ export interface CaptionOptions extends CaptionReadabilityOptions {
   /** Burn the clip title into the top safe zone for the whole clip. */
   titleCard?: { text: string; durationSec: number };
   /**
-   * Opening hook: the AI teaser (悬念句) burned big in the upper third for the
-   * clip's first seconds — the 黄金3秒 text hook the teaser was written for.
+   * Gancho de abertura: a chamada da IA (a frase de suspense) queimada em letras grandes
+   * no terço superior durante os primeiros segundos do clipe — é o gancho de texto dos 3
+   * segundos de ouro para o qual a chamada foi escrita.
    */
   openingHook?: { text: string; durationSec: number };
-  /** 品牌主高亮色 "#RRGGBB"(卡拉OK点亮/关键词强调/钩子文字);缺省火焰橙。 */
+  /** Cor principal de destaque da marca, no formato "#RRGGBB" (o aceso do karaokê, a ênfase na palavra-chave e o texto do gancho); ausente usa o laranja de chama. */
   highlightHex?: string;
   /**
-   * 双语字幕的译文行(整句级),时间基与 words 一致(clipStartSec 同样平移)。
-   * 渲染为主字幕下方的小号 Trans 轨。
+   * As linhas de tradução da legenda bilíngue (no nível da frase inteira), com a mesma
+   * base de tempo de words (deslocada igualmente por clipStartSec).
+   * São renderizadas como a trilha Trans, menor, abaixo da legenda principal.
    */
   translation?: Array<{ startSec: number; endSec: number; text: string }>;
-  /** AIGC 显式标识:左上角小字「AI 生成」全程可见(《标识办法》显式标识)。 */
+  /** Sinalização explícita de IA: a frase pequena "Gerado por IA" no canto superior esquerdo, visível do começo ao fim (a sinalização explícita que as regras de rotulagem exigem). */
   aigcBadge?: { durationSec: number };
   /**
-   * 说话人标签(v0.14):多说话人切片换人时行首加彩色「A:」标签,
-   * 对谈静音观看不迷路。只在词表带 ≥2 个说话人标注时生效。
+   * Marca de falante (v0.14): em clipes com várias pessoas, a troca de falante coloca uma
+   * marca colorida "A:" no começo da linha, para quem assiste uma conversa sem som não se
+   * perder. Só vale quando a lista de palavras traz 2 ou mais falantes identificados.
    */
   speakerLabels?: boolean;
 }
@@ -425,18 +470,18 @@ function hookMarginV(layout: AssLayout): number {
   return Math.round(layout.playResY * 0.3);
 }
 
-/** 译文轨字号:主字幕的 0.6 倍——双语字幕的主从层级。 */
+/** Tamanho da fonte da trilha de tradução: 0,6 vez o da legenda principal — é a hierarquia entre principal e secundária na legenda bilíngue. */
 export function transFontSize(layout: AssLayout): number {
   return Math.round(layout.fontSize * 0.6);
 }
 
-/** 译文轨位置:主字幕块正下方(marginV 更小 = 更靠底边),保底不贴边。 */
+/** Posição da trilha de tradução: logo abaixo do bloco da legenda principal (um marginV menor fica mais perto da borda de baixo), com uma reserva para não encostar na borda. */
 export function transMarginV(layout: AssLayout): number {
   return Math.max(14, layout.marginV - Math.round(transFontSize(layout) * 1.7));
 }
 
 function assHeader(style: CaptionStyle, layout: AssLayout, fontName: string, highlightHex?: string): string[] {
-  // 品牌高亮色覆盖默认火焰橙(卡拉OK点亮色 + 开场钩子文字色同源)
+  // A cor de destaque da marca substitui o laranja de chama padrão (a cor do aceso do karaokê e a do texto do gancho de abertura vêm da mesma fonte)
   const highlight = (highlightHex && hexToAssColor(highlightHex)) || EMBER_COLOR;
   // karaoke/hormozi: Primary = sung color, Secondary = not-yet-sung; others: plain white
   const primary = style === "karaoke" || style === "hormozi" ? highlight : WHITE_COLOR;
@@ -445,9 +490,11 @@ function assHeader(style: CaptionStyle, layout: AssLayout, fontName: string, hig
     : style === "hormozi" ? Math.round(layout.fontSize * 1.5)
     : style === "minimal" ? Math.round(layout.fontSize * 1.12)
     : layout.fontSize;
-  // hormozi:更厚的描边 + 硬阴影撑住大字;位置抬到 60% 高度线(比底部字幕
-  // 醒目、又避开中心人脸)——固定占位,不随品牌位置档位走
-  // minimal:细描边 + 一点软阴影——「白字柔和阴影」的动态极简质感
+  // hormozi: contorno mais grosso mais sombra dura para sustentar as letras grandes; a
+  // posição sobe para a linha de 60% da altura (mais chamativa que a legenda de rodapé e
+  // ao mesmo tempo longe do rosto no centro) — é uma posição fixa, que não acompanha o
+  // nível de posição da marca
+  // minimal: contorno fino mais um pouco de sombra suave — a textura minimalista dinâmica de "letra branca com sombra macia"
   const outline =
     style === "hormozi" ? layout.outline + 3
     : style === "minimal" ? Math.max(2, layout.outline - 2)
@@ -471,9 +518,9 @@ function assHeader(style: CaptionStyle, layout: AssLayout, fontName: string, hig
     `Style: Title,${fontName},${titleSize},${WHITE_COLOR},${WHITE_COLOR},&H73000000,&H73000000,-1,0,0,0,100,100,0,0,3,12,0,8,${layout.marginH},${layout.marginH},${titleMarginV(layout)},1`,
     // opening hook: ember text on a dark plate, big, upper-third (Alignment 8 + high MarginV)
     `Style: Hook,${fontName},${hookSize},${highlight},${WHITE_COLOR},&H73000000,&H73000000,-1,0,0,0,100,100,0,0,3,14,0,8,${layout.marginH},${layout.marginH},${hookMarginV(layout)},1`,
-    // 双语译文轨:小号白字,主字幕块正下方(整句级,不参与卡拉OK)
+    // Trilha de tradução bilíngue: letras brancas menores, logo abaixo do bloco da legenda principal (no nível da frase inteira, sem participar do karaokê)
     `Style: Trans,${fontName},${transFontSize(layout)},${WHITE_COLOR},${WHITE_COLOR},${OUTLINE_COLOR},&H7F000000,-1,0,0,0,100,100,0,0,1,${Math.max(2, layout.outline - 1)},0,2,${layout.marginH},${layout.marginH},${transMarginV(layout)},1`,
-    // AIGC 显式标识:左上角半透明小字(Alignment 7;避开右上角默认水印位)
+    // Sinalização explícita de IA: uma frase pequena e semitransparente no canto superior esquerdo (Alignment 7, que evita a posição padrão da marca d'água, no canto superior direito)
     `Style: Aigc,${fontName},${Math.round(layout.fontSize * 0.42)},&H55FFFFFF,${WHITE_COLOR},&H55000000,&H7F000000,0,0,0,0,100,100,0,0,1,2,0,7,${Math.round(layout.marginH * 0.7)},${layout.marginH},${Math.round(layout.playResY * 0.035)},1`,
     "",
     "[Events]",
@@ -504,7 +551,7 @@ function dialogue(startSec: number, endSec: number, text: string): string {
  * line text (same spacing rules as display), case-insensitive.
  */
 export function keywordText(line: TranscriptWord[], keywords: string[], highlightHex?: string): string {
-  // 品牌高亮色覆盖默认火焰橙(行内 \c 覆写形式)
+  // A cor de destaque da marca substitui o laranja de chama padrão (na forma de sobrescrita \c dentro da linha)
   const highlightInline = (highlightHex && hexToAssInline(highlightHex)) || EMBER_INLINE;
   // joined text + each word's [start,end) position inside it
   const spans: Array<{ from: number; to: number }> = [];
@@ -537,19 +584,23 @@ export function keywordText(line: TranscriptWord[], keywords: string[], highligh
   return parts.join("");
 }
 
-/** Pop 阻尼弹入:0.8→1.04→1.0 共 165ms——弹而不贱(拟合重阻尼 spring 手感)。 */
+/** Entrada amortecida do pop: 0,8 → 1,04 → 1,0 em 165 ms no total — com elasticidade, mas sem exagero (ajustado para a sensação de uma mola bem amortecida). */
 const POP_INTRO = "{\\fscx80\\fscy80\\t(0,90,\\fscx104\\fscy104)\\t(90,165,\\fscx100\\fscy100)}";
 
 /** Pop chunks: 2-4 CJK chars (or 1-2 latin words) shown one at a time. */
 const POP_MAX_UNITS = 8;
 
-/** 当前词提前点亮的毫秒数:高亮先于语音 50-100ms 时「跟手感」最好。 */
+/** De quantos milissegundos o aceso da palavra atual se antecipa: a sensação de "acompanhar a mão" é melhor quando o destaque vem de 50 a 100 ms antes da fala. */
 const POP_HIGHLIGHT_LEAD_MS = 80;
 
 /**
- * Pop 块文本:块内「当前词」品牌色点亮,下一词接棒时切回白。
- * 逐词换色是当下逐词字幕的主流强调方式(优于整句扫色/背景块/放大)。
- * \t 零时长即瞬时切换;时间相对块事件起点(=块首词起点)。纯函数,可单测。
+ * Texto do bloco no estilo pop: a "palavra atual" do bloco acende na cor da marca e
+ * volta ao branco quando a palavra seguinte assume.
+ * Trocar a cor palavra por palavra é a forma dominante de ênfase na legenda palavra a
+ * palavra de hoje (melhor que varrer a frase inteira, que o bloco de fundo e que
+ * aumentar a letra).
+ * Um \t de duração zero é uma troca instantânea; o tempo é relativo ao início do evento
+ * do bloco (que é o início da primeira palavra dele). Função pura, testável.
  */
 export function popText(unit: TranscriptWord[], chunkStartSec: number, highlightHex?: string): string {
   const highlightInline = (highlightHex && hexToAssInline(highlightHex)) || EMBER_INLINE;
@@ -572,16 +623,16 @@ export function popText(unit: TranscriptWord[], chunkStartSec: number, highlight
   return parts.join("");
 }
 
-/** Hormozi punch-in:快速顶入定格(比 pop 的弹跳更硬更利落)。 */
+/** Entrada rápida do Hormozi: entra e para de uma vez (mais firme e mais seca que o salto do pop). */
 const HORMOZI_INTRO = "{\\fscx82\\fscy82\\t(0,70,\\fscx100\\fscy100)}";
 
-/** Hormozi 短块宽度:约 5 个汉字/2-3 个英文词一屏。 */
+/** Largura do bloco curto do Hormozi: cerca de 2 a 3 palavras por tela. */
 const HORMOZI_MAX_UNITS = 10;
 
-/** 动态极简的顶入:96%→100%,80ms——有生气但不抢戏。 */
+/** Entrada do minimalista dinâmico: de 96% para 100% em 80 ms — tem vida, mas não rouba a cena. */
 const MINIMAL_INTRO = "{\\fad(80,0)\\fscx96\\fscy96\\t(0,80,\\fscx100\\fscy100)}";
 
-/** 动态极简短块宽度:与 Hormozi 同档(约 5 汉字),字号小一号所以更透气。 */
+/** Largura do bloco curto do minimalista dinâmico: no mesmo nível do Hormozi, e como a fonte é um tamanho menor, fica mais arejado. */
 const MINIMAL_MAX_UNITS = 10;
 
 /** The exact width budget used by each rendered caption style. */
@@ -592,18 +643,21 @@ export function captionMaxLineUnits(style: CaptionStyle, layout: AssLayout): num
   return layout.maxLineUnits;
 }
 
-/** 数字类 token(含百分号/价格):没有关键词命中时的高亮兜底。 */
+/** Tokens numéricos (incluindo porcentagem e preço): é o destaque de reserva quando nenhuma palavra-chave é encontrada. */
 const DIGIT_TOKEN_RE = /[0-9][0-9.,]*%?/;
 
 /**
- * 动态极简的块文本:每块至多高亮 1 个词(调研口径「每句最多 1 词,数字/
- * 关键词优先」)。优先级:关键词命中的第一段连续区 > 第一个含数字的 token;
- * 都没有就全白。高亮 = 品牌色 + 8% 放大(与 keyword 风格同款强调语汇)。
- * 纯函数,可单测。
+ * Texto do bloco no minimalista dinâmico: no máximo 1 palavra destacada por bloco (pelo
+ * critério da pesquisa, "no máximo 1 palavra por frase, com prioridade para número e
+ * palavra-chave"). A prioridade é: o primeiro trecho contínuo em que a palavra-chave foi
+ * encontrada > o primeiro token que contém número;
+ * sem nenhum dos dois, fica tudo branco. O destaque é a cor da marca mais 8% de aumento
+ * (o mesmo vocabulário de ênfase do estilo keyword).
+ * Função pura, testável.
  */
 export function minimalText(line: TranscriptWord[], keywords: string[], highlightHex?: string): string {
   const highlightInline = (highlightHex && hexToAssInline(highlightHex)) || EMBER_INLINE;
-  // 关键词覆盖判定(与 keywordText 同一套拼接/匹配规则)
+  // Verificação de cobertura da palavra-chave (as mesmas regras de concatenação e de correspondência de keywordText)
   const spans: Array<{ from: number; to: number }> = [];
   let joined = "";
   for (let i = 0; i < line.length; i++) {
@@ -624,7 +678,7 @@ export function minimalText(line: TranscriptWord[], keywords: string[], highligh
       });
     }
   }
-  // 只保留第一段连续命中,其余降回白字——「每块 ≤1 处高亮」
+  // Só o primeiro trecho contínuo encontrado é mantido, e o resto volta ao branco — é o "no máximo 1 destaque por bloco"
   let inFirstRun = false;
   let runDone = false;
   for (let i = 0; i < line.length; i++) {
@@ -636,7 +690,7 @@ export function minimalText(line: TranscriptWord[], keywords: string[], highligh
     }
     if (runDone) covered[i] = false;
   }
-  // 关键词一处都没有:高亮第一个数字 token(价格/百分比是天然强调点)
+  // Sem nenhuma palavra-chave: o primeiro token numérico é destacado (preço e porcentagem são pontos de ênfase naturais)
   if (!covered.some(Boolean)) {
     const di = line.findIndex((w) => DIGIT_TOKEN_RE.test(w.text));
     if (di >= 0) covered[di] = true;
@@ -681,13 +735,15 @@ export function buildCaptionAss(
     );
   }
 
-  // AIGC 显式标识:左上角全程小字(layer 3,压在所有轨之上)
+  // Sinalização explícita de IA: a frase pequena do canto superior esquerdo, presente do começo ao fim (layer 3, acima de todas as trilhas)
   if (options.aigcBadge && options.aigcBadge.durationSec > 0) {
-    events.push(`Dialogue: 3,${toAssTime(0)},${toAssTime(options.aigcBadge.durationSec)},Aigc,,0,0,0,,AI 生成`);
+    events.push(`Dialogue: 3,${toAssTime(0)},${toAssTime(options.aigcBadge.durationSec)},Aigc,,0,0,0,,Gerado por IA`);
   }
 
-  // 双语译文轨:整句级 Dialogue,时间与 words 同基(同样被 clipStartSec 平移);
-  // WrapStyle=2 不自动换行,译文行手动折行(阈值按小号字换算)
+  // Trilha de tradução bilíngue: um Dialogue no nível da frase inteira, com o tempo na
+  // mesma base de words (deslocado igualmente por clipStartSec);
+  // com WrapStyle=2 não há quebra automática, então a linha de tradução é quebrada à mão
+  // (com o limite convertido para o tamanho menor de fonte)
   if (options.translation) {
     const transUnits = Math.round(layout.maxLineUnits / 0.6);
     for (const line of options.translation) {
@@ -700,11 +756,11 @@ export function buildCaptionAss(
   }
 
   const forcedBreaks = options.forcedBreaks ?? [];
-  // 说话人标签器:每条切片一个(带「上一行是谁」的状态);单人/没开不生效
+  // Marcador de falante: um por clipe (que guarda "quem era o falante da linha anterior"); com um único falante ou desligado, não faz nada
   const speakerTag = createSpeakerLabeler(words, Boolean(options.speakerLabels));
   if (style === "pop" || style === "hormozi" || style === "minimal") {
     const maxUnits = captionMaxLineUnits(style, layout);
-    // 动态极简与 keyword 同款:先把关键词连成一个词,断块永远不劈开高亮词
+    // O minimalista dinâmico é igual ao keyword: primeiro as palavras-chave são unidas numa palavra só, e a quebra de bloco nunca parte a palavra destacada
     const chunkWords = style === "minimal" ? mergeKeywordWords(words, options.keywords ?? []) : words;
     const planned = options.readability ? planReadableCaptions(chunkWords, maxUnits, forcedBreaks, options.endSec) : undefined;
     const units = planned ? planned.map((line) => line.words) : groupWordsIntoLines(chunkWords, maxUnits, forcedBreaks);
@@ -714,18 +770,19 @@ export function buildCaptionAss(
       const lastEnd = unit[unit.length - 1].endSec;
       const next = units[i + 1]?.[0].startSec;
       const end = (planned?.[i].endSec ?? (next !== undefined ? Math.min(next, lastEnd + CAPTION_HOLD_MAX_SEC) : lastEnd + 0.2)) - clipStartSec;
-      // 说话人标签放在动效标签之前:标签字符不参与顶入/弹入缩放动画,
-      // 后续正文的动效覆写不受影响
+    // A marca de falante vem antes das etiquetas de efeito: os caracteres da marca não
+    // participam da animação de entrada nem da de escala, e a sobrescrita de efeito do
+    // texto que vem depois não é afetada
       const tag = speakerTag(unit);
       if (style === "hormozi") {
-        // 大字爆点:短块顶入 + 块内逐词卡拉OK点亮;拉丁词全大写(CJK 不受影响)
+        // Letras grandes de impacto: bloco curto entrando de uma vez mais o karaokê acendendo palavra por palavra dentro dele; as palavras latinas vão para maiúsculas (a escrita ideográfica não é afetada)
         const caps = unit.map((w) => ({ ...w, text: w.text.toUpperCase() }));
         events.push(dialogue(start, end, tag + HORMOZI_INTRO + karaokeText(caps)));
       } else if (style === "minimal") {
-        // 动态极简:短块轻顶入,块内至多 1 处品牌色高亮(关键词/数字优先)
+        // Minimalista dinâmico: bloco curto com uma entrada leve e no máximo 1 destaque na cor da marca dentro dele (com prioridade para palavra-chave e número)
         events.push(dialogue(start, end, tag + MINIMAL_INTRO + minimalText(unit, options.keywords ?? [], highlightHex)));
       } else {
-        // pop:阻尼弹入 + 块内当前词换色(品牌高亮色跟手点亮)
+        // pop: entrada amortecida mais a troca de cor da palavra atual dentro do bloco (a cor de destaque da marca acendendo junto com a fala)
         events.push(dialogue(start, end, tag + POP_INTRO + popText(unit, unit[0].startSec, highlightHex)));
       }
     }
