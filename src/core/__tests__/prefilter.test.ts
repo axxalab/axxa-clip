@@ -16,28 +16,28 @@ import type { Transcript, TranscriptSegment } from "../transcribe/types";
 
 afterEach(() => vi.restoreAllMocks());
 
-// 构造 n 句转写,每句 text 重复到指定长度
+// Monta uma transcrição de n frases, com o texto de cada uma repetido até o tamanho pedido
 function mockTranscript(n: number, charsPerSeg = 40): Transcript {
   const segments: TranscriptSegment[] = Array.from({ length: n }, (_, i) => ({
     id: i + 1,
     startSec: i * 4,
     endSec: i * 4 + 3.5,
-    text: `第${i + 1}句内容`.padEnd(charsPerSeg, "话"),
+    text: `conteudo da frase ${i + 1} `.padEnd(charsPerSeg, "a"),
     words: [],
   }));
   return { language: "zh", engine: "mock", durationSec: n * 4, segments };
 }
 
 describe("chunkSegments", () => {
-  it("按累计字符切块,整句为单位", () => {
-    const t = mockTranscript(50, 100); // 5000 字
+  it("os blocos são formados pelo total de caracteres, sempre por frase inteira", () => {
+    const t = mockTranscript(50, 100); // 5000 caracteres
     const chunks = chunkSegments(t.segments, 1000);
     expect(chunks.length).toBeGreaterThan(3);
-    expect(chunks.flat().length).toBe(50); // 一句不丢
+    expect(chunks.flat().length).toBe(50); // nenhuma frase se perde
     for (const c of chunks) expect(c.length).toBeGreaterThan(0);
   });
 
-  it("单句超长也成块(不死循环)", () => {
+  it("uma frase comprida demais também forma bloco (sem laço infinito)", () => {
     const t = mockTranscript(2, 5000);
     expect(chunkSegments(t.segments, 1000).length).toBe(2);
   });
@@ -46,19 +46,19 @@ describe("chunkSegments", () => {
 describe("stripThinkBlocks / parseWindows", () => {
   const ids = new Set([1, 2, 3, 4, 5, 6, 7, 8]);
 
-  it("剥掉 <think> 块后解析 JSON(qwen3 推理输出形态)", () => {
-    const content = `<think>嗯,{要仔细想想}这段…</think>\n{"windows":[{"start":2,"end":5}]}`;
+  it("o bloco <think> é tirado antes de ler o JSON (a forma de saída de raciocínio do qwen3)", () => {
+    const content = `<think>hum, {preciso pensar bem} neste trecho…</think>\n{"windows":[{"start":2,"end":5}]}`;
     expect(parseWindows(content, ids)).toEqual([{ start: 2, end: 5 }]);
     expect(stripThinkBlocks("<think>a</think>rest")).toBe("rest");
   });
 
-  it("非法 id / 缺字段的窗口被丢弃;start>end 自动交换", () => {
+  it("a janela com id inválido ou campo faltando é descartada; start>end são trocados sozinhos", () => {
     const content = `{"windows":[{"start":99,"end":100},{"start":5,"end":3},{"end":4}]}`;
     expect(parseWindows(content, ids)).toEqual([{ start: 3, end: 5 }]);
   });
 
-  it("完全不可解析时抛错(调用方回退)", () => {
-    expect(() => parseWindows("我觉得都不错!", ids)).toThrow();
+  it("quando não há nada para ler, lança erro (e quem chama recua)", () => {
+    expect(() => parseWindows("eu acho que está tudo bom!", ids)).toThrow();
     expect(() => parseWindows(`{"clips":[]}`, ids)).toThrow();
   });
 });
@@ -66,18 +66,18 @@ describe("stripThinkBlocks / parseWindows", () => {
 describe("expandAndMergeWindows / filterTranscriptByIds", () => {
   const orderedIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-  it("每侧外扩 pad 句并合并重叠", () => {
+  it("cada lado é esticado em pad frases e as sobreposições se unem", () => {
     const kept = expandAndMergeWindows([{ start: 4, end: 5 }, { start: 6, end: 7 }], orderedIds, 1);
-    // 4-5 扩成 3-6;6-7 扩成 5-8 → 合并 3-8
+    // 4-5 vira 3-6 e 6-7 vira 5-8 → unidos em 3-8
     expect([...kept].sort((a, b) => a - b)).toEqual([3, 4, 5, 6, 7, 8]);
   });
 
-  it("外扩不越过稿件两端", () => {
+  it("o esticar não passa das pontas da transcrição", () => {
     const kept = expandAndMergeWindows([{ start: 1, end: 2 }], orderedIds, 3);
     expect(Math.min(...kept)).toBe(1);
   });
 
-  it("过滤后的转写保留原 id(云端引用可在全稿反查)", () => {
+  it("a transcrição filtrada preserva o id original (a citação da nuvem pode ser achada de volta no texto inteiro)", () => {
     const t = mockTranscript(10);
     const filtered = filterTranscriptByIds(t, new Set([3, 7]));
     expect(filtered.segments.map((s) => s.id)).toEqual([3, 7]);
@@ -89,20 +89,20 @@ describe("expandAndMergeWindows / filterTranscriptByIds", () => {
 });
 
 describe("prefilterUserPrompt", () => {
-  it("qwen3 模型附加 /no_think,其他模型不加", () => {
+  it("no modelo qwen3 é acrescentado /no_think, e nos outros não", () => {
     const seg = mockTranscript(2).segments;
     expect(prefilterUserPrompt(seg, true, "qwen3:4b")).toContain("/no_think");
     expect(prefilterUserPrompt(seg, true, "llama3.2:3b")).not.toContain("/no_think");
   });
 });
 
-describe("prefilterTranscript(注入假 chat)", () => {
+describe("prefilterTranscript (com um chat falso injetado)", () => {
   const local = { baseUrl: "http://localhost:11434/v1", apiKey: "ollama", model: "qwen3:4b" };
 
-  it("正常路径:圈出窗口 → 过滤转写 + 漏斗统计", async () => {
-    const t = mockTranscript(100, 60); // 6000 字,3 块左右
+  it("caminho normal: as janelas são cercadas → a transcrição é filtrada + a estatística do funil", async () => {
+    const t = mockTranscript(100, 60); // 6000 caracteres, uns 3 blocos
     const chat: ChatFn = async (_l, _s, user) => {
-      // 每块圈第一、二句为一个窗口
+      // Em cada bloco, a primeira e a segunda frase formam uma janela
       const m = user.match(/\[(\d+)\]/);
       const first = Number(m![1]);
       return `{"windows":[{"start":${first},"end":${first + 1}}]}`;
@@ -112,18 +112,18 @@ describe("prefilterTranscript(注入假 chat)", () => {
     expect(out!.transcript.segments.length).toBeLessThan(100 * 0.85);
     expect(out!.funnel.totalSegments).toBe(100);
     expect(out!.funnel.keptChars).toBeLessThan(out!.funnel.totalChars);
-    // 入围句保留原 id
+    // As frases que passaram preservam o id original
     expect(out!.transcript.segments.every((s) => t.segments.some((o) => o.id === s.id))).toBe(true);
   });
 
-  it("稿太短不启用", async () => {
-    const t = mockTranscript(5, 40); // 200 字 < 阈值
+  it("transcrição curta demais não liga o funil", async () => {
+    const t = mockTranscript(5, 40); // 200 caracteres, abaixo do limite
     expect(PREFILTER_MIN_CHARS).toBeGreaterThan(200);
     const chat: ChatFn = async () => `{"windows":[]}`;
     expect(await prefilterTranscript(t, local, chat)).toBeNull();
   });
 
-  it("端点全挂 → null(回退全文)", async () => {
+  it("endpoint todo fora do ar → null (volta ao texto inteiro)", async () => {
     const t = mockTranscript(100, 60);
     const chat: ChatFn = async () => {
       throw new Error("ECONNREFUSED");
@@ -131,34 +131,34 @@ describe("prefilterTranscript(注入假 chat)", () => {
     expect(await prefilterTranscript(t, local, chat)).toBeNull();
   });
 
-  it("小模型判全无爆点 → null(不可信,全文直发)", async () => {
+  it("o modelo pequeno julga que não há estouro nenhum → null (não é confiável, e o texto inteiro segue)", async () => {
     const t = mockTranscript(100, 60);
     const chat: ChatFn = async () => `{"windows":[]}`;
     expect(await prefilterTranscript(t, local, chat)).toBeNull();
   });
 
-  it("单块失败 → 该块整块入围,其余照筛", async () => {
+  it("a falha de um bloco → aquele bloco entra inteiro, e os outros continuam sendo filtrados", async () => {
     const t = mockTranscript(100, 60);
     let call = 0;
     const chat: ChatFn = async (_l, _s, user) => {
-      if (call++ === 0) throw new Error("timeout"); // 第一块挂
+      if (call++ === 0) throw new Error("timeout"); // o primeiro bloco cai
       const m = user.match(/\[(\d+)\]/);
       const first = Number(m![1]);
       return `{"windows":[{"start":${first},"end":${first + 1}}]}`;
     };
     const out = await prefilterTranscript(t, local, chat);
     expect(out).not.toBeNull();
-    // 第一块的句子全部在场(fail-open 到"多花钱"而不是"漏内容")
+    // Todas as frases do primeiro bloco estão presentes (a falha em aberto escolhe «gastar mais» em vez de «perder conteúdo»)
     expect(out!.transcript.segments.some((s) => s.id === 1)).toBe(true);
   });
 
-  it("筛不掉多少(≥85%)就不启用漏斗", async () => {
-    const t = mockTranscript(20, 200); // 单块 4000 字
-    const chat: ChatFn = async () => `{"windows":[{"start":1,"end":20}]}`; // 全入围
+  it("se a filtragem tira pouco (≥85% fica), o funil não é ligado", async () => {
+    const t = mockTranscript(20, 200); // um bloco de 4000 caracteres
+    const chat: ChatFn = async () => `{"windows":[{"start":1,"end":20}]}`; // tudo passa
     expect(await prefilterTranscript(t, local, chat)).toBeNull();
   });
 
-  it("长稿分段以有限并发处理，乱序完成也不丢块", async () => {
+  it("um texto longo é processado em partes com concorrência limitada, e terminar fora de ordem não perde bloco", async () => {
     const t = mockTranscript(300, 100);
     let inFlight = 0, peak = 0, calls = 0;
     const completed: number[] = [];
@@ -177,7 +177,7 @@ describe("prefilterTranscript(注入假 chat)", () => {
     for (const first of completed) expect(out!.transcript.segments.some((s) => s.id === first)).toBe(true);
   });
 
-  it("用户停止后不再派发排队分段，不吞成全文回退", async () => {
+  it("depois de a pessoa parar, nenhuma parte da fila é despachada, sem virar um recuo silencioso ao texto inteiro", async () => {
     const controller = new AbortController();
     let calls = 0;
     const chat: ChatFn = async () => {
@@ -188,7 +188,7 @@ describe("prefilterTranscript(注入假 chat)", () => {
     expect(calls).toBe(PREFILTER_CONCURRENCY);
   });
 
-  it("总预算到期停止派发，未处理的内容仍保留", async () => {
+  it("quando o orçamento total termina, o despacho para e o conteúdo não processado continua preservado", async () => {
     const timeout = new AbortController();
     vi.spyOn(AbortSignal, "timeout").mockReturnValue(timeout.signal);
     const t = mockTranscript(200, 100);
@@ -201,7 +201,7 @@ describe("prefilterTranscript(注入假 chat)", () => {
     };
     const out = await prefilterTranscript(t, local, chat);
     expect(calls).toBe(4);
-    // 若筛减不足会回退全文，否则未派发块必须完整进入下一阶段。
+    // Se a filtragem tirar pouco, tudo volta ao texto inteiro; senão, o bloco não despachado tem de entrar inteiro na etapa seguinte.
     const retained = new Set((out?.transcript ?? t).segments.map((s) => s.id));
     for (const segment of chunks.slice(calls).flat()) expect(retained.has(segment.id)).toBe(true);
   });
