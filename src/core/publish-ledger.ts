@@ -1,6 +1,7 @@
 /**
- * 跨批次发布账本:把已经导出的成片与后来导入的平台指标可靠地接起来。
- * 账本只保存内容元数据和本地路径,不保存平台账号、Cookie 或密钥。
+ * O livro-caixa de publicação entre levas: os vídeos já exportados são ligados de forma confiável aos
+ * números da plataforma importados depois.
+ * O livro guarda só os metadados do conteúdo e o caminho local, nunca conta de plataforma, cookie ou chave.
  */
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -105,7 +106,7 @@ export interface CorrelatedPerformance {
   summary: PerformanceMatchSummary;
 }
 
-/** ID 优先;无 ID 时只接受唯一的精确标题匹配。歧义行绝不静默认领。 */
+/** O ID tem precedência; sem ID, só um título exatamente igual e único é aceito. Uma linha ambígua nunca é reivindicada em silêncio. */
 export async function correlatePerformanceEntries(
   userDataDir: string,
   entries: PerformanceEntry[],
@@ -121,8 +122,8 @@ export async function correlatePerformanceEntries(
   const correlated = entries.map((entry) => {
     let item = entry.contentId ? byId.get(entry.contentId) : undefined;
     let confidence: PerformanceEntry["matchConfidence"] = item ? "id" : undefined;
-    // 模板里显式带了 ID 却查不到时不能再按标题兜底:可能是另一台机器/
-    // 旧账本的 ID,按标题认领会把指标挂错内容。
+    // Quando o modelo traz um ID explícito que não é achado, não se pode cair de volta no título: pode ser o ID
+    // de outra máquina ou de um livro antigo, e reivindicar pelo título penduraria os números no conteúdo errado.
     if (entry.contentId && !item) {
       unmatched++;
       unmatchedTitles.push(entry.title);
@@ -173,7 +174,7 @@ function csvField(value: string | number): string {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-/** 用户只需补播放/互动列;稳定内容 ID 可避免重名标题误匹配。 */
+/** A pessoa só precisa preencher as colunas de exibição e de interação; um ID de conteúdo estável evita o falso casamento entre títulos iguais. */
 export function buildPerformanceTemplate(items: PublishLedgerItem[]): string {
   const header = ["content_id", "title", "platform", "experiment_id", "variant", "duration_sec", "keywords", "published_at", "views", "likes", "comments", "shares", "saves"];
   const lines = [header.join(",")];
@@ -196,7 +197,7 @@ export async function clearPublishLedger(userDataDir: string): Promise<void> {
   await rm(ledgerPath(userDataDir), { force: true });
 }
 
-/** 清表现记忆时保留导出登记,只把成片重新标回“等待数据”。 */
+/** Ao limpar a memória de desempenho, o registro de exportação fica, e os vídeos só voltam a ser marcados como «esperando dados». */
 export async function clearPublishMetrics(userDataDir: string): Promise<void> {
   const items = (await loadPublishLedger(userDataDir)).map(({ metricsImportedAt: _ignored, ...item }) => item);
   if (items.length > 0) await savePublishLedger(userDataDir, items);

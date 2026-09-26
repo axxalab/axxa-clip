@@ -1,6 +1,8 @@
 /**
- * 主题系列包:用候选已有关键词把同场成片归成可连续发布的系列。
- * 全程本地、确定性、零额外模型调用;视频优先硬链接,跨盘时回退复制。
+ * Pacote de série temática: os vídeos prontos da mesma sessão são agrupados em séries que dá para publicar
+ * em sequência, usando as palavras-chave que os candidatos já têm.
+ * Tudo local, determinístico e sem nenhuma chamada extra de modelo; o vídeo entra por link físico de
+ * preferência, e entre discos a cópia assume.
  */
 import { copyFile, link, mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -28,7 +30,7 @@ export interface SeriesPackSummary {
 }
 
 const GENERIC = new Set([
-  "视频", "直播", "片段", "精彩", "分享", "内容", "主播", "shorts", "video", "clip", "live", "highlight",
+  "video", "vídeo", "live", "trecho", "corte", "cortes", "momentos", "melhores", "conteúdo", "canal", "shorts", "clip", "highlight",
 ]);
 
 function normalizedKeyword(value: string): string {
@@ -41,8 +43,9 @@ function safeName(value: string, fallback: string): string {
 }
 
 /**
- * 每条成片只进入一个主系列,避免同一文件散落多处。关键词至少在两条原片
- * 中出现才有资格成系列;分配后不足两集的主题再次剔除。
+ * Cada vídeo pronto entra numa única série principal, para o mesmo arquivo não se espalhar por vários
+ * lugares. Uma palavra-chave só é candidata a virar série se aparecer em pelo menos dois materiais
+ * originais; depois da distribuição, o tema que ficou com menos de dois episódios é descartado de novo.
  */
 export function groupTopicSeries(clips: SeriesClipInput[]): Array<{ topic: string; clips: SeriesClipInput[] }> {
   const keywordsByClip = clips.map((clip) => [...new Set((clip.keywords ?? []).map(normalizedKeyword).filter((k) => k.length >= 2 && !GENERIC.has(k)))]);
@@ -75,7 +78,7 @@ async function linkOrCopy(src: string, dest: string): Promise<void> {
   }
 }
 
-/** 没有可成组主题时不落空目录;单件失败不影响其他系列。 */
+/** Sem nenhum tema que forme grupo, nenhuma pasta vazia é criada; a falha de um item não atrapalha as outras séries. */
 export async function buildSeriesPack(outDir: string, clips: SeriesClipInput[]): Promise<SeriesPackSummary | null> {
   const groups = groupTopicSeries(clips);
   if (groups.length === 0) return null;
@@ -85,7 +88,7 @@ export async function buildSeriesPack(outDir: string, clips: SeriesClipInput[]):
   const usedDirNames = new Set<string>();
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
     const group = groups[groupIndex];
-    let dirName = safeName(group.topic, `主题${groupIndex + 1}`);
+    let dirName = safeName(group.topic, `tema${groupIndex + 1}`);
     if (usedDirNames.has(dirName)) dirName = `${dirName}-${groupIndex + 1}`;
     usedDirNames.add(dirName);
     const dir = join(root, dirName);
@@ -98,7 +101,7 @@ export async function buildSeriesPack(outDir: string, clips: SeriesClipInput[]):
         await linkOrCopy(clip.file, join(dir, target));
         rows.push({ file: target, title: clip.title, order: index + 1 });
       } catch {
-        // 单条不可读/跨盘复制失败:不把不存在的文件写进清单
+        // Um item ilegível ou uma cópia entre discos que falhou: um arquivo que não existe não entra na lista
       }
     }
     if (rows.length >= 2) {

@@ -1,9 +1,9 @@
 /**
- * Per-block audio peak track — the signal layer under jump-cut decisions.
- * A word gap alone doesn't prove silence: laughter, applause, BGM stings and
- * game SFX carry no words but must survive the cut (auto-editor's insight).
- * Peaks (max |sample| per block) are cheap, and unlike RMS they catch short
- * transients that loudness averaging would smear away.
+ * Trilha de picos de áudio por bloco — a camada de sinal embaixo das decisões do corte seco.
+ * Um vão entre palavras, por si, não prova silêncio: risada, palmas, efeitos da trilha e sons de jogo não
+ * trazem palavra nenhuma e precisam sobreviver ao corte (a percepção do auto-editor).
+ * Os picos (o máximo de |amostra| por bloco) são baratos e, ao contrário do RMS, pegam os transientes curtos
+ * que a média de volume borraria.
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -13,22 +13,22 @@ import { ffmpegAudioStreamSpecifier } from "./probe";
 const execFileAsync = promisify(execFile);
 
 const SAMPLE_RATE = 16000;
-/** Peak blocks per second; fine enough to bound any 0.12s pad region. */
+/** Blocos de pico por segundo; fino o bastante para limitar qualquer região de folga de 0,12s. */
 const BLOCKS_PER_SEC = 30;
 
 export interface PeakTrack {
-  /** Normalised peak (0..1) per block. */
+  /** O pico normalizado (de 0 a 1) de cada bloco. */
   values: Float32Array;
-  /** Absolute source time of the first block. */
+  /** O tempo absoluto de origem do primeiro bloco. */
   startSec: number;
-  /** Seconds per block. */
+  /** Os segundos de cada bloco. */
   hopSec: number;
 }
 
 /**
- * Fold interleaved s16 PCM into per-block max|sample|/32768. Fractional
- * samples-per-block are handled with error accumulation so block boundaries
- * stay aligned with wall-clock time over long inputs (no drift).
+ * Dobra o PCM s16 intercalado no máximo de |amostra|/32768 por bloco. Um número fracionário de amostras por
+ * bloco é tratado com acumulação do erro, de modo que as bordas dos blocos continuem alinhadas com o tempo
+ * de relógio ao longo de uma entrada longa (sem deriva).
  */
 export function peaksFromPcm(samples: Int16Array, samplesPerBlock: number): Float32Array {
   if (samples.length === 0 || samplesPerBlock <= 0) return new Float32Array(0);
@@ -49,7 +49,7 @@ export function peaksFromPcm(samples: Int16Array, samplesPerBlock: number): Floa
   return Float32Array.from(blocks);
 }
 
-/** Max peak within [fromSec, toSec] (absolute source time); 0 when outside. */
+/** O maior pico dentro de [fromSec, toSec] (em tempo absoluto de origem); 0 quando está fora. */
 export function peakInRange(track: PeakTrack, fromSec: number, toSec: number): number {
   const first = Math.max(0, Math.floor((fromSec - track.startSec) / track.hopSec));
   const last = Math.min(track.values.length - 1, Math.ceil((toSec - track.startSec) / track.hopSec));
@@ -60,26 +60,27 @@ export function peakInRange(track: PeakTrack, fromSec: number, toSec: number): n
   return peak;
 }
 
-/** 一次峰值事件:一段连续的「显著响」区间(笑声/怒吼/掌声的声学代理)。 */
+/** Um pico: um intervalo contínuo «bem alto» (o indicador acústico de risada, grito e palmas). */
 export interface PeakEvent {
-  /** 事件内最响一块的时刻(绝对源时间,秒)——打点/运镜强调用它。 */
+  /** O instante do bloco mais alto do evento (em tempo absoluto de origem, em segundos) — é ele que a marcação de efeito e a ênfase do movimento de câmera usam. */
   atSec: number;
   startSec: number;
   endSec: number;
-  /** 事件峰值(0..1)。 */
+  /** O pico do evento (de 0 a 1). */
   peak: number;
 }
 
-/** 相邻响块间隔小于该值时并成同一事件(笑声中间的换气不该把事件劈两半)。 */
+/** Blocos altos vizinhos com intervalo menor que este viram o mesmo evento (a respirada no meio de uma risada não deve partir o evento em dois). */
 const EVENT_MERGE_GAP_SEC = 0.35;
 
 /**
- * 从峰值轨提取「峰值事件」:高于全轨最高峰 floorRatio 的块聚类成区间,
- * 按事件峰值从高到低返回前 maxEvents 个。全轨近静音(最高峰 < minPeak)
- * 返回空——没有情绪高点可言。纯函数。
+ * Extrai os «picos» da trilha: os blocos acima de floorRatio do pico mais alto da trilha inteira são
+ * agrupados em intervalos, e os maxEvents primeiros voltam em ordem decrescente de pico. Se a trilha inteira
+ * estiver quase em silêncio (o pico mais alto < minPeak), volta vazia — não há ponto alto de emoção nenhum. Função pura.
  *
- * 阈值取相对值而非绝对 dB:源素材没归一过响度,绝对阈值在小声素材上会漏、
- * 大声素材上会全命中;「相对本片最响的那一下」才是稳定的情绪峰代理。
+ * O limite é relativo em vez de um dB absoluto: o material de origem não passou por normalização de volume, e
+ * um limite absoluto deixaria passar tudo num material baixo e acertaria tudo num material alto; «em relação
+ * ao momento mais alto deste vídeo» é que é um indicador estável de pico de emoção.
  */
 export function findPeakEvents(
   track: PeakTrack,
@@ -113,7 +114,7 @@ export function findPeakEvents(
   return events.sort((a, b) => b.peak - a.peak).slice(0, maxEvents);
 }
 
-/** Decode [startSec, endSec] to mono 16k PCM and fold into a peak track. */
+/** Decodifica [startSec, endSec] em PCM mono de 16k e dobra numa trilha de picos. */
 export async function extractPeaks(
   filePath: string,
   startSec: number,
