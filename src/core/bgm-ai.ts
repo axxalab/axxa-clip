@@ -1,23 +1,27 @@
 /**
- * AI BGM 云端档(v0.14):按直播品类生成一段版权安全的纯音乐,存本地后
- * 走既有 bgmPath 混音链(循环铺满/人声闪避/结尾淡出全部复用)。平台对
- * BGM 版权查得严,商用曲库贵——生成音乐没有第三方版权主张,是切片党
- * 的「版权安全」解法。MiniMax Music(Atlas 档)一次一整首,$0.15/首。
+ * Trilha por IA na nuvem (v0.14): uma música instrumental livre de direitos é gerada conforme a categoria
+ * da live, guardada localmente, e segue pela cadeia de mixagem de bgmPath que já existe (o laço que
+ * preenche o vídeo, a esquiva da voz e o fade final são todos reaproveitados). As plataformas fiscalizam
+ * direito de trilha com rigor e biblioteca comercial é caríssima — música gerada não tem terceiro
+ * reivindicando direito, e é a solução «segura em direitos» de quem vive de cortes. O MiniMax Music (na
+ * edição Atlas) entrega uma música inteira por vez, a US$ 0,15 cada.
  */
 import { join } from "path";
 import { mkdir } from "fs/promises";
 import { atlasMediaBase, generateMedia, downloadMedia } from "./atlas-media";
 
-/** 模型与单价(原价口径;Atlas 促销价更低)。 */
+/** O modelo e o preço por música (pelo preço de tabela; a Atlas cobra menos em promoção). */
 export const BGM_MODEL = "minimax/music-2.6";
 export const BGM_COST_USD = 0.15;
 
-/** 一首歌生成较慢(真机实测 150-180s+),预算给到 2 倍余量。 */
+/** Gerar uma música é lento (150 a 180s+ medidos em máquina real), então o orçamento tem o dobro de margem. */
 export const BGM_TIMEOUT_MS = 360_000;
 
 /**
- * 品类 → BGM 风格提示词(英文——音乐模型的风格词汇以英文语料为主)。
- * 统一约束:纯音乐、循环友好(BGM 要 loop)、不喧宾夺主(要压在人声下)。
+ * Categoria → prompt de estilo da trilha (em inglês — o vocabulário de estilo dos modelos de música vem
+ * sobretudo de material em inglês).
+ * As restrições valem para todas: música instrumental, boa de repetir em laço (uma trilha precisa dar
+ * laço) e sem roubar a cena (tem de ficar abaixo da voz).
  */
 const STYLE_BY_GENRE: Record<string, string> = {
   shopping: "upbeat bright pop funk instrumental, playful shopping vibe, steady groove, 118bpm",
@@ -34,17 +38,18 @@ const STYLE_BY_GENRE: Record<string, string> = {
 
 const STYLE_DEFAULT = "modern upbeat pop instrumental, clean mix, positive energy, 115bpm";
 
-/** BGM 风格提示词:品类未知/未收录走通用欢快档。 */
+/** O prompt de estilo da trilha: categoria desconhecida ou não listada vai para a faixa animada genérica. */
 export function bgmPrompt(genreId: string | undefined): string {
   const style = (genreId && STYLE_BY_GENRE[genreId]) || STYLE_DEFAULT;
-  // 循环友好 + 无人声 + 留出人声空间——BGM 的三条硬要求
+  // Boa de laço + sem voz + com espaço para a voz — as três exigências duras de uma trilha
   return `${style}, instrumental only, no vocals, loop-friendly structure, consistent energy, background music that leaves space for speech`;
 }
 
 /**
- * 生成一首 AI BGM 到 destDir(文件名带品类与时间戳,重复生成不覆盖),
- * 返回保存路径。baseUrl 非 Atlas 或缺 Key 抛错(入口在 UI 已按配置禁用,
- * 走到这里还不可用属于异常,要让用户看到原因而不是静默没反应)。
+ * Gera uma trilha por IA em destDir (o nome do arquivo traz a categoria e a marca de tempo, então gerar de
+ * novo não sobrescreve nada) e devolve o caminho salvo. Se o baseUrl não for da Atlas ou faltar a chave,
+ * lança erro (a entrada já é desabilitada na interface conforme a configuração, então chegar aqui
+ * indisponível é anomalia, e a pessoa tem de ver o motivo em vez de ficar sem resposta nenhuma).
  */
 export async function generateAiBgm(opts: {
   genreId?: string;
@@ -52,12 +57,12 @@ export async function generateAiBgm(opts: {
   apiKey: string;
   destDir: string;
   signal?: AbortSignal;
-  /** 时间戳注入(默认 Date.now;测试可传定值)。 */
+  /** A marca de tempo injetada (por padrão Date.now; o teste pode passar um valor fixo). */
   now?: () => number;
 }): Promise<string> {
   const mediaBase = atlasMediaBase(opts.baseUrl);
-  if (!mediaBase) throw new Error("AI BGM 需要 Atlas Cloud 端点(设置里把 AI 服务切到 Atlas 档)");
-  if (!opts.apiKey) throw new Error("AI BGM 需要 API Key");
+  if (!mediaBase) throw new Error("a trilha por IA precisa de um endpoint da Atlas Cloud (nas configurações, troque o serviço de IA para a edição Atlas)");
+  if (!opts.apiKey) throw new Error("a trilha por IA precisa de uma API Key");
   const url = await generateMedia(
     "generateAudio",
     { model: BGM_MODEL, prompt: bgmPrompt(opts.genreId), is_instrumental: true, format: "mp3", sample_rate: 44100, bitrate: 256000 },

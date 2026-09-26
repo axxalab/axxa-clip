@@ -1,11 +1,13 @@
 /**
- * 候选帧接触表(contact sheet):把若干抽帧时刻拼成一张 3×N 九宫格 JPEG,
- * 每格左上角烧上大号序号——VLM 一次看九帧批量打分,调用次数比逐帧降一个
- * 量级;同一张图也能落盘给人快速扫片。
+ * Folha de contato dos quadros candidatos: alguns instantes amostrados são montados num JPEG de nove
+ * quadros (3×N), cada um com um número grande queimado no canto de cima — o VLM olha nove quadros de uma
+ * vez e pontua em lote, o que reduz o número de chamadas numa ordem de grandeza; a mesma imagem também
+ * pode ir para o disco para alguém passar o olho rápido.
  *
- * 参数构建/分组是纯函数(可单测);composeContactSheetJpeg 才真正跑 ffmpeg:
- * 单次调用多路输入——每个时刻一路 -ss 快速定位,各取一帧 scale+drawtext
- * 序号,concat 串流后 tile 拼格,image2pipe 直出不落临时文件。
+ * A montagem dos parâmetros e o agrupamento são funções puras (testáveis); só composeContactSheetJpeg roda
+ * o ffmpeg de verdade: uma chamada só com várias entradas — cada instante é uma entrada com -ss para
+ * localizar rápido, de cada uma sai um quadro que passa por scale+drawtext do número, e depois do concat o
+ * tile monta a grade, com o image2pipe saindo direto sem arquivo temporário.
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -16,14 +18,14 @@ import { ffmpegVideoStreamSpecifier } from "./probe";
 
 const execFileAsync = promisify(execFile);
 
-/** 九宫格列数与满格容量。 */
+/** O número de colunas da grade e a capacidade de uma folha cheia. */
 export const SHEET_COLS = 3;
 export const SHEET_CELLS = 9;
 
-/** 单格宽度(px):448 与逐帧研判同规,九宫格总幅面 ~1344 宽,VLM 看得清。 */
+/** A largura de cada célula (px): 448, a mesma do julgamento quadro a quadro, então a folha inteira tem uns 1344 de largura, o que o VLM enxerga bem. */
 const CELL_WIDTH = 448;
 
-/** 把时刻数组按满格容量分组(最后一组可不满)。 */
+/** Agrupa o array de instantes pela capacidade de uma folha cheia (o último grupo pode ficar incompleto). */
 export function chunkCells<T>(items: T[], size = SHEET_CELLS): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
@@ -31,15 +33,16 @@ export function chunkCells<T>(items: T[], size = SHEET_CELLS): T[][] {
 }
 
 export interface SheetOptions extends AnalysisVideoOptions {
-  /** 序号标注字体(缺省不烧序号——VLM 只能按位置数格,能烧尽量烧)。 */
+  /** A fonte da numeração (sem ela, o número não é queimado — e aí o VLM só pode contar as células pela posição, então é melhor queimar sempre que possível). */
   fontFile?: string;
   cellWidth?: number;
 }
 
 /**
- * 一次 ffmpeg 调用的完整参数(纯函数)。n 路输入各 -ss 定位取一帧,
- * scale 统一宽度、drawtext 烧序号,concat 成帧流后 tile 成网格。
- * 单帧退化为不拼格,只缩放标注。
+ * Os parâmetros completos de uma chamada do ffmpeg (função pura). As n entradas usam -ss para localizar e
+ * tiram um quadro cada; o scale iguala a largura, o drawtext queima o número, e depois do concat, que forma
+ * o fluxo de quadros, o tile monta a grade.
+ * Com um quadro só, nada é montado em grade: ele apenas é escalado e numerado.
  */
 export function buildSheetArgs(
   videoPath: string,
@@ -54,7 +57,7 @@ export function buildSheetArgs(
     opts.fontFile
       ? `,drawtext=fontfile='${escapeFilterPath(opts.fontFile)}':text='${i + 1}':x=10:y=6:fontsize=${Math.round(w * 0.16)}:fontcolor=white:borderw=5:bordercolor=black`
       : "";
-  // 每路输入只取第一帧(trim 到 1 帧即 EOF,concat 才不会等整条流)
+  // De cada entrada sai só o primeiro quadro (com o trim em 1 quadro já vem o EOF, e assim o concat não espera o fluxo inteiro)
   const cells = times.map((_t, i) => {
     const source = ffmpegVideoStreamSpecifier(opts.videoStreamIndex, i);
     const filters = analysisVideoFilter(
@@ -66,7 +69,7 @@ export function buildSheetArgs(
   const labels = times.map((_t, i) => `[f${i}]`).join("");
   const cols = Math.min(SHEET_COLS, n);
   const rows = Math.ceil(n / cols);
-  // 单帧不拼格;多帧 concat 串流 → tile 网格(不满格用黑底补齐)
+  // Um quadro só não vira grade; vários passam pelo concat → tile na grade (o que falta para encher é preenchido com fundo preto)
   const graph =
     n === 1
       ? [cells[0].replace("[f0]", "[sheet]")]
@@ -82,7 +85,7 @@ export function buildSheetArgs(
   ];
 }
 
-/** 拼一张接触表,返回 base64 JPEG;任何失败返回 null(fail-open)。 */
+/** Monta uma folha de contato e devolve o JPEG em base64; qualquer falha devolve null (falha em aberto). */
 export async function composeContactSheetJpeg(
   videoPath: string,
   times: number[],
