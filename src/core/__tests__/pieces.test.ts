@@ -19,75 +19,75 @@ import { subtractSpans, computeJumpCut } from "../gaps";
 const p = (startSec: number, endSec: number): { startSec: number; endSec: number } => ({ startSec, endSec });
 
 describe("normalizePieces", () => {
-  it("按时间排序,乱序输入也还原成播放顺序", () => {
+  it("ordena no tempo, e uma entrada fora de ordem volta para a ordem de reprodução", () => {
     expect(normalizePieces([p(100, 110), p(10, 20)])).toEqual([p(10, 20), p(100, 110)]);
   });
 
-  it("丢掉非法区间(倒挂/NaN)", () => {
+  it("descarta o intervalo inválido (invertido ou NaN)", () => {
     expect(normalizePieces([p(20, 10), p(NaN, 5), p(10, 20)])).toEqual([p(10, 20)]);
   });
 
-  it("重叠或紧挨着的两段合并——中间那点空隙不值得剪一刀", () => {
+  it("dois pedaços sobrepostos ou encostados se unem — aquele vãozinho não vale um corte", () => {
     expect(normalizePieces([p(10, 20), p(18, 26)])).toEqual([p(10, 26)]);
     expect(normalizePieces([p(10, 20), p(20.5, 26)])).toEqual([p(10, 26)]);
   });
 
-  it("间隔够大才算两段", () => {
+  it("só com o intervalo suficientemente grande são dois pedaços", () => {
     expect(normalizePieces([p(10, 20), p(30, 40)])).toHaveLength(2);
   });
 
-  it("过短碎片丢掉", () => {
+  it("o fragmento curto demais é descartado", () => {
     const out = normalizePieces([p(10, 20), p(100, 100 + MIN_PIECE_SEC - 0.5)]);
     expect(out).toEqual([p(10, 20)]);
   });
 
-  it("全都过短时保留最长的一段(退化成单段,而不是把整条抹掉)", () => {
+  it("quando todos são curtos demais, o mais longo fica (vira um pedaço só, em vez de apagar tudo)", () => {
     const out = normalizePieces([p(10, 11), p(100, 101.5)]);
     expect(out).toEqual([p(100, 101.5)]);
   });
 
-  it("超额时按时长取前 N,再按时间排回", () => {
+  it("passando do teto, ficam os N mais longos, que voltam à ordem do tempo", () => {
     const out = normalizePieces([p(0, 3), p(100, 120), p(200, 210), p(300, 330), p(400, 415)]);
     expect(out).toHaveLength(MAX_PIECES);
-    // 最短的 (0,3) 被淘汰;剩下的仍按时间序
+    // O mais curto, (0,3), é eliminado; os que sobram continuam na ordem do tempo
     expect(out[0]).toEqual(p(100, 120));
     expect(out.map((x) => x.startSec)).toEqual([...out.map((x) => x.startSec)].sort((a, b) => a - b));
   });
 
-  it("空输入返回空", () => {
+  it("entrada vazia devolve vazio", () => {
     expect(normalizePieces([])).toEqual([]);
   });
 });
 
-describe("mergePieces(手动选段用:不砍段、不丢短句)", () => {
-  it("gap=0 只并真重叠,微小间隔保留成两段", () => {
+describe("mergePieces (para a escolha manual: não corta pedaço nem descarta frase curta)", () => {
+  it("com gap=0 só o que de fato se sobrepõe se une, e um intervalo mínimo continua sendo dois pedaços", () => {
     expect(mergePieces([p(10, 20), p(19, 26)], 0)).toEqual([p(10, 26)]);
     expect(mergePieces([p(10, 20), p(20.3, 26)], 0)).toEqual([p(10, 20), p(20.3, 26)]);
   });
 
-  it("超过 4 段不设上限,短段也保留——用户亲手挑的一段都不许丢", () => {
+  it("passando de 4 pedaços não há teto, e o pedaço curto também fica — nada do que a pessoa escolheu à mão pode ser perdido", () => {
     const six = [0, 1, 2, 3, 4, 5].map((i) => p(i * 10, i * 10 + 1));
     expect(mergePieces(six, 0)).toHaveLength(6);
   });
 
-  it("默认 gap 与 normalizePieces 的合并口径一致", () => {
+  it("o gap padrão usa o mesmo critério de união do normalizePieces", () => {
     expect(mergePieces([p(10, 20), p(20.5, 26)])).toEqual([p(10, 26)]);
   });
 });
 
-describe("时长口径", () => {
-  it("拼接片的成片时长是各段之和,不是跨度", () => {
+describe("o critério de duração", () => {
+  it("a duração de um trecho colado é a soma dos pedaços, não o intervalo total", () => {
     const pieces = [p(10, 20), p(600, 615)];
     expect(piecesDurationSec(pieces)).toBe(25);
     expect(clipDurationSec({ startSec: 10, endSec: 615, pieces })).toBe(25);
   });
 
-  it("单段/无段清单按区间长度", () => {
+  it("com um pedaço ou sem lista de pedaços, vale a duração do intervalo", () => {
     expect(clipDurationSec({ startSec: 10, endSec: 25 })).toBe(15);
     expect(clipDurationSec({ startSec: 10, endSec: 25, pieces: [p(10, 25)] })).toBe(15);
   });
 
-  it("isStitched 只认 ≥2 段", () => {
+  it("isStitched só reconhece a partir de 2 pedaços", () => {
     expect(isStitched(undefined)).toBe(false);
     expect(isStitched([p(1, 2)])).toBe(false);
     expect(isStitched([p(1, 2), p(9, 10)])).toBe(true);
@@ -95,20 +95,20 @@ describe("时长口径", () => {
 });
 
 describe("pieceCutSpans", () => {
-  it("段间空隙两头各留余白——拼接处不贴着词硬切", () => {
+  it("o vão entre pedaços deixa uma folga em cada ponta — a emenda não corta encostada na palavra", () => {
     const spans = pieceCutSpans([p(10, 20), p(100, 110)]);
     expect(spans).toEqual([{ startSec: 20 + PIECE_PAD_AFTER_SEC, endSec: 100 - PIECE_PAD_BEFORE_SEC }]);
   });
 
-  it("单段没有空隙", () => {
+  it("um pedaço só não tem vão", () => {
     expect(pieceCutSpans([p(10, 20)])).toEqual([]);
   });
 
-  it("三段产出两条空隙", () => {
+  it("três pedaços produzem dois vãos", () => {
     expect(pieceCutSpans([p(0, 10), p(50, 60), p(200, 210)])).toHaveLength(2);
   });
 
-  it("喂给 subtractSpans 后剩下的正是各段(含余白)", () => {
+  it("depois do subtractSpans, o que sobra é exatamente cada pedaço (com a folga)", () => {
     const pieces = [p(10, 20), p(100, 110)];
     const kept = subtractSpans([{ startSec: 10, endSec: 110 }], pieceCutSpans(pieces));
     expect(kept).toHaveLength(2);
@@ -120,21 +120,21 @@ describe("pieceCutSpans", () => {
 });
 
 describe("planFromPieces", () => {
-  it("段清单即保留区间,断行点落在每段接缝的输出时刻", () => {
+  it("a lista de pedaços é a lista de intervalos preservados, e o ponto de quebra de linha cai no instante de saída de cada emenda", () => {
     const plan = planFromPieces([p(10, 20), p(100, 115)]);
     expect(plan.segments).toEqual([p(10, 20), p(100, 115)]);
     expect(plan.durationSec).toBe(25);
     expect(plan.breaks).toEqual([10]);
-    expect(plan.removedSec).toBe(105 - 25 + 0); // 跨度 105 - 成片 25
+    expect(plan.removedSec).toBe(105 - 25 + 0); // o intervalo total de 105 menos os 25 do vídeo pronto
     expect(plan.words).toEqual([]);
   });
 
-  it("三段有两个断行点", () => {
+  it("três pedaços têm dois pontos de quebra", () => {
     expect(planFromPieces([p(0, 5), p(50, 58), p(100, 103)]).breaks).toEqual([5, 13]);
   });
 });
 
-describe("拼接复用跳剪机器(端到端口径)", () => {
+describe("a colagem reaproveita a máquina do corte seco (de ponta a ponta)", () => {
   it("manual boundaries exclude even very short unwanted speech between pieces", () => {
     const pieces = [{ startSec: 1, endSec: 3 }, { startSec: 3.1, endSec: 5 }];
     const spans = pieceCutSpans(pieces, { exact: true });
@@ -146,36 +146,36 @@ describe("拼接复用跳剪机器(端到端口径)", () => {
     expect(plan.segments).toEqual(pieces);
     expect(plan.durationSec).toBeCloseTo(3.9);
   });
-  // 两段:10-14s 和 100-104s,各 4 个词;段间空隙当强制剪除区间喂进去
+  // Dois pedaços: de 10 a 14s e de 100 a 104s, com 4 palavras cada; o vão entre eles entra como intervalo de corte forçado
   const words = [
-    { text: "前", startSec: 10, endSec: 11 },
-    { text: "面", startSec: 11, endSec: 12 },
-    { text: "这", startSec: 12, endSec: 13 },
-    { text: "句", startSec: 13, endSec: 14 },
-    { text: "后", startSec: 100, endSec: 101 },
-    { text: "面", startSec: 101, endSec: 102 },
-    { text: "打", startSec: 102, endSec: 103 },
-    { text: "脸", startSec: 103, endSec: 104 },
+    { text: "essa", startSec: 10, endSec: 11 },
+    { text: "frase", startSec: 11, endSec: 12 },
+    { text: "vem", startSec: 12, endSec: 13 },
+    { text: "antes", startSec: 13, endSec: 14 },
+    { text: "e", startSec: 100, endSec: 101 },
+    { text: "depois", startSec: 101, endSec: 102 },
+    { text: "ele", startSec: 102, endSec: 103 },
+    { text: "desmente", startSec: 103, endSec: 104 },
   ];
   const pieces = [p(10, 14), p(100, 104)];
 
-  it("不开跳剪时也剪出两段,词按压缩后的输出时间轴重排", () => {
+  it("mesmo com o corte seco desligado saem dois pedaços, e as palavras são reordenadas na linha de tempo comprimida", () => {
     const plan = computeJumpCut(words, 10, 104, {
       forceCutSpans: pieceCutSpans(pieces),
-      gapThresholdSec: Infinity, // 跳剪关着——只有拼接空隙该被剪
+      gapThresholdSec: Infinity, // o corte seco está desligado — só o vão da colagem deve ser cortado
     });
     expect(plan.segments).toHaveLength(2);
-    // 成片时长 ≈ 两段之和(含首尾留白),远小于 94 秒的跨度
+    // A duração do vídeo pronto ≈ a soma dos dois pedaços (com a folga das pontas), muito menor que o intervalo de 94 segundos
     expect(plan.durationSec).toBeLessThan(12);
     expect(plan.breaks).toHaveLength(1);
-    // 第二段的词被平移到接缝之后,不再带着原片的 100 秒
+    // As palavras do segundo pedaço são deslocadas para depois da emenda e já não carregam os 100 segundos do original
     const last = plan.words[plan.words.length - 1];
-    expect(last.text).toBe("脸");
+    expect(last.text).toBe("desmente");
     expect(last.endSec).toBeLessThan(12);
-    expect(plan.words.map((w) => w.text).join("")).toBe("前面这句后面打脸");
+    expect(plan.words.map((w) => w.text).join(" ")).toBe("essa frase vem antes e depois ele desmente");
   });
 
-  it("空隙里的内容一秒都没进成片", () => {
+  it("nem um segundo do que está no vão entra no vídeo pronto", () => {
     const plan = computeJumpCut(words, 10, 104, {
       forceCutSpans: pieceCutSpans(pieces),
       gapThresholdSec: Infinity,
@@ -190,18 +190,18 @@ describe("拼接复用跳剪机器(端到端口径)", () => {
 
 describe("withinOnePiece", () => {
   const pieces = [p(10, 20), p(100, 110)];
-  it("整个落在某段内才算数", () => {
+  it("só conta o que cabe inteiro dentro de um pedaço", () => {
     expect(withinOnePiece(pieces, 11, 15)).toBe(true);
     expect(withinOnePiece(pieces, 100, 110)).toBe(true);
   });
-  it("跨越空隙的区间不算——高潮前置照抄这段会把剪掉的内容放回成片", () => {
+  it("o intervalo que atravessa o vão não conta — copiar esse trecho no clímax na frente devolveria ao vídeo o que foi cortado", () => {
     expect(withinOnePiece(pieces, 15, 105)).toBe(false);
     expect(withinOnePiece(pieces, 19, 21)).toBe(false);
   });
 });
 
 describe("wordsInPieces", () => {
-  it("只留落在段内的词,空隙里的词全部丢掉", () => {
+  it("só as palavras de dentro dos pedaços ficam, e as do vão são todas descartadas", () => {
     const words = [
       { text: "a", startSec: 11, endSec: 12 },
       { text: "b", startSec: 50, endSec: 51 },
@@ -210,8 +210,8 @@ describe("wordsInPieces", () => {
     expect(wordsInPieces(words, [p(10, 20), p(100, 110)]).map((w) => w.text)).toEqual(["a", "c"]);
   });
 
-  it("按词中点判定,压在边界上的词不会两边都算", () => {
+  it("o julgamento é pelo ponto médio da palavra, e a que fica na borda não conta nos dois lados", () => {
     const words = [{ text: "x", startSec: 19.6, endSec: 20.4 }];
-    expect(wordsInPieces(words, [p(10, 20)])).toHaveLength(1); // 中点 20.0 仍在段内
+    expect(wordsInPieces(words, [p(10, 20)])).toHaveLength(1); // o ponto médio 20,0 ainda está dentro do pedaço
   });
 });
