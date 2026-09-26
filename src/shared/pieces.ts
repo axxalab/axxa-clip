@@ -1,34 +1,43 @@
 /**
- * 多片段拼接:一条切片由若干不连续的源片区间按时间顺序拼成。
+ * Costura de vários trechos: um clipe é montado a partir de vários intervalos
+ * não contínuos da origem, em ordem de tempo.
  *
- * 为什么需要:真正的爆款切片常常不是一段连续录像——「前后打脸」必须把相隔
- * 十几分钟的两处话摆在一起才成立;带货的「三段式」也是从直播不同位置各取一
- * 段。检测侧只负责给出片段清单,拼接本身复用既有的跳剪机器:段间空隙当成
- * 强制剪除区间喂给 computeJumpCut,于是字幕/译文/EDL/封面/质检全都自动对齐,
- * 不需要第二套时间轴逻辑。
+ * Por que isso é necessário: um corte que viraliza de verdade muitas vezes não é
+ * um trecho contínuo de gravação — uma "contradição" só se sustenta colocando
+ * lado a lado duas falas separadas por quinze minutos, e os "três atos" da venda
+ * também pegam um trecho de cada posição diferente da live. O lado da detecção só
+ * entrega a lista de trechos, e a costura em si reaproveita a máquina de corte
+ * seco que já existe: os intervalos entre os trechos são entregues ao
+ * computeJumpCut como intervalos de remoção obrigatória, e assim legendas,
+ * tradução, EDL, capa e verificação de qualidade se alinham sozinhos, sem
+ * precisar de uma segunda lógica de linha do tempo.
  *
- * 纯函数模块,不碰 ffmpeg——放 shared 是因为渲染进程(审阅台/候选卡)也要按
- * 同一套规则算成片时长、画出段落条,两边算法必须是同一份代码。
+ * É um módulo de funções puras, que não toca no ffmpeg — fica em shared porque o
+ * processo de renderização (bancada de revisão e cartões de candidato) também
+ * precisa calcular a duração final e desenhar as barras de trecho pelas mesmas
+ * regras, e os dois lados têm que usar exatamente o mesmo código.
  */
 import type { TranscriptWord, ClipPiece } from "./api-types";
 
 export type { ClipPiece };
 
-/** 单段最短时长:比这还短的拼进来只是碎片,观众只会觉得跳。 */
+/** Duração mínima de um trecho: mais curto que isso, o que entra é só um fragmento, e o público só sente o pulo. */
 export const MIN_PIECE_SEC = 2;
-/** 最多拼几段:再多就不是「对照」而是拼贴,断章取义风险陡增。 */
+/** Quantos trechos no máximo: mais do que isso deixa de ser "contraste" e vira colagem, e o risco de distorcer o sentido sobe muito. */
 export const MAX_PIECES = 4;
-/** 两段间隔小于此值视为同一段(中间那点空隙不值得剪)。 */
+/** Um intervalo menor que este valor entre dois trechos conta como o mesmo trecho (aquele pedacinho de silêncio não vale o corte). */
 export const PIECE_MERGE_GAP_SEC = 1.2;
-/** 段尾留白 / 段首留白:拼接处不贴着词切,否则听感是硬生生掐断。 */
+/** Folga no fim e no começo de cada trecho: a emenda não fica colada na palavra, senão a sensação é de fala cortada na marra. */
 export const PIECE_PAD_AFTER_SEC = 0.25;
 export const PIECE_PAD_BEFORE_SEC = 0.15;
-/** 拼接文本的省略标记——审阅台和评审 prompt 都靠它看出「这里跳了」。 */
+/** Marca de omissão no texto costurado — é por ela que a bancada de revisão e o prompt de reavaliação percebem que "houve um salto aqui". */
 export const PIECE_JOINER = " …… ";
 
 /**
- * 排序+合并:按时间排序,间隔小于 gapSec 的相邻段并成一段。不丢短段、不设
- * 段数上限——手动选段(用户亲手挑的句子)走这条,人的决定原样保留。
+ * Ordenar e fundir: ordena por tempo e funde os trechos vizinhos com intervalo
+ * menor que gapSec. Não descarta trecho curto e não impõe teto de quantidade —
+ * é por aqui que passa a seleção manual (as frases que a pessoa escolheu a dedo),
+ * e a decisão humana é preservada como está.
  */
 export function mergePieces(raw: ClipPiece[], gapSec: number = PIECE_MERGE_GAP_SEC): ClipPiece[] {
   const valid = raw
@@ -50,16 +59,18 @@ export function mergePieces(raw: ClipPiece[], gapSec: number = PIECE_MERGE_GAP_S
 }
 
 /**
- * 规整片段清单(AI 检测产物用):按时间排序 → 合并重叠/紧邻 → 丢掉过短碎片
- * → 超额时保留最长的几段(仍按时间排回)。返回长度 <2 表示这条其实是单段,
- * 调用方按单段处理。
+ * Organiza a lista de trechos (usada no que vem da detecção por IA): ordena por
+ * tempo → funde os sobrepostos e os encostados → descarta os fragmentos curtos
+ * demais → e, passando da conta, mantém os trechos mais longos (recolocados em
+ * ordem de tempo). Devolver menos de 2 significa que isto na verdade é um trecho
+ * único, e quem chamou trata como trecho único.
  */
 export function normalizePieces(raw: ClipPiece[]): ClipPiece[] {
   const merged = mergePieces(raw);
   if (merged.length === 0) return [];
 
   const long = merged.filter((p) => p.endSec - p.startSec >= MIN_PIECE_SEC);
-  // 全都过短时别把这条整个抹掉——留最长的一段,让上游退化成单段
+  // Quando todos são curtos demais, não apague o candidato inteiro — mantenha o mais longo e deixe que a camada acima volte a tratá-lo como trecho único
   const kept = long.length > 0 ? long : [merged.reduce((a, b) => (b.endSec - b.startSec > a.endSec - a.startSec ? b : a))];
   if (kept.length <= MAX_PIECES) return kept;
   return [...kept]
@@ -68,25 +79,27 @@ export function normalizePieces(raw: ClipPiece[]): ClipPiece[] {
     .sort((a, b) => a.startSec - b.startSec);
 }
 
-/** 拼接后的成片时长(各段时长之和,不含被跳过的空隙)。 */
+/** Duração final depois da costura (a soma da duração de cada trecho, sem os intervalos pulados). */
 export function piecesDurationSec(pieces: ClipPiece[]): number {
   return pieces.reduce((acc, p) => acc + (p.endSec - p.startSec), 0);
 }
 
-/** 一条切片的实际成片时长:多段取各段之和,单段取区间长度。 */
+/** Duração real do vídeo final de um clipe: com vários trechos é a soma deles, com um só é o tamanho do intervalo. */
 export function clipDurationSec(clip: { startSec: number; endSec: number; pieces?: ClipPiece[] }): number {
   const p = clip.pieces;
   return p && p.length > 1 ? piecesDurationSec(p) : clip.endSec - clip.startSec;
 }
 
-/** 多段拼接才算数:0/1 段就是普通切片。 */
+/** Só conta como costura com vários trechos: 0 ou 1 trecho é um clipe comum. */
 export function isStitched(pieces: ClipPiece[] | undefined): boolean {
   return (pieces?.length ?? 0) > 1;
 }
 
 /**
- * 段与段之间要剪掉的区间(喂给 computeJumpCut 的 forceCutSpans)。
- * 自动选段两端留一点余白;手动选段 exact 时严格遵守用户边界。
+ * Os intervalos a remover entre um trecho e outro (o forceCutSpans entregue ao
+ * computeJumpCut).
+ * A seleção automática deixa uma folga nas duas pontas; a seleção manual em modo
+ * exato respeita estritamente os limites que a pessoa definiu.
  */
 export function pieceCutSpans(pieces: ClipPiece[], options: { exact?: boolean } = {}): ClipPiece[] {
   const out: ClipPiece[] = [];
@@ -98,12 +111,12 @@ export function pieceCutSpans(pieces: ClipPiece[], options: { exact?: boolean } 
   return out;
 }
 
-/** 区间是否整个落在某一段内——高潮前置/取景之类只能在单段内做的守卫。 */
+/** Diz se um intervalo cai inteiro dentro de um dos trechos — é a proteção do que só pode ser feito dentro de um trecho, como a abertura fria e o enquadramento. */
 export function withinOnePiece(pieces: ClipPiece[], startSec: number, endSec: number): boolean {
   return pieces.some((p) => startSec >= p.startSec - 1e-3 && endSec <= p.endSec + 1e-3);
 }
 
-/** 与 core/gaps 的 JumpCutPlan 同构(shared 不依赖 core,按结构声明)。 */
+/** Mesmo formato do JumpCutPlan de core/gaps (shared não depende de core, então é declarado pela estrutura). */
 export interface PiecePlan {
   segments: ClipPiece[];
   words: TranscriptWord[];
@@ -113,8 +126,11 @@ export interface PiecePlan {
 }
 
 /**
- * 没有词表时(既不烧字幕也不跳剪)的成片计划:段清单本身就是保留区间。
- * 形状与 computeJumpCut 的产物一致,下游(cutJumpClip/封面/EDL/质检)无感。
+ * Plano do vídeo final para quando não há lista de palavras (sem queimar legenda
+ * e sem corte seco): a própria lista de trechos já é o conjunto de intervalos
+ * preservados.
+ * O formato é igual ao que o computeJumpCut produz, então quem está adiante
+ * (cutJumpClip, capa, EDL e verificação de qualidade) não sente diferença.
  */
 export function planFromPieces(pieces: ClipPiece[]): PiecePlan {
   const durationSec = piecesDurationSec(pieces);
@@ -128,7 +144,7 @@ export function planFromPieces(pieces: ClipPiece[]): PiecePlan {
   return { segments: pieces.map((p) => ({ ...p })), words: [], breaks, removedSec: span - durationSec, durationSec };
 }
 
-/** 跨段合并词表:只保留落在某一段内的词(段间空隙的内容不进成片)。 */
+/** Funde a lista de palavras entre os trechos: só as palavras que caem dentro de um deles ficam (o conteúdo dos intervalos não entra no vídeo final). */
 export function wordsInPieces<T extends { startSec: number; endSec: number }>(
   words: T[],
   pieces: ClipPiece[]

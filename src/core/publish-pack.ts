@@ -1,59 +1,69 @@
 /**
- * 平台发布包:导出完成后,把成片按平台规格整理成「拿起来就能发」的文件夹——
- * `发布包/<平台>/` 下每条切片齐套三件:视频(硬链,不占双份磁盘)、按平台
- * 画幅裁切的封面(小红书 3:4、B站 16:10、视频号 6:7……)、按平台上限适配
- * 的文案(.post.txt,标题截断线/话题数各按规格表来),外加 manifest.json
- * 记录适配了什么。
+ * Pacote por plataforma: depois que a exportação termina, os vídeos são
+ * organizados conforme as especificações de cada plataforma em pastas do tipo
+ * "pegou e publicou" — dentro de `pacotes-publicacao/<plataforma>/`, cada clipe
+ * sai completo com três peças: o vídeo (em link físico, para não ocupar disco em
+ * dobro), a capa recortada na proporção daquela plataforma (RedNote 3:4, Bilibili
+ * 16:10, WeChat Channels 6:7…) e o texto adaptado aos limites de lá (.post.txt,
+ * com o corte do título e a quantidade de hashtags seguindo a tabela de
+ * especificações), mais um manifest.json registrando o que foi adaptado.
  *
- * 切片手的真实流程是同一批片发 N 个平台,每个平台规格都不一样——这一步
- * 原本要在剪映/PS 里手工重复 N 遍。fail-open:打包任何一步失败都只是
- * 少一件产物,绝不拖垮已完成的导出。
+ * O fluxo real de quem faz cortes é publicar o mesmo lote em N plataformas, e
+ * cada uma tem especificação diferente — este passo era, antes, repetido à mão N
+ * vezes no editor ou no editor de imagem. É fail-open: qualquer etapa do pacote
+ * que falha significa apenas uma peça de menos, e nunca derruba a exportação que
+ * já terminou.
  *
- * 纯函数(封面滤镜/文案适配)可单测;文件系统与 ffmpeg 由调用方注入/自理。
+ * As funções puras (o filtro da capa e a adaptação do texto) são testáveis; o
+ * sistema de arquivos e o ffmpeg são injetados ou cuidados por quem chama.
  */
 import { copyFile, link, mkdir, rm, writeFile } from "node:fs/promises";
 import { join, basename } from "node:path";
 import { platformSpec, validPlatformIds, type PlatformSpec } from "../shared/platform-specs";
 import type { PublishCopy } from "./publish";
 
-/** 平台名 → 文件夹名(与 export.ts 的 sanitizeFilename 同规则;不引 export 避免循环依赖)。 */
+/** Nome da plataforma → nome da pasta (mesma regra do sanitizeFilename de export.ts; export não é importado aqui para evitar dependência circular). */
 function safeDirName(name: string, fallback: string): string {
   const cleaned = name.replace(/[^\p{L}\p{N} \-_]/gu, "").replace(/\s+/g, " ").trim().slice(0, 60);
   return cleaned || fallback;
 }
 
-/** 发布包根目录名(落在导出目录下)。 */
+/** Nome da pasta raiz dos pacotes de publicação (fica dentro da pasta de exportação). */
 export const PACK_DIR_NAME = "pacotes-publicacao";
 
-/** 打包输入:一条已导出的成片。 */
+/** Entrada do empacotamento: um vídeo já exportado. */
 export interface PackClipInput {
-  /** 成片 mp4 绝对路径。 */
+  /** Caminho absoluto do mp4 final. */
   file: string;
-  /** 封面 jpg 绝对路径(封面抓取失败时缺省)。 */
+  /** Caminho absoluto do jpg de capa (ausente quando a captura da capa falhou). */
   coverFile?: string;
-  /** 切片标题(没有发布文案时的标题兜底)。 */
+  /** Título do clipe (é o título de reserva quando não há texto de publicação). */
   title: string;
-  /** 发布文案(标题/话题/简介);缺省时只写标题。 */
+  /** Texto de publicação (título, hashtags e descrição); ausente, só o título é escrito. */
   publish?: PublishCopy;
 }
 
-/** 单平台打包结果(进 clips.json 回执)。 */
+/** Resultado do empacotamento de uma plataforma (entra no comprovante do clips.json). */
 export interface PackSummary {
   platform: string;
   name: string;
   dir: string;
   clipCount: number;
-  /** 标题超平台上限被截断的条数(manifest 里逐条可查)。 */
+  /** Quantos títulos foram cortados por passar do limite da plataforma (o manifesto permite conferir um por um). */
   truncatedTitles: number;
 }
 
-/** 封面适配注入点:src 裁切/缩放到平台画幅写到 dest,成败返回布尔。 */
+/** Ponto de injeção da adaptação de capa: recorta e redimensiona src para a proporção da plataforma, escrevendo em dest, e devolve um booleano de sucesso. */
 export type AdaptCoverFn = (src: string, dest: string, spec: PlatformSpec) => Promise<boolean>;
 
 /**
- * 平台封面的 ffmpeg 滤镜:先裁到目标画幅(横向居中、纵向上偏 1/3——主体
- * 和人脸通常偏上,居中裁会把头切掉),再缩放到平台推荐像素。
- * 表达式对任意输入尺寸成立,竖屏/横屏/audiogram 封面都不用先探测尺寸。
+ * Filtro de ffmpeg da capa de cada plataforma: primeiro recorta na proporção alvo
+ * (centralizado na horizontal e deslocado um terço para cima na vertical — o
+ * assunto principal e os rostos ficam geralmente na parte de cima, e um recorte
+ * centralizado corta a cabeça), e depois redimensiona para os pixels recomendados
+ * pela plataforma.
+ * A expressão vale para qualquer tamanho de entrada, então capas verticais,
+ * horizontais e de onda sonora não precisam ter o tamanho lido antes.
  */
 export function coverFilter(spec: PlatformSpec): string {
   const aspect = (spec.cover.w / spec.cover.h).toFixed(6);
@@ -63,32 +73,34 @@ export function coverFilter(spec: PlatformSpec): string {
   ].join(",");
 }
 
-/** 文案适配结果。 */
+/** Resultado da adaptação do texto. */
 export interface AdaptedPost {
-  /** .post.txt 全文(标题+话题+简介,直接全选复制)。 */
+  /** O conteúdo completo do .post.txt (título, hashtags e descrição, pronto para selecionar tudo e copiar). */
   text: string;
-  /** 适配后的标题(截断按字符不按字节,emoji 不会切半)。 */
+  /** O título já adaptado (o corte é por caractere e não por byte, então um emoji nunca é partido ao meio). */
   title: string;
-  /** 标题是否被平台上限截断。 */
+  /** Se o título foi cortado pelo limite da plataforma. */
   titleTruncated: boolean;
-  /** 适配后的话题(数量按平台上限截取)。 */
+  /** As hashtags já adaptadas (a quantidade é cortada pelo limite da plataforma). */
   hashtags: string[];
 }
 
 /**
- * 把发布文案适配到平台上限:标题截断到 titleMax(小红书 20 字是硬限制,
- * 抖音 55 字是列表展示截断线),话题截到 tagsMax。没有发布文案时用切片
- * 标题兜底——发布框里至少有个能用的标题。
+ * Adapta o texto de publicação aos limites da plataforma: o título é cortado em
+ * titleMax (os 20 caracteres do RedNote são limite rígido, e os 55 do Douyin são o
+ * corte da listagem) e as hashtags são cortadas em tagsMax. Sem texto de
+ * publicação, o título do clipe serve de reserva — o campo de publicação precisa
+ * ter, no mínimo, um título utilizável.
  */
 export function adaptPost(
   clipTitle: string,
   copy: PublishCopy | undefined,
   spec: PlatformSpec,
-  /** 开了 AIGC 标识:文案末尾附该平台的标注操作提示(v0.14,新规三次违规封号)。 */
+  /** Com o selo de conteúdo por IA ligado: o texto ganha no fim a instrução de sinalização daquela plataforma (v0.14; pelas novas regras, três infrações derrubam a conta). */
   aigc = false
 ): AdaptedPost {
   const raw = (copy?.title ?? clipTitle).trim();
-  const chars = Array.from(raw); // 按码点截,代理对/emoji 不切半
+  const chars = Array.from(raw); // o corte é por ponto de código, então par substituto e emoji não são partidos ao meio
   const titleTruncated = chars.length > spec.titleMax;
   const title = titleTruncated ? chars.slice(0, spec.titleMax).join("") : raw;
   const hashtags = (copy?.hashtags ?? []).slice(0, spec.tagsMax);
@@ -100,7 +112,7 @@ export function adaptPost(
   return { text: parts.join("\n\n") + "\n", title, titleTruncated, hashtags };
 }
 
-/** 视频硬链到发布包(同盘零拷贝);硬链不支持(网络盘/FAT)回退复制。 */
+/** Cria o link físico do vídeo dentro do pacote (cópia zero no mesmo disco); quando o link físico não é suportado (disco de rede, FAT), volta a copiar. */
 async function linkOrCopy(src: string, dest: string): Promise<void> {
   await rm(dest, { force: true }).catch(() => {});
   try {
@@ -111,15 +123,17 @@ async function linkOrCopy(src: string, dest: string): Promise<void> {
 }
 
 /**
- * 按选中平台打包。任何单件失败(封面裁切/硬链/写文件)都跳过该件继续,
- * 单平台整体失败也只是少一个文件夹——绝不向上抛。
+ * Empacota para as plataformas selecionadas. Qualquer peça que falhe (recorte da
+ * capa, link físico, escrita do arquivo) é pulada e o resto continua, e uma
+ * plataforma que falhe por inteiro significa apenas uma pasta de menos — nada é
+ * propagado para cima.
  */
 export async function buildPublishPacks(
   outDir: string,
   clips: PackClipInput[],
   platformIds: string[],
   adaptCover: AdaptCoverFn,
-  /** 开了 AIGC 标识:每平台文案附标注操作提示,manifest 一并记录。 */
+  /** Com o selo de conteúdo por IA ligado: o texto de cada plataforma ganha a instrução de sinalização, e o manifesto registra isso também. */
   aigc = false
 ): Promise<PackSummary[]> {
   const summaries: PackSummary[] = [];
@@ -133,7 +147,7 @@ export async function buildPublishPacks(
       for (const clip of clips) {
         const base = basename(clip.file);
         await linkOrCopy(clip.file, join(dir, base)).catch(() => {});
-        // 封面:按平台画幅裁切;源封面缺失或裁切失败都只是没封面
+        // Capa: recortada na proporção da plataforma; capa de origem ausente ou recorte que falha significam apenas ficar sem capa
         let coverName: string | null = null;
         if (clip.coverFile) {
           const dest = join(dir, base.replace(/\.mp4$/, ".jpg"));
@@ -153,7 +167,7 @@ export async function buildPublishPacks(
           hashtags: post.hashtags,
         });
       }
-      // manifest:适配了什么、按什么规格,发布前扫一眼就知道有没有坑
+      // Manifesto: o que foi adaptado e sob qual especificação, para dar uma olhada antes de publicar e já saber se há armadilha
       await writeFile(
         join(dir, "manifest.json"),
         JSON.stringify(
@@ -164,7 +178,7 @@ export async function buildPublishPacks(
             titleMax: spec.titleMax,
             tagsMax: spec.tagsMax,
             note: spec.notePt,
-            // AIGC 标注提醒:开了标识才写(发布前扫 manifest 就知道该在平台点哪个开关)
+            // Aviso de sinalização de IA: só é escrito com o selo ligado (olhar o manifesto antes de publicar já diz qual opção marcar na plataforma)
             aigcNote: aigc ? spec.aigcNotePt : null,
             clips: rows,
           },
@@ -175,7 +189,7 @@ export async function buildPublishPacks(
       ).catch(() => {});
       summaries.push({ platform: spec.id, name: spec.name.pt, dir, clipCount: clips.length, truncatedTitles: truncated });
     } catch {
-      // 单平台失败不拖垮其余平台
+      // Uma plataforma que falha não derruba as outras
     }
   }
   return summaries;

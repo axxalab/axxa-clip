@@ -1,60 +1,66 @@
 /**
- * 分发台账(v0.14):2026-07 起平台对切片/二创的授权审核要求「逐条分发记录」
- * ——授权方核查时要能对上:哪条成片、来自哪个源文件的哪个区间、什么时候
- * 导出、发到了哪。我们持有源文件与精确时间戳,台账几乎零成本;发布侧的
- * 四列(平台/账号/链接/日期)留空给用户手填,这正是审核台账的形态。
+ * Registro de distribuição (v0.14): desde julho de 2026 a revisão de autorização
+ * que as plataformas fazem sobre cortes e obras derivadas exige um "registro de
+ * distribuição item por item" — quem autorizou precisa conseguir cruzar qual
+ * vídeo final veio de qual intervalo de qual arquivo de origem, quando foi
+ * exportado e onde foi publicado. Como já temos o arquivo de origem e as
+ * marcações de tempo exatas, o registro sai praticamente de graça; as quatro
+ * colunas do lado da publicação (plataforma, conta, link e data) ficam em branco
+ * para a pessoa preencher, que é exatamente o formato que a revisão pede.
  *
- * CSV 带 UTF-8 BOM(Excel 双击打开中文不乱码);字段含逗号/引号/换行时按
- * RFC4180 转义。纯函数,可单测。
+ * O CSV sai com BOM de UTF-8 (para o Excel abrir os acentos corretamente com dois
+ * cliques), e os campos com vírgula, aspas ou quebra de linha são escapados
+ * conforme a RFC4180. São funções puras, testáveis.
  */
 
-/** 一条台账行(导出侧填得出的部分)。 */
+/** Uma linha do registro (a parte que o lado da exportação consegue preencher). */
 export interface LedgerRow {
-  /** 成片文件名。 */
+  /** Nome do arquivo do vídeo final. */
   file: string;
   title: string;
   durationSec: number;
-  /** 源文件绝对路径。 */
+  /** Caminho absoluto do arquivo de origem. */
   source: string;
   sourceStartSec: number | null;
   sourceEndSec: number | null;
-  /** 拼接段数(1 = 连续切片)。 */
+  /** Quantidade de trechos costurados (1 = clipe contínuo). */
   pieces: number;
-  /** ISO 导出时间。 */
+  /** Data e hora da exportação, em formato ISO. */
   exportedAt: string;
-  /** 是否带 AIGC 标识。 */
+  /** Se leva o selo de conteúdo gerado por IA. */
   aigcLabel: boolean;
-  /** 变形度评分(0-100;缺省 = 未评估)。 */
+  /** Nota de transformação (de 0 a 100; ausente significa que não foi avaliada). */
   transformScore: number | null;
 }
 
-/** RFC4180 字段转义:含逗号/引号/换行才加引号,内部引号翻倍。 */
+/** Escape de campo conforme a RFC4180: só ganha aspas quem tem vírgula, aspas ou quebra de linha, e as aspas internas são duplicadas. */
 export function csvField(v: string | number | null): string {
   const s = v === null ? "" : String(v);
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 const HEADER = [
-  "成片文件",
-  "标题",
-  "时长(秒)",
-  "源文件",
-  "源开始(秒)",
-  "源结束(秒)",
-  "拼接段数",
-  "导出时间",
-  "AIGC标识",
-  "变形度(0-100)",
-  // 以下四列留给用户逐条手填——授权审核要的「一视频一条分发记录」
-  "发布平台",
-  "发布账号",
-  "发布链接",
-  "发布日期",
+  "Arquivo do vídeo",
+  "Título",
+  "Duração (s)",
+  "Arquivo de origem",
+  "Início na origem (s)",
+  "Fim na origem (s)",
+  "Trechos costurados",
+  "Data da exportação",
+  "Selo de IA",
+  "Nota de transformação (0-100)",
+  // As quatro colunas abaixo ficam para a pessoa preencher uma por uma — é o
+  // "um registro de distribuição por vídeo" que a revisão de autorização pede
+  "Plataforma de publicação",
+  "Conta de publicação",
+  "Link da publicação",
+  "Data da publicação",
 ];
 
-/** 台账 CSV 全文(含 BOM 与表头;发布侧四列留空待填)。 */
+/** O CSV completo do registro (com BOM e cabeçalho; as quatro colunas de publicação ficam em branco para preencher). */
 export function buildLedgerCsv(rows: LedgerRow[]): string {
-  const BOM = "\uFEFF"; // Excel 双击打开中文不乱码
+  const BOM = "﻿"; // para o Excel abrir os acentos corretamente com dois cliques
   const lines = [HEADER.join(",")];
   for (const r of rows) {
     lines.push(
@@ -67,7 +73,7 @@ export function buildLedgerCsv(rows: LedgerRow[]): string {
         csvField(r.sourceEndSec !== null ? Number(r.sourceEndSec.toFixed(1)) : null),
         csvField(r.pieces),
         csvField(r.exportedAt),
-        csvField(r.aigcLabel ? "是" : "否"),
+        csvField(r.aigcLabel ? "sim" : "não"),
         csvField(r.transformScore),
         "", "", "", "",
       ].join(",")

@@ -1,15 +1,17 @@
 /**
- * The platform-agnostic API contract between the UI and the pipeline backend.
+ * O contrato de API entre a interface e o backend da esteira, independente de
+ * plataforma.
  *
- * The renderer depends ONLY on this interface — never on Electron directly.
- * Implementations:
- *  - Electron: preload bridges these calls over IPC to src/main (current).
- *  - Browser dev / future web platform: an HTTP or mock implementation
- *    (see renderer/src/api/provider.ts). This seam is what makes a future
- *    web deployment a new adapter, not a rewrite.
+ * O renderer depende APENAS desta interface, nunca do Electron diretamente.
+ * Implementações:
+ *  - Electron: o preload leva estas chamadas por IPC até src/main (o atual).
+ *  - Desenvolvimento no navegador e uma futura plataforma web: uma
+ *    implementação em HTTP ou simulada (veja renderer/src/api/provider.ts).
+ *    É essa costura que faz de uma futura publicação na web um adaptador novo,
+ *    e não uma reescrita.
  */
 
-/** Normalized description of an imported media file. */
+/** Descrição normalizada de um arquivo de mídia importado. */
 export interface MediaInfo {
   durationSec: number;
   hasVideo: boolean;
@@ -19,12 +21,12 @@ export interface MediaInfo {
   fps: number;
   bitRate: number;
   videoCodec: string;
-  /** Global stream index selected for rendering; optional for legacy checkpoints/adapters. */
+  /** Índice global da trilha escolhida para renderizar; opcional para pontos de controle e adaptadores antigos. */
   videoStreamIndex?: number;
   audioCodec: string;
-  /** Global stream index selected for audio; optional for legacy checkpoints/adapters. */
+  /** Índice global da trilha escolhida para o áudio; opcional para pontos de controle e adaptadores antigos. */
   audioStreamIndex?: number;
-  /** Optional for backwards compatibility with persisted sessions and adapters. */
+  /** Opcional, para compatibilidade com sessões já salvas e com adaptadores. */
   pixelFormat?: string;
   bitDepth?: number;
   colorPrimaries?: string;
@@ -34,17 +36,17 @@ export interface MediaInfo {
   hdrPeakNits?: number;
 }
 
-/** How a word's time range was obtained. Absent means a legacy transcript. */
+/** Como o intervalo de tempo de uma palavra foi obtido. Ausente significa uma transcrição antiga. */
 export type WordTimingSource = "native" | "aligned" | "interpolated" | "edited" | "estimated";
 
-/** One timed token/word (zh engines emit per-character tokens — same shape). */
+/** Um token ou palavra com tempo (motores de escritas ideográficas emitem um token por caractere — mesmo formato). */
 export interface TranscriptWord {
   text: string;
   startSec: number;
   endSec: number;
-  /** Diarization speaker id (0-based); absent when diarization didn't run. */
+  /** Id do falante na separação de falantes (começando em 0); ausente quando a separação não rodou. */
   speaker?: number;
-  /** Categorical timing provenance; never presented as fabricated numeric confidence. */
+  /** Origem da marcação de tempo, como categoria; nunca apresentada como uma confiança numérica inventada. */
   timingSource?: WordTimingSource;
 }
 
@@ -59,7 +61,7 @@ export interface AlignmentQualityReport {
   matchedFrac: number;
   alignedWords: number;
   interpolatedWords: number;
-  /** Absolute source-media time ranges that still relied on interpolation. */
+  /** Intervalos de tempo absolutos da mídia de origem que ainda dependeram de interpolação. */
   uncertainSpans: TimingQualitySpan[];
 }
 
@@ -88,7 +90,7 @@ export interface SubtitleQualityReport {
   issues: SubtitleQualityIssue[];
 }
 
-/** A sentence-ish unit built from words; the granularity shown in the editor. */
+/** Uma unidade mais ou menos do tamanho de uma frase, construída a partir das palavras; é a granularidade que aparece no editor. */
 export interface TranscriptSegment {
   id: number;
   startSec: number;
@@ -97,21 +99,21 @@ export interface TranscriptSegment {
   words: TranscriptWord[];
   /** Dominant diarization speaker id (0-based); absent when not diarized. */
   speaker?: number;
-  /** 本句被热词词表自动修正过(逐句稿/审阅台打标记用)。 */
+  /** Esta frase foi corrigida automaticamente pelo glossário (usado para marcar na transcrição e na bancada de revisão). */
   glossaryApplied?: boolean;
 }
 
-/** 热词词表词条:ASR 惯性错词 → 正确写法(人名/品牌/术语)。 */
+/** Entrada do glossário: o erro recorrente do reconhecimento de fala → a grafia correta (nomes de pessoa, marcas, termos técnicos). */
 export interface GlossaryEntry {
   wrong: string;
   right: string;
 }
 
 export interface Transcript {
-  /** Primary language detected/used, e.g. "zh", "en". */
+  /** Idioma principal detectado ou usado, por exemplo "pt" ou "en". */
   language: string;
   segments: TranscriptSegment[];
-  /** Engine id that produced this (e.g. "sensevoice-local"). */
+  /** Id do motor que produziu isto (por exemplo "sensevoice-local"). */
   engine: string;
   durationSec: number;
 }
@@ -124,7 +126,7 @@ export type TranscribeStage =
   | "transcribing"
   | "finalizing";
 
-/** Catalog facts + runtime state for one transcription engine choice. */
+/** Dados de catálogo mais o estado de execução de uma opção de motor de transcrição. */
 export interface AsrEngineInfo {
   id: string;
   kind: "local" | "cloud";
@@ -134,12 +136,12 @@ export interface AsrEngineInfo {
   accuracy: 1 | 2 | 3;
   uploads: boolean;
   experimental?: boolean;
-  /** Local model already on disk (no download needed). */
+  /** O modelo local já está em disco (nada para baixar). */
   installed: boolean;
 }
 
 export interface TranscribeProgressEvent {
-  /** 0..1 fraction of the current stage's work. */
+  /** Fração de 0 a 1 do trabalho da etapa atual. */
   fraction: number;
   stage: TranscribeStage;
   downloadedBytes?: number;
@@ -169,33 +171,33 @@ export interface AlignmentPreview {
   uncertainWords: number;
 }
 
-/** LLM connection settings (OpenAI-compatible endpoint; Atlas Cloud preset default). */
+/** Configuração de conexão com o LLM (endpoint compatível com OpenAI; a predefinição padrão é o Atlas Cloud). */
 export interface LlmConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
 }
 
-/** 切片时长档:不同平台/账号定位的节奏(短=快节奏竖屏,长=B站/播客金句段)。 */
+/** Faixa de duração do clipe: o ritmo muda conforme a plataforma e o posicionamento da conta (curta = ritmo vertical acelerado, longa = trechos marcantes de podcast e vídeo longo). */
 export type ClipLength = "short" | "standard" | "long";
 
-/** 用户点题(v0.13):自然语言告诉 AI 本场重点找什么/明确不要什么。 */
+/** Briefing do usuário (v0.13): em linguagem natural, o que a IA deve procurar e o que não deve nesta sessão. */
 export interface DetectBrief {
-  /** 重点找:「只要讲到售后的部分」「重点找他聊创业失败的段落」。 */
+  /** Procure especialmente: "só a parte em que ele fala de pós-venda", "foque nos trechos sobre fracasso empreendendo". */
   focus?: string;
-  /** 明确排除:「不要抽奖和念弹幕」「排除开头暖场」。 */
+  /** Exclua explicitamente: "nada de sorteio nem leitura de chat", "tire o aquecimento do começo". */
   exclude?: string;
 }
 
-/** 两级漏斗第一级:本地小模型端点(Ollama 等 OpenAI 兼容接口,通常免 Key)。 */
+/** Primeiro nível do funil de dois estágios: endpoint de modelo pequeno local (Ollama e outras interfaces compatíveis com OpenAI, em geral sem chave). */
 export interface PrefilterConfig {
   baseUrl: string;
   model: string;
-  /** 云端端点的 API Key(本地 Ollama 缺省)。 */
+  /** Chave de API do endpoint de nuvem (dispensável no Ollama local). */
   apiKey?: string;
 }
 
-/** 漏斗省了多少:全文 vs 入围云端的部分(UI 展示与审计)。 */
+/** Quanto o funil economizou: o texto completo comparado à parte que chegou à nuvem (para exibir na interface e para auditoria). */
 export interface FunnelStats {
   totalSegments: number;
   keptSegments: number;
@@ -203,37 +205,37 @@ export interface FunnelStats {
   keptChars: number;
 }
 
-/** 视觉爆点信号的抽帧统计(UI 展示"看了多少帧、圈出几段")。 */
+/** Estatística de amostragem de quadros do sinal de pico visual (a interface mostra "quantos quadros foram vistos e quantos trechos foram marcados"). */
 export interface VisionStats {
   framesTotal: number;
   framesScored: number;
   peakCount: number;
-  /** 本轮跑的是全场扫描档(v0.13;快扫档缺省)。 */
+  /** Esta rodada usou a varredura completa (v0.13; ausente na varredura rápida). */
   fullScan?: boolean;
-  /** 全场扫描带出画面描述的时刻数(画面时刻线进了选段证据)。 */
+  /** Quantidade de momentos que a varredura completa descreveu (a linha do tempo visual entrou na evidência de seleção). */
   notedMoments?: number;
-  /** Bounded full-scan notes retained for timestamped evidence search. */
+  /** Observações da varredura completa, em quantidade limitada, guardadas para a busca por evidência com marcação de tempo. */
   notes?: Array<{ t: number; energy: number; note: string; visibleText?: string[] }>;
-  /** 候选段画面复核:复核条数(v0.12;未跑复核缺省)。 */
+  /** Revisão visual dos candidatos: quantos foram revisados (v0.12; ausente quando a revisão não rodou). */
   candidatesReviewed?: number;
-  /** 候选段画面复核:被加分/降分的条数。 */
+  /** Revisão visual dos candidatos: quantos ganharam ou perderam pontos. */
   candidatesAdjusted?: number;
 }
 
-/** 表情峰值信号统计(零配置自动跑;UI 展示"看了几张脸、圈出几段")。 */
+/** Estatística do sinal de pico de expressão (roda sozinho, sem configuração; a interface mostra "quantos rostos foram lidos e quantos trechos marcados"). */
 export interface EmotionStats {
   framesTotal: number;
   facesScored: number;
   peakCount: number;
 }
 
-/** 弹幕热度信号统计(自动发现同名 .xml;UI 展示"读了几条、圈出几段")。 */
+/** Estatística do sinal de euforia do chat (o arquivo .xml de mesmo nome é descoberto sozinho; a interface mostra "quantas mensagens foram lidas e quantos trechos marcados"). */
 export interface DanmakuStats {
   count: number;
   peakCount: number;
 }
 
-/** 语音情绪/音频事件信号统计(SenseVoice 短窗重扫;UI 展示"听了几窗、圈出几段")。 */
+/** Estatística dos sinais de emoção na voz e de eventos de áudio (nova varredura em janelas curtas com o SenseVoice; a interface mostra "quantas janelas foram ouvidas e quantos trechos marcados"). */
 export interface VoiceTagStats {
   windowsPlanned: number;
   windowsScored: number;
@@ -241,94 +243,103 @@ export interface VoiceTagStats {
   eventPeakCount: number;
 }
 
-/** LLM 端点当前提供的模型清单(GET /models 的结果;失败时 ids 为空、error 有原因)。 */
+/** Lista de modelos que o endpoint do LLM oferece agora (o resultado de GET /models; em caso de falha, ids vem vazio e error traz o motivo). */
 export interface ModelListResult {
   ids: string[];
   error: string | null;
 }
 
-/** 多片段拼接里的一段源片区间(绝对源片时间);详见 core/pieces.ts。 */
+/** Um intervalo da origem dentro de uma costura de vários trechos (tempo absoluto da origem); os detalhes estão em core/pieces.ts. */
 export interface ClipPiece {
   startSec: number;
   endSec: number;
 }
 
-/** One AI-nominated clip candidate with frame-accurate boundaries. */
+/** Um clipe candidato indicado pela IA, com limites precisos no quadro. */
 export interface HighlightCandidate {
   id: number;
-  /** 跨度起点:多段拼接时 = 第一段的起点。 */
+  /** Início do intervalo: numa costura de vários trechos, é o início do primeiro trecho. */
   startSec: number;
-  /** 跨度终点:多段拼接时 = 最后一段的终点(≠ 成片时长)。 */
+  /** Fim do intervalo: numa costura de vários trechos, é o fim do último trecho (não é a duração do vídeo final). */
   endSec: number;
   /**
-   * 多片段拼接的段清单(按时间序)。缺省或只有 1 段 = 普通连续切片。
-   * 成片时长是各段之和,不是 endSec-startSec —— 一律用 clipDurationSec() 取。
+   * Lista dos trechos da costura (em ordem de tempo). Ausente, ou com apenas 1
+   * trecho, significa um clipe contínuo comum.
+   * A duração do vídeo final é a soma dos trechos, e não endSec menos startSec —
+   * use sempre clipDurationSec() para obtê-la.
    */
   pieces?: ClipPiece[];
-  /** Verbatim transcript text covered by the clip. */
+  /** O texto literal da transcrição que o clipe cobre. */
   text: string;
-  /** Suggested post title (transcript language). */
+  /** Título sugerido para publicar (no idioma da transcrição). */
   title: string;
-  /** The opening hook line the clip leads with. */
+  /** A frase de gancho com que o clipe abre. */
   hook: string;
-  /** Virality ranking score 0-100 — a RANKER, not a truth claim. */
+  /** Nota de ordenação por potencial viral, de 0 a 100 — é um ORDENADOR, não uma afirmação de verdade. */
   score: number;
-  /** One-line reason ("why this clip") — the evidence chain seed. */
+  /** Justificativa em uma linha ("por que este clipe") — a semente da cadeia de evidências. */
   reason: string;
   /**
-   * How boundaries were located (match quality signal for the UI).
-   * "signal" = 这条不是按原话切的,时间来自视听信号融合(跳舞/萌宠/户外这类
-   * 文字稿没内容的品类只能这么来;见 core/highlight/moments.ts)。
+   * Como os limites foram localizados (sinal de qualidade da correspondência para
+   * a interface).
+   * "signal" = este clipe não foi cortado a partir da fala, e o tempo vem da fusão
+   * dos sinais de imagem e som (é o único jeito possível em gêneros como dança,
+   * pets e rua, onde a transcrição não tem conteúdo; veja
+   * core/highlight/moments.ts).
    */
   boundary: "exact" | "anchored" | "segment" | "signal";
-  /** 信号候选命中的证据种类(boundary="signal" 才有);UI 与回执展示证据链。 */
+  /** Tipos de evidência que o candidato vindo de sinal acertou (só existe quando boundary="signal"); a interface e o comprovante mostram a cadeia de evidências. */
   signalEvidence?: string[];
-  /** Verbatim in-clip keywords (caption emphasis); may be empty. */
+  /** Palavras-chave literais de dentro do clipe (para destacar na legenda); pode vir vazio. */
   keywords: string[];
-  /** Four-dimension virality breakdown (0-100 each) from the stage-2 reviewer. */
+  /** Detalhamento do potencial viral em quatro dimensões (0 a 100 em cada), vindo da reavaliação da segunda etapa. */
   scoreDims?: { hook: number; flow: number; value: number; trend: number };
-  /** One-line reviewer reason per dimension; may be empty strings. */
+  /** Justificativa de uma linha por dimensão, vinda da reavaliação; pode ser string vazia. */
   dimNotes?: { hook: string; flow: string; value: string; trend: string };
-  /** Short suspense line (≤15 chars) usable as an on-video text hook. */
+  /** Frase curta de suspense (até 15 caracteres), utilizável como gancho de texto sobre o vídeo. */
   teaser?: string;
-  /** Stage-2 review verdict: false = the AI reviewer advises against publishing. */
+  /** Julgamento da reavaliação da segunda etapa: false significa que o revisor da IA não recomenda publicar. */
   recommended: boolean;
-  /** One-line reviewer note (why weak / why strong); may be empty. */
+  /** Observação de uma linha do revisor (por que é fraco ou por que é forte); pode vir vazia. */
   reviewNote: string;
-  /** Optional structured evidence from the already-enabled candidate vision review. */
+  /** Evidência estruturada opcional, vinda da revisão visual de candidatos já ativada. */
   visualEvidence?: {
     score: number;
     scene: string;
     match: boolean;
-    /** Short strings confidently readable in sampled frames; empty/absent means uncertain. */
+    /** Textos curtos que puderam ser lidos com confiança nos quadros amostrados; vazio ou ausente significa incerteza. */
     visibleText?: string[];
   };
   /**
-   * 质量门三档(v0.13):publish=建议发 / review=有硬伤需人工确认 / drop=不建议发。
-   * 缺省 = 没过质量门(信号候选/复评失败/老数据),UI 按普通候选对待。
+   * Os três níveis da porta de qualidade (v0.13): publish = recomendado publicar /
+   * review = tem defeito sério e precisa de conferência humana / drop = não
+   * recomendado publicar.
+   * Ausente significa que não passou pela porta de qualidade (candidato vindo de
+   * sinal, reavaliação que falhou ou dados antigos), e a interface trata como um
+   * candidato comum.
    */
   gate?: "publish" | "review" | "drop";
-  /** 质量门原因清单(LLM 复评 + 规则层硬伤,给人看的证据链)。 */
+  /** Lista de motivos da porta de qualidade (reavaliação do LLM mais os defeitos da camada de regras; é a cadeia de evidências que a pessoa lê). */
   gateNotes?: string[];
-  /** 实用密度(v0.14 第十路):达线即「值得收藏」,发布文案转收藏/搜索导向。 */
+  /** Densidade útil (o décimo caminho, v0.14): passando do limite, o clipe "vale salvar", e o texto de publicação passa a mirar salvamento e busca. */
   utility?: { score: number; hits: string[] };
-  /** 用户手动调过切点(审阅台/微调按钮):导出时跳过镜头吸附,尊重人的决定。 */
+  /** A pessoa ajustou os pontos de corte à mão (na bancada de revisão ou nos botões de ajuste): a exportação pula o encaixe na troca de plano e respeita a decisão humana. */
   manualBounds?: boolean;
 }
 
-/** 审阅反馈回流:一条被审阅候选的最小特征(本地偏好档;够 LLM 认出"同类"即可)。 */
+/** Retorno das decisões de revisão: as características mínimas de um candidato revisado (arquivo local de preferências; basta o suficiente para o LLM reconhecer "desse tipo"). */
 export interface ReviewedCandidate {
   title: string;
   hook: string;
   score: number;
-  /** 片长(秒,取整)——时长偏好也是偏好。 */
+  /** Duração do clipe (em segundos, arredondada) — a duração também é uma preferência. */
   durationSec: number;
   keywords?: string[];
 }
 
-/** 一条平台发布结果;只含内容表现,不含账号凭据或本地目录。 */
+/** O resultado de uma publicação numa plataforma; contém só o desempenho do conteúdo, nunca credenciais de conta nem caminhos locais. */
 export interface PerformanceEntry {
-  /** HotClip 导出时生成的稳定内容 ID;与平台作品 id 分开。 */
+  /** Identificador de conteúdo estável, gerado pelo HotClip na exportação; é separado do id do vídeo na plataforma. */
   contentId?: string;
   id?: string;
   title: string;
@@ -371,7 +382,7 @@ export interface PublishLedgerItem {
   keywords?: string[];
   exportedAt: string;
   metricsImportedAt?: string;
-  /** Present only when this export belongs to a multi-version packaging experiment. */
+  /** Presente apenas quando esta exportação faz parte de um teste de embalagem com várias versões. */
   experimentId?: string;
   variantIndex?: number;
   variantTotal?: number;
@@ -400,7 +411,7 @@ export interface PerformanceExperimentVariant {
   publishedAt?: string;
 }
 
-/** Conservative local comparison; "directional" is evidence, never a causal claim. */
+/** Comparação local conservadora; "directional" é evidência, nunca uma afirmação de causa. */
 export interface PerformanceExperiment {
   experimentId: string;
   platform: string;
@@ -415,7 +426,7 @@ export interface PerformanceExperiment {
   variants: PerformanceExperimentVariant[];
 }
 
-/** 设置中心展示的数据摘要;赢家/弱项使用同一套本地质量分排序。 */
+/** Resumo dos dados mostrado na central de configurações; os acertos e os pontos fracos usam a mesma nota local de qualidade para ordenar. */
 export interface PerformanceSummary {
   total: number;
   platforms: string[];
@@ -436,39 +447,43 @@ export interface PerformanceSummary {
   };
 }
 
-/** Burned-in caption style choices (none = no captions; bubble = web-rendered). */
+/** Escolhas de estilo da legenda queimada (none = sem legenda; bubble = renderizada pelo navegador). */
 export type CaptionStyleChoice = "none" | "karaoke" | "keyword" | "pop" | "hormozi" | "minimal" | "bubble";
 
-/** 水印配置:PNG 烧进画面一角。 */
+/** Configuração da marca d'água: um PNG queimado num canto da imagem. */
 export interface BrandWatermark {
-  /** 图片绝对路径(建议透明底 PNG)。 */
+  /** Caminho absoluto da imagem (o recomendado é um PNG com fundo transparente). */
   path: string;
   corner: "top-left" | "top-right" | "bottom-left" | "bottom-right";
-  /** 不透明度 0..1。 */
+  /** Opacidade de 0 a 1. */
   opacity: number;
 }
 
 /**
- * 品牌样式预设:一次配置,每条切片复用——竞品把这个锁在付费墙后。
- * 全部可选;缺省字段走内置默认,输出与未配置时逐字节一致。
+ * Predefinição de estilo da marca: configure uma vez e reutilize em cada clipe —
+ * os concorrentes trancam isso atrás de um paywall.
+ * Tudo é opcional; os campos ausentes usam o padrão interno, e a saída fica byte
+ * a byte igual à de quem não configurou nada.
  */
 export interface BrandStyle {
-  /** 主高亮色 "#RRGGBB":卡拉OK点亮/关键词强调/开场钩子/气泡渐变同源。 */
+  /** Cor principal de destaque, no formato "#RRGGBB": o aceso do karaokê, a ênfase na palavra-chave, o gancho de abertura e o gradiente do balão vêm todos dela. */
   highlightColor?: string;
-  /** 字号缩放(三档 0.68/1/1.18,自由数值也接受)。 */
+  /** Escala do tamanho da fonte (três níveis: 0,68 / 1 / 1,18; valores livres também são aceitos). */
   fontScale?: number;
-  /** 字幕高低位置(安全区内三档)。 */
+  /** Posição da legenda, mais alta ou mais baixa (três níveis dentro da zona segura). */
   captionPosition?: "low" | "standard" | "high";
-  /** logo 水印;不设则不烧。 */
+  /** Marca d'água com logo; sem isso, nada é queimado. */
   watermark?: BrandWatermark;
 }
 
-/** 品牌字幕字号三档;渲染层和导出管线共用,避免 Windows 安装版出现档位漂移。 */
+/** Os três níveis de tamanho da legenda da marca; a camada de renderização e a esteira de exportação usam os mesmos, para que a versão instalada no Windows não sofra desvio de nível. */
 export const FONT_SCALE_CHOICES = { small: 0.68, standard: 1, large: 1.18 } as const;
 
 /**
- * 导出画质档 → x264 CRF。数值越小越清晰、文件越大;
- * high 保持历史默认(18),换档只影响体积与清晰度,不改变任何剪辑决策。
+ * Nível de qualidade da exportação → CRF do x264. Quanto menor o número, mais
+ * nítido e maior o arquivo;
+ * o nível high mantém o padrão histórico (18), e trocar de nível afeta apenas o
+ * tamanho e a nitidez, sem alterar nenhuma decisão de edição.
  */
 export type ExportQuality = "high" | "standard" | "compact";
 
@@ -478,115 +493,115 @@ export const QUALITY_CRF: Record<ExportQuality, number> = {
   compact: 28,
 };
 
-/** Render options for the export step (UI toggles on the highlight list). */
+/** Opções de renderização da etapa de exportação (as chaves que aparecem na lista de destaques). */
 export interface ExportOptions {
-  /** Center-crop reframe to 9:16 vertical (1080×1920) — short-video ready. */
+  /** Recorte central para o vertical 9:16 (1080×1920) — pronto para vídeo curto. */
   vertical: boolean;
-  /** Caption style to burn into the picture. */
+  /** Estilo de legenda a queimar na imagem. */
   captionStyle: CaptionStyleChoice;
-  /** Splice out intra-clip silences for a tighter, hand-edited rhythm. */
+  /** Remove os silêncios de dentro do clipe, para um ritmo mais apertado, de edição feita à mão. */
   jumpCut: boolean;
-  /** 保留呼吸口:跳剪剪长停顿时每个剪口多留一口气(~0.25s),不无缝贴死。 */
+  /** Manter as respiradas: quando o corte seco remove pausas longas, deixa cerca de 0,25s de ar em cada emenda, em vez de colar tudo sem folga. */
   keepBreath?: boolean;
-  /** 说话人标签:多说话人切片换人时字幕行首加彩色「A:」(开了多人对谈才有标注)。 */
+  /** Marca de falante: em clipes com várias pessoas, a troca de falante coloca um "A:" colorido no começo da linha da legenda (só existe com o modo multi-falante ligado). */
   speakerLabels?: boolean;
-  /** 模板受控微扰:按切片种子小幅抖动字幕几何,批量出片不共享模板指纹。 */
+  /** Variação controlada do template: desloca levemente a geometria da legenda conforme uma semente por clipe, para que exportações em lote não compartilhem a mesma impressão digital. */
   templateJitter?: boolean;
-  /** Splice out hesitation sounds (嗯/呃/um/uh) and stutter repeats. */
+  /** Remove hesitações ("é…", "ãh", "um", "uh") e repetições de gagueira. */
   cleanFillers?: boolean;
-  /** 剪掉重录废稿:同一句紧挨着说了两遍时只留最后一遍。 */
+  /** Cortar as tomadas refeitas: quando a mesma frase é dita duas vezes seguidas, só a última fica. */
   cutRetakes?: boolean;
-  /** 自动运镜:竖屏成片叠一层缓慢推拉镜头,固定机位不再死板。 */
+  /** Movimento automático de câmera: os clipes verticais recebem uma camada de aproximação e afastamento lentos, para que o plano fixo não pareça mais engessado. */
   autoZoom?: boolean;
-  /** 智能画面校正:按最终保留画面测量并克制修正明暗/反差/饱和度;默认关闭。 */
+  /** Correção inteligente de imagem: mede a imagem que de fato ficou e corrige com contenção brilho, contraste e saturação; vem desligada. */
   autoEnhance?: boolean;
-  /** 音效打点:whoosh 卡拼接缝/ding 卡情绪峰/pop 卡开场钩子,每条 ≤3 个。 */
+  /** Acentos sonoros: whoosh na emenda da costura, ding no pico de emoção e pop no gancho de abertura, no máximo 3 por clipe. */
   sfx?: boolean;
-  /** BGM 文件路径:循环铺满全片、对人声闪避混入;空/缺省 = 不加。 */
+  /** Caminho do arquivo de trilha: entra em laço cobrindo o clipe inteiro e é mixado abaixando sob a voz; vazio ou ausente significa sem trilha. */
   bgmPath?: string;
-  /** 直播品类 id(genre.ts):导出侧用于跳剪静音阈值分档。 */
+  /** Id do gênero da transmissão (genre.ts): o lado da exportação usa isso para escolher o limite de silêncio do corte seco. */
   genreId?: string;
-  /** 精准切点:候选段用 Paraformer 二遍对齐修正词级时间戳(首次需下载 ~240MB 模型)。 */
+  /** Pontos de corte precisos: os candidatos passam por um segundo alinhamento com o Paraformer para corrigir a marcação por palavra (o primeiro uso baixa um modelo de ~240 MB). */
   preciseAlign?: boolean;
-  /** Auto-crop static screen-recording chrome (status bar, app UI, letterbox). */
+  /** Recorta sozinho os elementos fixos de uma gravação de tela (barra de status, interface do app, tarjas pretas). */
   trimUi: boolean;
-  /** Burn each clip's title into the top safe zone. */
+  /** Queima o título de cada clipe na zona segura superior. */
   titleCard: boolean;
-  /** Burn the AI teaser (悬念句) as a big opening hook over the first seconds. */
+  /** Queima a chamada da IA (a frase de suspense) em letras grandes como gancho de abertura sobre os primeiros segundos. */
   openingHook?: boolean;
-  /** Match audio to the -14 LUFS social loudness target (EBU R128). */
+  /** Ajusta o áudio ao alvo de volume das redes sociais, -14 LUFS (EBU R128). */
   normalizeLoudness?: boolean;
-  /** 基础降噪:压直播回放常见底噪/电流声(高通×2+afftdn,先于响度标准化)。 */
+  /** Redução de ruído básica: abaixa o ruído de fundo e o zumbido comuns em gravação de live (dois passa-altas mais afftdn, antes da normalização de volume). */
   denoise?: boolean;
-  /** `smart` runs the optional 48 kHz local speech enhancer; legacy callers default to `basic`. */
+  /** `smart` roda o realce de fala local opcional em 48 kHz; quem chamava antes continua no `basic`. */
   denoiseMode?: "basic" | "smart";
-  /** Mute transcript-timed occurrences of these user-controlled terms. */
+  /** Silencia, no tempo da transcrição, as ocorrências destes termos controlados pela pessoa. */
   muteTerms?: string[];
-  /** 精华合集:切片按时间序流复制拼成一支合集,附章节时间戳文本。 */
+  /** Compilado dos melhores momentos: os clipes são emendados em ordem de tempo por cópia direta do fluxo, com um arquivo de texto de capítulos. */
   compilation?: boolean;
-  /** 高潮前置:钩子句剪成迷你片拼到切片开头再接完整正片(cold-open)。 */
+  /** Abertura fria: a frase de gancho vira um trecho curto emendado no começo do clipe, e depois vem o vídeo inteiro (cold open). */
   coldOpen?: boolean;
-  /** 爆点闪现:情绪峰值的 0.3-1s 画面闪到开头再切回(视觉钩子版高潮前置)。 */
+  /** Antecipação do pico: de 0,3 a 1s do pico de emoção aparece na abertura e depois volta (é a versão visual da abertura fria). */
   flashForward?: boolean;
-  /** 多画幅:竖屏之外再出一版横屏原画幅(竖版发抖音,横版发B站/YouTube)。 */
+  /** Duas proporções: além do vertical, sai também uma versão horizontal na proporção original (o vertical vai para o TikTok e o horizontal para YouTube e Bilibili). */
   alsoLandscape?: boolean;
-  /** 品牌样式预设(高亮色/字号/位置/水印);缺省走内置默认。 */
+  /** Predefinição de estilo da marca (cor de destaque, tamanho da fonte, posição, marca d'água); ausente usa o padrão interno. */
   brand?: BrandStyle;
-  /** 双语字幕:整句译文烧成主字幕下方的小号翻译轨;翻译失败静默跳过。 */
+  /** Legenda bilíngue: a tradução da frase inteira é queimada como uma faixa menor abaixo da legenda principal; falhas de tradução são puladas em silêncio. */
   translate?: { targetLang: string; llm: LlmConfig };
-  /** 发布文案:每条切片生成标题+话题+简介,落 .post.txt 与 clips.json;失败静默跳过。 */
+  /** Texto de publicação: cada clipe recebe título, hashtags e descrição, salvos em .post.txt e no clips.json; falhas são puladas em silêncio. */
   publishCopy?: { llm: LlmConfig };
-  /** 每条切片旁落同名 .srt 字幕文件(平台字幕上传/二次精修;双语时含译文行)。 */
+  /** Coloca ao lado de cada clipe um arquivo .srt de mesmo nome (para subir a legenda na plataforma ou refinar depois; no modo bilíngue inclui a linha traduzida). */
   subtitleFile?: boolean;
-  /** 输出目录落 timeline.edl——AI 切点交给 DaVinci/Premiere 重链源片精修。 */
+  /** Escreve um timeline.edl na pasta de saída — os cortes da IA vão para o DaVinci ou o Premiere, revinculando a origem para o acabamento. */
   timeline?: boolean;
-  /** 剪映草稿:每条切片一个草稿文件夹,拷进剪映草稿目录即可打开精修。 */
+  /** Rascunho do JianYing: uma pasta de rascunho por clipe, que basta copiar para o diretório de rascunhos do JianYing e abrir para refinar. */
   jianyingDraft?: boolean;
-  /** AI 封面双档:volume=Seedream 走量 / premium=Nano Banana Pro 精品;需 Atlas 档 Key。 */
+  /** Capa por IA em dois níveis: volume = Seedream econômico / premium = Nano Banana Pro; exige uma chave do nível Atlas. */
   aiCover?: { tier: "volume" | "premium"; llm: LlmConfig };
-  /** AIGC 标识:画面显式标识 + 元数据隐式标识(发布平台要求 AIGC 声明时开启)。 */
+  /** Selo de conteúdo por IA: sinalização explícita na imagem mais a implícita nos metadados (ativar quando a plataforma exigir declaração de uso de IA). */
   aigcLabel?: boolean;
-  /** 留证包:每条切片流复制源片前后各 3 分钟(授权审核的原始录屏留存)。 */
+  /** Pacote de evidências: cada clipe copia da origem, sem recodificar, os 3 minutos antes e depois (guarda a gravação original para uma revisão de autorização). */
   evidencePack?: boolean;
-  /** 平台发布包:选中的平台 id 清单(platform-specs.ts);每平台落一个齐套文件夹。 */
+  /** Pacote por plataforma: a lista de ids de plataforma selecionados (platform-specs.ts); cada plataforma ganha uma pasta completa. */
   publishPack?: string[];
-  /** 主题系列包:按重复关键词整理原版成片并生成顺序清单。 */
+  /** Pacote de série por tema: organiza os vídeos originais pelas palavras-chave repetidas e gera uma lista na ordem certa. */
   seriesPack?: boolean;
-  /** 一片多版:同一切片出 count 版差异化包装(含原版,2 或 3);需要 LLM。 */
+  /** Várias versões: o mesmo clipe sai em count embalagens diferentes (incluindo a original, 2 ou 3); exige um LLM. */
   variants?: { count: number; llm: LlmConfig };
-  /** 成片导出根目录(成片仍落其下的 <片名>/ 子目录);空/缺省 = 系统默认 ~/影片/HotClip。 */
+  /** Pasta raiz de exportação (os vídeos continuam indo para a subpasta <nome>/ dentro dela); vazio ou ausente usa o padrão do sistema, ~/Vídeos/HotClip. */
   outDir?: string;
-  /** 导出画质档;缺省 high——与历史默认(CRF 18)一致,升级不改变成片。 */
+  /** Nível de qualidade da exportação; o padrão é high, igual ao histórico (CRF 18), então atualizar não muda o vídeo final. */
   quality?: ExportQuality;
-  /** Needed for captions/jump-cut: source of word-level timestamps. */
+  /** Necessário para as legendas e o corte seco: é a origem da marcação por palavra. */
   transcript?: Transcript;
 }
 
-/** UI 选出的渲染开关(ExportOptions 去掉 transcript 的可序列化子集)。 */
+/** As chaves de renderização escolhidas na interface (o subconjunto serializável de ExportOptions, sem transcript). */
 export type RenderToggles = Omit<ExportOptions, "transcript">;
 
 /**
- * Detection result: the ranked candidates, plus the diarization-labeled
- * transcript when multi-speaker attribution ran — so the export path can
- * carry per-word speaker ids through to caption coloring.
+ * Resultado da detecção: os candidatos ordenados, mais a transcrição com os
+ * falantes identificados quando a separação rodou — assim o caminho de
+ * exportação leva o id de falante de cada palavra até a cor da legenda.
  */
 export interface DetectHighlightsResult {
   candidates: HighlightCandidate[];
-  /** Present only when diarization labeled the transcript this run. */
+  /** Presente apenas quando a separação de falantes identificou a transcrição nesta rodada. */
   transcript?: Transcript;
-  /** 本地初筛生效时的漏斗统计;未启用/回退全文时缺省。 */
+  /** Estatística do funil quando a triagem local entrou em ação; ausente quando não foi usada ou voltou ao texto completo. */
   funnel?: FunnelStats;
-  /** 视觉爆点信号生效时的抽帧统计;未启用/回退时缺省。 */
+  /** Estatística de amostragem quando o sinal de pico visual entrou em ação; ausente quando não foi usado ou houve recuo. */
   vision?: VisionStats;
-  /** 表情峰值信号生效时的统计;无人脸/模型不可用时缺省。 */
+  /** Estatística quando o sinal de pico de expressão entrou em ação; ausente quando não há rosto ou o modelo não está disponível. */
   emotion?: EmotionStats;
-  /** 弹幕热度信号生效时的统计;视频旁没有同名弹幕 .xml 时缺省。 */
+  /** Estatística quando o sinal de euforia do chat entrou em ação; ausente quando não há um .xml de chat de mesmo nome ao lado do vídeo. */
   danmaku?: DanmakuStats;
-  /** 语音情绪/音频事件信号生效时的统计;未装本地转写模型时缺省。 */
+  /** Estatística quando os sinais de emoção na voz e de eventos de áudio entraram em ação; ausente quando o modelo local de transcrição não está instalado. */
   voice?: VoiceTagStats;
-  /** 参考爆款画像(传了 referencePath 且分析成功才有)。 */
+  /** Perfil do corte de referência (só existe quando referencePath foi informado e a análise deu certo). */
   reference?: ReferenceInfo | null;
-  /** 参考视频分析失败原因(fail-open 按无参考继续,但失败必须让用户看见)。 */
+  /** Motivo da falha ao analisar o vídeo de referência (o fluxo segue sem referência, mas a falha precisa ser vista pela pessoa). */
   referenceError?: string;
 }
 
@@ -603,7 +618,7 @@ export interface ReferenceInfo {
   charUnits: boolean;
 }
 
-/** One reversible human edit. AI detection/transcription results establish a new baseline instead. */
+/** Uma edição humana reversível. Os resultados de detecção e transcrição da IA, em vez disso, estabelecem uma nova linha de base. */
 export type SessionEditCommand =
   | {
       kind: "selection";
@@ -633,13 +648,13 @@ export type SessionEditCommand =
       }>;
     };
 
-/** Two JSON-safe stacks; the final item in each array is the next command to replay. */
+/** Duas pilhas seguras para JSON; o último item de cada array é o próximo comando a reexecutar. */
 export interface SessionEditHistory {
   undo: SessionEditCommand[];
   redo: SessionEditCommand[];
 }
 
-/** Stable, restart-safe subset of the renderer's active editing session. */
+/** Subconjunto estável e à prova de reinício da sessão de edição ativa do renderer. */
 export interface SessionCheckpoint {
   file: MediaInfo & { path: string };
   transcript: Transcript | null;
@@ -658,15 +673,15 @@ export interface SessionCheckpoint {
   diarize: boolean;
   referencePath: string | null;
   paramsDirty: boolean;
-  /** Optional for backward compatibility with pre-v0.16 projects/checkpoints. */
+  /** Opcional, para compatibilidade com projetos e pontos de controle anteriores à v0.16. */
   editHistory?: SessionEditHistory;
   savedAt: string;
 }
 
-/** Current relationship between a saved project and its source media. */
+/** A relação atual entre um projeto salvo e a mídia de origem dele. */
 export type ProjectSourceStatus = "ready" | "offline" | "changed" | "corrupt";
 
-/** Lightweight project metadata used by the workspace list. */
+/** Metadados leves do projeto, usados pela lista da área de projetos. */
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -680,83 +695,86 @@ export interface ProjectSummary {
   lastOpenedAt: string;
 }
 
-/** Opening an offline/changed/corrupt project returns metadata but no live session. */
+/** Abrir um projeto offline, alterado ou danificado devolve os metadados, mas nenhuma sessão ativa. */
 export interface ProjectOpenResult {
   project: ProjectSummary;
   checkpoint: SessionCheckpoint | null;
 }
 
-/** One-shot startup payload, including idempotent legacy-session migration. */
+/** Carga única de inicialização, incluindo a migração idempotente de sessões antigas. */
 export interface ProjectWorkspaceBootstrap {
   projects: ProjectSummary[];
   activeProjectId: string | null;
   active: ProjectOpenResult | null;
 }
 
-/** One exported clip file on disk. */
+/** Um arquivo de clipe exportado em disco. */
 export interface ExportedClip {
   id: number;
   title: string;
   path: string;
-  /** Cover JPG exported next to the clip (may be absent on failure). */
+  /** JPG de capa exportado ao lado do clipe (pode estar ausente em caso de falha). */
   coverPath?: string;
   sizeBytes: number;
   durationSec: number;
-  /** Explicit PQ/HLG source was converted to social-compatible SDR BT.709. */
+  /** Uma origem PQ/HLG explícita foi convertida para o SDR BT.709 compatível com as redes sociais. */
   colorConverted?: boolean;
-  /** HDR was detected but its input colour path was incomplete or unsupported. */
+  /** O HDR foi detectado, mas o caminho de cor de entrada estava incompleto ou sem suporte. */
   colorConversionSkipped?: boolean;
-  /** Source probing failed, so HDR colour safety could not be evaluated. */
+  /** A leitura da origem falhou, então a segurança de cor do HDR não pôde ser avaliada. */
   colorInspectionFailed?: boolean;
-  /** Effective audio cleanup tier; absent when disabled or from legacy adapters. */
+  /** Nível de limpeza de áudio que valeu de fato; ausente quando desligado ou vindo de adaptadores antigos. */
   audioEnhancement?: "basic" | "learned" | "fallback" | "skipped";
 }
 
-/** 审阅台时间轴的波形数据:每块的峰值振幅(0..1)。 */
+/** Dados da onda sonora da linha do tempo da bancada de revisão: a amplitude de pico de cada bloco (de 0 a 1). */
 export interface AudioPeaks {
   values: number[];
-  /** 首块对应的源片绝对时间。 */
+  /** Tempo absoluto na origem a que o primeiro bloco corresponde. */
   startSec: number;
-  /** 每块的秒数。 */
+  /** Duração de cada bloco, em segundos. */
   hopSec: number;
 }
 
 /**
- * 工作台时间轴数据:全场响度/运动/弹幕热度曲线(每格 0..1)+ 缩略图胶片带。
- * 曲线画在时间轴上,「为什么选这段」从一段文字变成一眼可见的峰。
- * 各路 fail-open:没有的信号给空数组,时间轴照常渲染其余部分。
+ * Dados da linha do tempo da bancada: as curvas de volume, movimento e euforia
+ * do chat da transmissão inteira (de 0 a 1 por célula) mais a tira de miniaturas.
+ * Com as curvas desenhadas na linha do tempo, "por que este trecho" deixa de ser
+ * um texto e passa a ser um pico visível de relance.
+ * Cada caminho é fail-open: um sinal que não existe devolve um array vazio, e a
+ * linha do tempo renderiza o resto normalmente.
  */
 export interface TimelineData {
-  /** 每格一个值(0..1);空数组 = 无此信号。 */
+  /** Um valor por célula (de 0 a 1); array vazio significa que este sinal não existe. */
   loudness: number[];
   motion: number[];
   danmaku: number[];
-  /** 均匀抽帧的 JPEG base64(无 data: 前缀);空串格 = 该帧抽取失败。 */
+  /** JPEG em base64 de quadros amostrados uniformemente (sem o prefixo data:); uma célula com string vazia significa que aquele quadro falhou. */
   thumbs: string[];
-  /** 曲线每格对应的秒数。 */
+  /** Quantos segundos cada célula da curva representa. */
   binSec: number;
 }
 
-/** 录播监听的过程事件(渲染层控制面板展示)。 */
+/** Eventos do processo de monitoramento de gravações (exibidos no painel de controle do renderer). */
 export interface WatchEvent {
   type: "found" | "transcribing" | "detecting" | "exporting" | "done" | "error";
-  /** 文件名(展示用)。 */
+  /** Nome do arquivo (para exibição). */
   file: string;
   path: string;
-  /** done:导出条数。 */
+  /** Em done: quantos clipes foram exportados. */
   clips?: number;
   outDir?: string;
-  /** error:一句话原因。 */
+  /** Em error: o motivo em uma frase. */
   message?: string;
   at: number;
-  /** Durable automation task correlated with this live event. */
+  /** Tarefa automática persistente relacionada a este evento ao vivo. */
   taskId?: string;
 }
 
 export type AutomationTaskStatus = "queued" | "running" | "completed" | "failed" | "cancelled" | "interrupted";
 export type AutomationTaskStage = "queued" | "transcribing" | "detecting" | "exporting";
 
-/** Local-only task/history item for unattended recording processing. */
+/** Item de tarefa e histórico, só local, do processamento automático de gravações. */
 export interface AutomationTask {
   id: string;
   sourcePath: string;
@@ -775,19 +793,19 @@ export interface AutomationTask {
 }
 
 export interface ExportProgressEvent {
-  /** 1-based index of the clip currently being cut. */
+  /** Posição do clipe que está sendo cortado, começando em 1. */
   current: number;
   total: number;
   clipId: number;
   stage: "preparing" | "cutting" | "finalizing" | "done";
   preparation?: "translation" | "publish" | "variants" | "media";
-  /** 当前切片的编码进度 0-1(ffmpeg 实时回报);切片间事件缺省。 */
+  /** Progresso de codificação do clipe atual, de 0 a 1 (informado ao vivo pelo ffmpeg); ausente nos eventos entre clipes. */
   fraction?: number;
 }
 
 export interface UrlImportProgressEvent {
   stage: "downloading-tool" | "resolving" | "downloading-media" | "merging" | "done";
-  /** 已知总量时为 0..1；解析或合并阶段可能省略。 */
+  /** De 0 a 1 quando o total é conhecido; pode ser omitido nas etapas de resolução ou de junção. */
   fraction?: number;
   downloadedBytes?: number;
   totalBytes?: number;
@@ -796,7 +814,7 @@ export interface UrlImportProgressEvent {
 }
 
 export interface UrlImportResult {
-  /** 下载并合并后的本地媒体路径，后续完全复用本地文件管线。 */
+  /** Caminho da mídia local depois de baixada e juntada, de onde a esteira local de arquivos é reaproveitada por completo. */
   filePath: string;
 }
 
@@ -823,51 +841,51 @@ export interface DiagnosticsProgressEvent {
 }
 
 export interface HotClipApi {
-  /** Open a file picker; resolves to a path/handle or null when cancelled. */
+  /** Abre o seletor de arquivos; resolve com um caminho ou identificador, ou null quando cancelado. */
   selectMedia: () => Promise<string | null>;
-  /** 下载 HTTP(S) 视频页面/直链到应用管理目录。 */
+  /** Baixa um vídeo de uma página ou de um link direto HTTP(S) para a pasta administrada pelo app. */
   importMediaUrl: (url: string) => Promise<UrlImportResult>;
-  /** 订阅下载器安装、解析、媒体下载与合并进度。 */
+  /** Assina o progresso da instalação do baixador, da resolução, do download da mídia e da junção. */
   onUrlImportProgress: (cb: (p: UrlImportProgressEvent) => void) => () => void;
-  /** 取消当前地址导入；已完整下载的旧文件不受影响。 */
+  /** Cancela a importação por link em andamento; arquivos antigos já baixados por completo não são afetados. */
   cancelUrlImport: () => void;
-  /** Load the project library and restore the last active project when its source is valid. */
+  /** Carrega a biblioteca de projetos e restaura o último projeto ativo quando a origem dele ainda é válida. */
   projectWorkspaceGet: () => Promise<ProjectWorkspaceBootstrap>;
-  /** Create and activate a project from a freshly probed source session. */
+  /** Cria e ativa um projeto a partir de uma sessão de origem recém-lida. */
   projectCreate: (checkpoint: SessionCheckpoint, name?: string) => Promise<ProjectOpenResult | null>;
-  /** Activate a saved project; offline/changed projects return no checkpoint until relinked. */
+  /** Ativa um projeto salvo; projetos offline ou alterados não devolvem ponto de controle até serem revinculados. */
   projectOpen: (id: string) => Promise<ProjectOpenResult | null>;
-  /** Save stable editing state into a specific project, guarded by its source fingerprint. */
+  /** Salva o estado estável de edição dentro de um projeto específico, protegido pela impressão digital da origem dele. */
   projectSave: (id: string, checkpoint: SessionCheckpoint) => Promise<boolean>;
-  /** Rename project metadata without renaming or moving source media. */
+  /** Renomeia os metadados do projeto, sem renomear nem mover a mídia de origem. */
   projectRename: (id: string, name: string) => Promise<ProjectSummary | null>;
-  /** Delete only the app-managed project document; source media is never deleted. */
+  /** Exclui apenas o documento de projeto administrado pelo app; a mídia de origem nunca é apagada. */
   projectDelete: (id: string) => Promise<boolean>;
-  /** Reconnect an offline/changed project to a compatible, freshly probed media file. */
+  /** Reconecta um projeto offline ou alterado a um arquivo de mídia compatível e recém-lido. */
   projectRelink: (id: string, filePath: string) => Promise<ProjectOpenResult | null>;
-  /** Leave the current project while keeping it in the library. */
+  /** Sai do projeto atual mantendo-o na biblioteca. */
   projectClose: () => Promise<void>;
-  /** Restore the last stable editing session when the source fingerprint still matches. */
+  /** Restaura a última sessão de edição estável quando a impressão digital da origem ainda coincide. */
   sessionCheckpointGet: () => Promise<SessionCheckpoint | null>;
-  /** Atomically save one active editing session; false means it exceeded the safety cap. */
+  /** Salva de forma atômica uma sessão de edição ativa; false significa que ela passou do teto de segurança. */
   sessionCheckpointSave: (checkpoint: SessionCheckpoint) => Promise<boolean>;
-  /** Forget the active session after the user deliberately starts over. */
+  /** Esquece a sessão ativa depois que a pessoa deliberadamente começa de novo. */
   sessionCheckpointClear: () => Promise<void>;
-  /** Probe a media file (duration/streams/fps); throws on unreadable input. */
+  /** Lê um arquivo de mídia (duração, trilhas, quadros por segundo); lança erro se a entrada não puder ser lida. */
   probeMedia: (filePath: string) => Promise<MediaInfo>;
-  /** List selectable transcription engines with install state. */
+  /** Lista os motores de transcrição selecionáveis com o estado de instalação. */
   listAsrEngines: () => Promise<AsrEngineInfo[]>;
-  /** Transcribe with the chosen engine; cloud engines need the user's API key. */
+  /** Transcreve com o motor escolhido; motores de nuvem precisam da chave de API da pessoa. */
   transcribeMedia: (filePath: string, engineId?: string, apiKey?: string, options?: SpeechRunOptions) => Promise<Transcript>;
   cancelTranscribe: () => void;
   checkLocalSpeech: (url: string) => Promise<{ model: string; aligner: boolean; device: string }>;
   previewAlignment: (filePath: string, transcript: Transcript, request: AlignmentRequest) => Promise<AlignmentPreview>;
   cancelAlignment: () => void;
-  /** Import existing subtitle text against the source duration, without ASR. */
+  /** Importa um texto de legenda existente conferindo contra a duração da origem, sem reconhecimento de fala. */
   importSubtitle: (filePath: string, text: string, format: "srt" | "vtt") => Promise<Transcript>;
-  /** Subscribe to transcription progress; returns an unsubscribe function. */
+  /** Assina o progresso da transcrição; devolve uma função para cancelar a assinatura. */
   onTranscribeProgress: (cb: (p: TranscribeProgressEvent) => void) => () => void;
-  /** Detect highlight candidates via the configured LLM; filePath enables audiovisual-signal evidence. */
+  /** Detecta candidatos a destaque pelo LLM configurado; informar filePath habilita a evidência dos sinais de imagem e som. */
   detectHighlights: (
     transcript: Transcript,
     llm: LlmConfig,
@@ -876,91 +894,96 @@ export interface HotClipApi {
     prefilter?: PrefilterConfig | null,
     vision?: PrefilterConfig | null,
     length?: ClipLength,
-    /** 商品讲解模式:商品词列表(带货直播按商品选段,命中词并入候选 keywords)。 */
+    /** Modo de apresentação de produto: a lista de produtos (em venda ao vivo os trechos são escolhidos por produto, e os produtos encontrados entram nas keywords do candidato). */
     products?: string[],
-    /** 对标爆款视频路径:实测其节奏画像,选段向对标节奏靠拢(偏好不是硬约束)。 */
+    /** Caminho do vídeo viral usado como espelho: o ritmo dele é medido e a escolha dos trechos pende para esse ritmo (é preferência, não restrição rígida). */
     referencePath?: string | null,
-    /** 直播品类判据:内置预设 id + 用户改写的自定义文本(自定义优先)。 */
+    /** Critérios do gênero da transmissão: o id do preset interno mais o texto personalizado que a pessoa escreveu (o personalizado tem prioridade). */
     genre?: { id?: string; custom?: string } | null,
-    /** 用户点题:重点找什么/明确排除什么(自然语言,注入选段判据)。 */
+    /** Briefing do usuário: o que procurar e o que excluir explicitamente (em linguagem natural, injetado nos critérios de seleção). */
     brief?: DetectBrief | null,
-    /** 全场画面扫描:视觉端点已配置时按 ~30s 一帧扫完整场,画面时刻线进选段证据(费时/云端计费,默认关)。 */
+    /** Varredura visual completa: com o endpoint de visão configurado, varre a transmissão inteira a cerca de 1 quadro por 30s, e a linha do tempo visual entra na evidência de seleção (leva tempo e é cobrado na nuvem, então vem desligado). */
     scan?: boolean
   ) => Promise<DetectHighlightsResult>;
-  /** Cut the selected highlights into mp4 files; resolves with the file list. */
+  /** Corta os destaques selecionados em arquivos mp4; resolve com a lista de arquivos. */
   exportClips: (filePath: string, clips: HighlightCandidate[], options?: ExportOptions) => Promise<ExportedClip[]>;
-  /** Subscribe to per-clip export progress; returns an unsubscribe function. */
+  /** Assina o progresso de exportação de cada clipe; devolve uma função para cancelar a assinatura. */
   onExportProgress: (cb: (p: ExportProgressEvent) => void) => () => void;
-  /** 取消进行中的导出(会中断正在跑的 ffmpeg;已完成的切片保留)。 */
+  /** Cancela a exportação em andamento (interrompe o ffmpeg que está rodando; os clipes já concluídos ficam). */
   cancelExport: () => void;
-  /** Reveal an exported file in Finder / Explorer. */
+  /** Mostra um arquivo exportado no Finder ou no Explorador de Arquivos. */
   revealClip: (path: string) => void;
   /**
-   * 本地媒体的可播放 URL(审阅台 <video> 用);空串 = 当前环境不支持预览。
-   * `view` 用于区分同一文件的不同消费方(工作台主画面/竖屏裁切/审阅台弹窗):
-   * 它会被编进 URL 的 pathname —— Chromium 判定"是否同一媒体资源"时不看 query,
-   * 多个 <video> 共享同一资源会撞坏媒体缓冲,所以必须走 path。
+   * URL reproduzível de uma mídia local (para o <video> da bancada de revisão);
+   * string vazia significa que este ambiente não suporta prévia.
+   * `view` distingue os diferentes consumidores do mesmo arquivo (a imagem
+   * principal da bancada, o recorte vertical, a janela da bancada de revisão):
+   * ele é embutido no pathname da URL — o Chromium não olha a query ao decidir
+   * "se é o mesmo recurso de mídia", e vários <video> compartilhando um recurso
+   * corrompem o buffer de mídia, então isso precisa ir no path.
    */
   mediaUrl: (filePath: string, view?: string) => string;
-  /** 选择一张图片(水印 logo 用);取消返回 null。 */
+  /** Escolhe uma imagem (para o logo da marca d'água); cancelar devolve null. */
   selectImage: () => Promise<string | null>;
-  /** 选择一个音频文件(BGM 用);取消返回 null。 */
+  /** Escolhe um arquivo de áudio (para a trilha de fundo); cancelar devolve null. */
   selectAudio: () => Promise<string | null>;
-  /** AI 生成一段版权安全 BGM(按品类风格,需 Atlas 档 Key);返回保存路径。 */
+  /** A IA gera uma trilha livre de direitos (no estilo do gênero; exige uma chave do nível Atlas); devolve o caminho onde foi salva. */
   generateBgm: (config: LlmConfig, genreId?: string) => Promise<string>;
-  /** 取 [startSec, endSec] 的音频峰值轨——审阅台时间轴的波形。 */
+  /** Pega a trilha de picos de áudio de [startSec, endSec] — é a onda sonora da linha do tempo da bancada de revisão. */
   getAudioPeaks: (filePath: string, startSec: number, endSec: number) => Promise<AudioPeaks>;
-  /** 工作台时间轴数据:全场响度/弹幕热度曲线 + 缩略图胶片带(各路 fail-open)。 */
+  /** Dados da linha do tempo da bancada: as curvas de volume e de euforia do chat mais a tira de miniaturas (cada caminho é fail-open). */
   timelineData: (filePath: string, durationSec: number) => Promise<TimelineData>;
-  /** 候选片段的 3×3 接触表(画面速览):返回 data URL;失败/不支持返回空串。 */
+  /** Mosaico 3×3 de um trecho candidato (visão rápida da imagem): devolve uma data URL; falha ou ausência de suporte devolve string vazia. */
   contactSheet: (filePath: string, startSec: number, endSec: number) => Promise<string>;
-  /** 问 LLM 端点要它当前真正提供的模型清单(GET /models);失败返回原因不抛。 */
+  /** Pergunta ao endpoint do LLM que modelos ele realmente oferece agora (GET /models); em caso de falha devolve o motivo, sem lançar erro. */
   listLlmModels: (baseUrl: string, apiKey: string) => Promise<ModelListResult>;
-  /** 审阅反馈回流:导出时记录本场采用/否决的候选(本地偏好档,下次检测注入)。 */
+  /** Retorno das decisões de revisão: na exportação, registra os candidatos aprovados e descartados desta sessão (arquivo local de preferências, injetado na próxima detecção). */
   recordReview: (video: string, kept: ReviewedCandidate[], rejected: ReviewedCandidate[]) => Promise<void>;
-  /** 真实发布表现摘要(本地 performance-memory.json)。 */
+  /** Resumo do desempenho real das publicações (do performance-memory.json local). */
   performanceGet: () => Promise<PerformanceSummary>;
-  /** 选择并导入平台 CSV/JSON;用户取消返回 null。 */
+  /** Escolhe e importa um CSV ou JSON de plataforma; se a pessoa cancelar, devolve null. */
   performanceImport: () => Promise<PerformanceImportResult | null>;
-  /** 导出带稳定内容 ID 的表现数据回填模板;用户取消返回 null。 */
+  /** Exporta o modelo de preenchimento dos dados de desempenho, com identificadores de conteúdo estáveis; se a pessoa cancelar, devolve null. */
   performanceTemplate: () => Promise<{ count: number; path: string } | null>;
-  /** 清空真实发布表现记忆;不影响主观审阅偏好。 */
+  /** Apaga a memória de desempenho real das publicações; não afeta as preferências subjetivas de revisão. */
   performanceClear: () => Promise<void>;
-  /** 运行只读环境健康检查。 */
+  /** Roda o diagnóstico de ambiente, que é somente leitura. */
   diagnosticsRun: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
-  /** Clear only generated base renders, then return a refreshed health report. */
+  /** Limpa apenas as renderizações base geradas e devolve um relatório de diagnóstico atualizado. */
   diagnosticsClearRenderCache: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
-  /** Clear only regenerable source-analysis evidence, then return a refreshed health report. */
+  /** Limpa apenas a evidência de análise da origem, que pode ser gerada de novo, e devolve um relatório de diagnóstico atualizado. */
   diagnosticsClearEvidenceIndex: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
-  /** 显式预下载缺失的默认管线模型;支持断点续传。 */
+  /** Baixa explicitamente, de forma antecipada, os modelos padrão da esteira que estão faltando; com retomada de download. */
   diagnosticsPrepareModels: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
   onDiagnosticsProgress: (cb: (p: DiagnosticsProgressEvent) => void) => () => void;
   diagnosticsCancelRepair: () => void;
-  /** 选择一个文件夹(录播监听用);取消返回 null。 */
+  /** Escolhe uma pasta (para o monitoramento de gravações); cancelar devolve null. */
   selectDir: () => Promise<string | null>;
-  /** 出厂导出根目录(~/影片/HotClip),用户没自选时界面显示的就是它。 */
+  /** Pasta raiz de exportação de fábrica (~/Vídeos/HotClip), que é o que a interface mostra enquanto a pessoa não escolhe outra. */
   defaultOutDir: () => Promise<string>;
-  /** 模型清点:存放位置、各模型装没装、各占多大(设置页展示)。 */
+  /** Inventário de modelos: onde ficam guardados, quais estão instalados e quanto cada um ocupa (exibido na página de configurações). */
   modelsInfo: () => Promise<ModelsInfo>;
-  /** 把模型目录整体搬到新位置;返回生效后的路径。失败时原目录不受影响。 */
+  /** Move a pasta de modelos inteira para um novo lugar; devolve o caminho que passou a valer. Em caso de falha, a pasta original não é afetada. */
   moveModelsDir: (dir: string) => Promise<string>;
-  /** 在系统文件管理器里打开一个目录。 */
+  /** Abre uma pasta no gerenciador de arquivos do sistema. */
   openFolder: (path: string) => void;
-  /** 开始监听文件夹:新录播写完落稳后自动全托管切片。 */
+  /** Começa a monitorar a pasta: uma gravação nova é cortada automaticamente, de ponta a ponta, assim que termina de ser escrita. */
   watchStart: (dir: string, llm: LlmConfig, outDir?: string) => Promise<void>;
   watchStop: () => Promise<void>;
   watchStatus: () => Promise<{ running: boolean; dir: string | null }>;
-  /** Durable unattended-processing queue and history (newest first). */
+  /** Fila persistente e histórico do processamento automático (o mais novo primeiro). */
   automationTasksGet: () => Promise<AutomationTask[]>;
-  /** Retry one failed/interrupted/cancelled task with the current LLM settings. */
+  /** Tenta de novo uma tarefa que falhou, foi interrompida ou cancelada, com as configurações atuais de LLM. */
   automationTaskRetry: (id: string, llm: LlmConfig, outDir?: string) => Promise<boolean>;
-  /** Cancel a queued/running task. */
+  /** Cancela uma tarefa na fila ou em execução. */
   automationTaskCancel: (id: string) => Promise<boolean>;
-  /** Remove terminal task history; active tasks remain. */
+  /** Remove o histórico de tarefas já encerradas; as ativas ficam. */
   automationTasksClear: () => Promise<void>;
   /**
-   * 起录播 webhook 端点(录播姬/blrec 下播回调即出片)。只绑 127.0.0.1;
-   * 回调里的文件路径必须落在 dir 之下。返回实际监听端口。
+   * Sobe o endpoint de webhook de gravação (o retorno de fim de transmissão do
+   * BililiveRecorder ou do blrec já produz os cortes). Escuta apenas em
+   * 127.0.0.1, e o caminho de arquivo que vem no retorno precisa estar dentro de
+   * dir. Devolve a porta em que ficou escutando.
    */
   webhookStart: (
     dir: string,
@@ -971,29 +994,29 @@ export interface HotClipApi {
   ) => Promise<{ port: number; dir: string }>;
   webhookStop: () => Promise<void>;
   webhookStatus: () => Promise<{ running: boolean; port: number | null; dir: string | null }>;
-  /** 订阅监听过程事件;返回退订函数。 */
+  /** Assina os eventos do processo de monitoramento; devolve uma função para cancelar a assinatura. */
   onWatchEvent: (cb: (e: WatchEvent) => void) => () => void;
-  /** 查一次新版本;断网/失败返回 null(fail-open,绝不打扰)。 */
+  /** Verifica uma vez se há versão nova; sem internet ou em caso de falha devolve null (fail-open, nunca incomoda). */
   checkUpdate: () => Promise<UpdateInfo | null>;
-  /** 打开外部链接(仅白名单域,当前只放行本项目 GitHub)。 */
+  /** Abre um link externo (só domínios da lista de permissões; hoje apenas o GitHub deste projeto). */
   openUrl: (url: string) => void;
-  /** 读热词词表(持久化在本地,转写后自动应用)。 */
+  /** Lê o glossário (guardado localmente e aplicado sozinho depois da transcrição). */
   glossaryGet: () => Promise<GlossaryEntry[]>;
-  /** 整表写回热词词表(增删改统一走这里)。 */
+  /** Grava o glossário inteiro de volta (acrescentar, remover e alterar passam todos por aqui). */
   glossarySet: (entries: GlossaryEntry[]) => Promise<void>;
 }
 
-/** 模型清点结果(设置页「模型存放位置」)。 */
+/** Resultado do inventário de modelos (o "Local de armazenamento dos modelos" da página de configurações). */
 export interface ModelsInfo {
-  /** 当前生效的模型根目录。 */
+  /** A pasta raiz de modelos que está valendo agora. */
   root: string;
-  /** 出厂位置——用户改过后据此提供「恢复默认」。 */
+  /** O local de fábrica — é a partir dele que a opção "restaurar o padrão" é oferecida depois que a pessoa muda. */
   defaultRoot: string;
-  /** 已装模型合计占用字节。 */
+  /** Total de bytes ocupados pelos modelos instalados. */
   totalBytes: number;
   entries: Array<{
     id: string;
-    /** 用途文案的 i18n key。 */
+    /** A chave de i18n do texto que descreve para que serve. */
     useKey: string;
     installed: boolean;
     bytes: number;
@@ -1001,7 +1024,7 @@ export interface ModelsInfo {
   }>;
 }
 
-/** 新版本检查结果。 */
+/** Resultado da verificação de versão nova. */
 export interface UpdateInfo {
   current: string;
   latest: string;

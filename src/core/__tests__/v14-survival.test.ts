@@ -1,6 +1,7 @@
 /**
- * v0.14「发得出去、活得下来」首批:变形度评分/实用密度信号/分发台账 CSV/
- * AIGC 平台文案/发布文案收藏导向。
+ * Primeiro bloco da v0.14, "publique e sobreviva": nota de transformação, sinal de
+ * densidade útil, CSV do registro de distribuição, texto de sinalização de IA por
+ * plataforma e a orientação do texto de publicação para salvamento.
  */
 import { describe, it, expect } from "vitest";
 import { transformScore, TRANSFORM_WARN_BELOW, type TransformInputs } from "../../shared/transform-score";
@@ -18,19 +19,19 @@ const ALL_OFF: TransformInputs = {
   autoZoom: false, bgm: false, sfx: false, stitched: false, translated: false, watermark: false,
 };
 
-describe("transformScore(变形度)", () => {
-  it("全关 = 0 分 warn(裁一刀直接发),缺失项按权重排序给建议", () => {
+describe("transformScore (nota de transformação)", () => {
+  it("tudo desligado dá nota 0 e alerta (é um corte e publica), e os itens que faltam vêm ordenados por peso como sugestão", () => {
     const s = transformScore(ALL_OFF);
     expect(s.score).toBe(0);
     expect(s.level).toBe("warn");
     expect(s.missingTop).toEqual(["vertical", "captions", "recut"]);
   });
-  it("出厂默认组合(竖屏+字幕+跳剪+标题贴片)过警戒线", () => {
+  it("a combinação padrão de fábrica (vertical + legenda + corte seco + cartela de título) passa da linha de alerta", () => {
     const s = transformScore({ ...ALL_OFF, vertical: true, captions: true, recut: true, titleOverlay: true });
     expect(s.score).toBeGreaterThanOrEqual(TRANSFORM_WARN_BELOW);
     expect(s.level).not.toBe("warn");
   });
-  it("只开字幕不够(20 分 warn);全开封顶 100 strong", () => {
+  it("só a legenda não basta (20 pontos, alerta); com tudo ligado a nota trava em 100 e fica strong", () => {
     expect(transformScore({ ...ALL_OFF, captions: true }).level).toBe("warn");
     const all = Object.fromEntries(Object.keys(ALL_OFF).map((k) => [k, true])) as unknown as TransformInputs;
     const s = transformScore(all);
@@ -40,7 +41,7 @@ describe("transformScore(变形度)", () => {
   });
 });
 
-describe("transformInputsFromRender(按实际发生映射,回退不骗分)", () => {
+describe("transformInputsFromRender (mapeia o que de fato aconteceu; um recuo não infla a nota)", () => {
   const render = {
     captionStyle: "keyword", captionsBurned: false, reframe: "center-crop" as const,
     edit: null, fillersRemoved: 0, retakesRemoved: 0, stitchedPieces: 0,
@@ -48,99 +49,99 @@ describe("transformInputsFromRender(按实际发生映射,回退不骗分)", () 
     openingHookBurned: false, translatedLines: 0, shotSnap: null, preciseAligned: false,
     sfxCues: 0, bgmMixed: false,
   };
-  it("字幕烧录失败(captionsBurned=false)不给字幕分;竖屏按 reframe 算", () => {
+  it("legenda que não foi queimada (captionsBurned=false) não ganha os pontos de legenda; o vertical é contado pelo reframe", () => {
     const inputs = transformInputsFromRender(render, {});
     expect(inputs.captions).toBe(false);
     expect(inputs.vertical).toBe(true);
     expect(inputs.recut).toBe(false);
   });
-  it("跳剪按 splices/口头禅/重录任一生效", () => {
+  it("o corte seco conta com qualquer um dos três em ação: emendas, vícios de linguagem ou repetições", () => {
     expect(transformInputsFromRender({ ...render, fillersRemoved: 2 }, {}).recut).toBe(true);
     expect(transformInputsFromRender({ ...render, edit: { splices: 3, keptSec: 10, removedSec: 2, cutRatio: 0.16 } }, {}).recut).toBe(true);
   });
 });
 
-describe("utilityDensity(实用密度)", () => {
-  it("步骤+数字+方法论命中给高分;闲聊为 0", () => {
-    const dense = utilityDensity("首先把水烧到100度,然后加两勺,最后焖3个技巧里最关键的一步,这个方法省钱200元");
+describe("utilityDensity (densidade útil)", () => {
+  it("passo, número e método encontrados dão nota alta; conversa fiada dá 0", () => {
+    const dense = utilityDensity("Primeiro ferva a água a 100 graus, depois coloque duas colheres, e por fim esse método economiza 200 reais entre as 3 técnicas");
     expect(dense.score).toBeGreaterThanOrEqual(UTILITY_SAVE_WORTHY);
     expect(dense.hits.length).toBeGreaterThan(0);
-    expect(utilityDensity("哈哈哈今天天气不错啊兄弟们").score).toBe(0);
+    expect(utilityDensity("hahaha o tempo hoje está ótimo, pessoal").score).toBe(0);
   });
-  it("加分小幅且封顶(不推翻爆点排序)", () => {
+  it("o bônus é pequeno e tem teto (não derruba a ordenação por potencial viral)", () => {
     expect(utilityBoost(0)).toBe(0);
     expect(utilityBoost(10)).toBeLessThanOrEqual(6);
   });
 });
 
-describe("applyUtilitySignal(第十路回流)", () => {
+describe("applyUtilitySignal (o retorno do décimo caminho)", () => {
   const cand = (over: Partial<HighlightCandidate>): HighlightCandidate => ({
     id: 1, startSec: 0, endSec: 20, text: "", title: "t", hook: "h", score: 80, reason: "r",
     boundary: "exact", keywords: [], recommended: true, reviewNote: "", ...over,
   });
-  it("达线加分打标;信号候选与闲聊不动", () => {
+  it("passando da linha, o candidato ganha bônus e etiqueta; candidato vindo de sinal e conversa fiada não mudam", () => {
     const out = applyUtilitySignal(
       [
-        cand({ id: 1, text: "第一步先看成分表,第二步对比100毫升单价,三个技巧记住了" }),
-        cand({ id: 2, text: "哈哈哈太好笑了" }),
-        cand({ id: 3, boundary: "signal", text: "第一步第二步第三步" }),
+        cand({ id: 1, text: "Primeiro olhe a tabela de composição, depois compare o preço por 100 mililitros; são três técnicas para guardar" }),
+        cand({ id: 2, text: "hahaha que engraçado" }),
+        cand({ id: 3, boundary: "signal", text: "Primeiro passo, segundo passo, terceiro passo" }),
       ],
       true
     );
     expect(out[0].utility).toBeDefined();
     expect(out[0].score).toBeGreaterThan(80);
-    expect(out[0].reason).toContain("实用密度");
+    expect(out[0].reason).toContain("densidade útil");
     expect(out[1].utility).toBeUndefined();
     expect(out[2].utility).toBeUndefined();
   });
 });
 
-describe("分发台账 CSV", () => {
-  it("BOM+表头+转义,发布侧四列留空", () => {
+describe("CSV do registro de distribuição", () => {
+  it("tem BOM, cabeçalho e escape, e as quatro colunas de publicação ficam em branco", () => {
     const csv = buildLedgerCsv([
       {
-        file: "a.mp4", title: '标题带,逗号和"引号"', durationSec: 32.18, source: "/v/源.mp4",
+        file: "a.mp4", title: 'título com, vírgula e "aspas"', durationSec: 32.18, source: "/v/origem.mp4",
         sourceStartSec: 100.123, sourceEndSec: 132.3, pieces: 2, exportedAt: "2026-08-09T12:00:00Z",
         aigcLabel: true, transformScore: 66,
       },
     ]);
     expect(csv.startsWith("﻿")).toBe(true);
-    expect(csv).toContain("成片文件,标题");
-    expect(csv).toContain('"标题带,逗号和""引号"""');
-    expect(csv).toContain("是,66,,,,");
+    expect(csv).toContain("Arquivo do vídeo,Título");
+    expect(csv).toContain('"título com, vírgula e ""aspas"""');
+    expect(csv).toContain("sim,66,,,,");
   });
-  it("csvField 只在必要时加引号", () => {
+  it("csvField só coloca aspas quando é necessário", () => {
     expect(csvField("plain")).toBe("plain");
     expect(csvField("a,b")).toBe('"a,b"');
     expect(csvField(null)).toBe("");
   });
 });
 
-describe("AIGC 平台文案", () => {
-  it("发布包文案开 AIGC 时附平台操作提示", () => {
+describe("texto de sinalização de IA por plataforma", () => {
+  it("com o selo de IA ligado, o texto do pacote de publicação ganha a instrução daquela plataforma", () => {
     const spec = platformSpec("douyin")!;
     const withNote = adaptPost("titulo", undefined, spec, true);
     expect(withNote.text).toContain("[Sinalização de conteúdo por IA]");
     expect(withNote.text).toContain("conteúdo gerado por IA");
     expect(adaptPost("titulo", undefined, spec, false).text).not.toContain("IA");
   });
-  it(".post.txt 开 AIGC 时附通用声明", () => {
+  it("com o selo de IA ligado, o .post.txt ganha a declaração geral", () => {
     const copy = { title: "t", hashtags: [], description: "d" };
-    expect(postTextFile(copy, true)).toContain("AIGC 标注");
-    expect(postTextFile(copy)).not.toContain("AIGC");
+    expect(postTextFile(copy, true)).toContain("Sinalização de conteúdo por IA");
+    expect(postTextFile(copy)).not.toContain("Sinalização de conteúdo por IA");
   });
 });
 
-describe("发布文案收藏/搜索导向", () => {
-  it("system prompt 带 2026 算法要点;可收藏源打标进 user prompt", () => {
-    expect(publishSystemPrompt(true)).toContain("收藏");
-    expect(publishSystemPrompt(true)).toContain("搜索");
+describe("orientação do texto de publicação para salvamento e busca", () => {
+  it("o system prompt traz os pontos dos algoritmos de 2026, e a origem que vale salvar é marcada no user prompt", () => {
+    expect(publishSystemPrompt(true)).toContain("salvamento");
+    expect(publishSystemPrompt(true)).toContain("busca");
     expect(publishSystemPrompt(false)).toContain("save-worthy");
     const u = publishUserPrompt([
       { id: 1, title: "t", hook: "h", text: "x", keywords: [], saveWorthy: true },
       { id: 2, title: "t2", hook: "h2", text: "y", keywords: [] },
     ]);
-    expect(u).toContain("[1] [可收藏]");
-    expect(u).not.toContain("[2] [可收藏]");
+    expect(u).toContain("[1] [vale salvar]");
+    expect(u).not.toContain("[2] [vale salvar]");
   });
 });

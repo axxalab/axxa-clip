@@ -1,72 +1,82 @@
 /**
- * 变形度评分(v0.14):切片相对源直播画面「改了多少」的量化。
+ * Nota de transformação (v0.14): a medida de "quanto mudou" um clipe em relação
+ * à imagem original da transmissão.
  *
- * 为什么要有它:2026 年平台把「变形量」当硬性生存指标——Reels 用视觉指纹
- * 检测「保留他人原始视听元素 ≥70%」判搬运(30 天 10 条转载整号移出推荐)、
- * YouTube「Inauthentic Content」打量产回收、抖音判原创看「信息熵变化/表达
- * 主体性」。变形不够的切片不是「不够美」,是「发不出去」。
+ * Por que ela existe: em 2026 as plataformas passaram a tratar a "quantidade de
+ * transformação" como indicador rígido de sobrevivência — o Reels usa impressão
+ * digital visual para julgar reupload quando "70% ou mais dos elementos
+ * audiovisuais originais de outra pessoa foram preservados" (10 repostagens em
+ * 30 dias tiram a conta inteira das recomendações), o YouTube pune conteúdo
+ * inautêntico produzido em massa, e o Douyin julga originalidade pela "mudança
+ * de entropia da informação e pela autoria da expressão". Um clipe com pouca
+ * transformação não é "menos bonito", é "impublicável".
  *
- * 口径:各变形项按对「视觉指纹/信息熵改变」的贡献计权,总分封顶 100。
- * 权重是方向性启发(平台不公开阈值),用途是**相对提醒**——低于警戒线亮
- * 黄牌并告诉用户开哪几个开关能补,不做「过审保证」承诺。
- * 纯函数,渲染层(出片面板实时预估)与导出侧(clips.json 回执)共用;
- * 本文件不得引入任何 Node 依赖。
+ * Critério: cada item de transformação é ponderado pela contribuição que dá à
+ * mudança da impressão digital visual e da entropia da informação, com o total
+ * limitado a 100.
+ * Os pesos são uma heurística de direção (as plataformas não divulgam limites), e
+ * servem como **aviso relativo** — abaixo da linha de alerta o sistema mostra um
+ * cartão amarelo e diz quais opções ligar para compensar, sem nenhuma promessa de
+ * "aprovação garantida".
+ * São funções puras, compartilhadas pela camada de renderização (a estimativa ao
+ * vivo no painel de exportação) e pelo lado da exportação (o comprovante no
+ * clips.json); este arquivo não pode ter nenhuma dependência de Node.
  */
 
-/** 参与打分的变形项(渲染层用开关预估,导出侧用真实回执)。 */
+/** Itens de transformação que entram na nota (a camada de renderização estima pelas chaves, e o lado da exportação usa o comprovante real). */
 export interface TransformInputs {
-  /** 竖屏重构(9:16 重裁改变构图,变形贡献最大)。 */
+  /** Reconstrução vertical (o recorte 9:16 muda a composição, e é a maior contribuição). */
   vertical: boolean;
-  /** 字幕烧录(叠加信息层)。 */
+  /** Legenda queimada (uma camada de informação sobreposta). */
   captions: boolean;
-  /** 跳剪/口头禅/剪重录任一生效(时间轴重构)。 */
+  /** Corte seco, vícios de linguagem ou corte de repetições, qualquer um deles em ação (reconstrução da linha do tempo). */
   recut: boolean;
-  /** 开场重构(高潮前置或爆点闪现,叙事顺序改变)。 */
+  /** Reconstrução da abertura (abertura fria ou antecipação do pico, mudando a ordem da narrativa). */
   reopened: boolean;
-  /** 标题贴片或开场钩子大字。 */
+  /** Cartela de título ou o gancho de abertura em letras grandes. */
   titleOverlay: boolean;
-  /** 自动运镜(画面运动轨迹改变)。 */
+  /** Movimento automático de câmera (mudança na trajetória do movimento da imagem). */
   autoZoom: boolean;
-  /** BGM 混入(重做音频环境——原创判定明确认可项)。 */
+  /** Trilha de fundo mixada (refaz o ambiente sonoro — item explicitamente reconhecido no julgamento de originalidade). */
   bgm: boolean;
-  /** 音效打点。 */
+  /** Acentos sonoros. */
   sfx: boolean;
-  /** 多片段拼接(≥2 段,叙事重构)。 */
+  /** Costura de vários trechos (2 ou mais, reconstrução da narrativa). */
   stitched: boolean;
-  /** 双语字幕(翻译信息层)。 */
+  /** Legenda bilíngue (camada de informação da tradução). */
   translated: boolean;
-  /** 水印/品牌层。 */
+  /** Marca d'água ou camada da marca. */
   watermark: boolean;
 }
 
-/** 各项权重(合计可超 100,得分封顶;注释即依据)。 */
+/** Peso de cada item (a soma pode passar de 100, e a nota é limitada; o comentário é a própria justificativa). */
 export const TRANSFORM_WEIGHTS: Array<{ key: keyof TransformInputs; weight: number }> = [
-  { key: "vertical", weight: 26 }, // 画幅与构图整体改变,视觉指纹差异最大来源
-  { key: "captions", weight: 20 }, // 全程叠加的信息层
-  { key: "recut", weight: 15 }, // 时间轴重构(跳剪/口头禅/重录)
-  { key: "reopened", weight: 10 }, // 叙事顺序重排(高潮前置/爆点闪现)
-  { key: "titleOverlay", weight: 8 }, // 标题贴片/开场钩子大字
-  { key: "autoZoom", weight: 7 }, // 画面运动改变
-  { key: "bgm", weight: 6 }, // 重做音频环境(原创判定认可项)
-  { key: "stitched", weight: 6 }, // 多段拼接 = 叙事重构
+  { key: "vertical", weight: 26 }, // proporção e composição mudam por inteiro, e é a maior fonte de diferença na impressão digital visual
+  { key: "captions", weight: 20 }, // uma camada de informação sobreposta do começo ao fim
+  { key: "recut", weight: 15 }, // reconstrução da linha do tempo (corte seco, vícios de linguagem, repetições)
+  { key: "reopened", weight: 10 }, // reordenação da narrativa (abertura fria ou antecipação do pico)
+  { key: "titleOverlay", weight: 8 }, // cartela de título ou gancho de abertura em letras grandes
+  { key: "autoZoom", weight: 7 }, // mudança no movimento da imagem
+  { key: "bgm", weight: 6 }, // refaz o ambiente sonoro (item reconhecido no julgamento de originalidade)
+  { key: "stitched", weight: 6 }, // costura de vários trechos é reconstrução da narrativa
   { key: "sfx", weight: 3 },
   { key: "translated", weight: 3 },
   { key: "watermark", weight: 2 },
 ];
 
-/** 警戒线:低于此分接近「裁一刀直接发」,搬运判定风险高。 */
+/** Linha de alerta: abaixo desta nota o clipe se aproxima de "um corte e já publica", e o risco de ser julgado reupload é alto. */
 export const TRANSFORM_WARN_BELOW = 40;
 
 export interface TransformScore {
-  /** 0-100。 */
+  /** De 0 a 100. */
   score: number;
-  /** warn = 低于警戒线,建议补变形项。 */
+  /** warn significa abaixo da linha de alerta, com recomendação de acrescentar itens de transformação. */
   level: "warn" | "ok" | "strong";
-  /** 没开且权重最高的前几项(给用户的「开哪个能补分」提示)。 */
+  /** Os itens de maior peso que não foram ligados (é a dica de "qual ligar para subir a nota" mostrada à pessoa). */
   missingTop: Array<keyof TransformInputs>;
 }
 
-/** 计分(纯函数):命中项加权求和,封顶 100;≥70 算 strong。 */
+/** Calcula a nota (função pura): soma ponderada dos itens acertados, limitada a 100; 70 ou mais conta como strong. */
 export function transformScore(inputs: TransformInputs): TransformScore {
   let score = 0;
   const missing: Array<{ key: keyof TransformInputs; weight: number }> = [];

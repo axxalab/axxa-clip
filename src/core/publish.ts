@@ -1,66 +1,72 @@
 /**
- * 发布文案生成:为每条切片批量生成「发布标题 + 话题标签 + 两句简介」,
- * 落成 mp4 旁的 .post.txt(创作者直接复制粘贴)并写进 clips.json——
- * 补上「切完直接发」的最后一公里:片子有了,发布框里写什么。
+ * Geração do texto de publicação: para cada clipe, gera em lote um "título de
+ * publicação + hashtags + duas frases de descrição", salvos num .post.txt ao lado
+ * do mp4 (para quem cria só copiar e colar) e gravados no clips.json — é o último
+ * quilômetro do "cortou, já publica": o vídeo existe, mas falta o que escrever no
+ * campo de publicação.
  *
- * 素材全部来自检测阶段的证据链(title/hook/正文/keywords),一次 LLM 调用
- * 批量生成所有选中切片。fail-open:生成失败/缺条都只是没有文案,绝不拖垮
- * 导出。纯函数(prompt/解析/成文)可单测;LLM 调用注入。
+ * Todo o material vem da cadeia de evidências da etapa de detecção (título,
+ * gancho, texto e palavras-chave), e uma única chamada ao LLM gera tudo para os
+ * clipes selecionados. É fail-open: uma geração que falha ou um item que falta
+ * significam apenas ficar sem texto, e nunca travar a exportação. As funções puras
+ * (prompt, leitura e montagem) são testáveis; a chamada ao LLM é injetada.
  */
 import type { LlmConfig } from "../shared/api-types";
 import { stripThinkBlocks } from "./highlight/prefilter";
 import { ctaMenu, hookAngleMenu, isCtaType, isHookAngle, type CtaTypeId, type HookAngleId } from "./copy-templates";
 
-/** 单条切片的发布文案。 */
+/** O texto de publicação de um clipe. */
 export interface PublishCopy {
-  /** 发布标题(平台风格,带钩子,≤30字)。 */
+  /** Título de publicação (no estilo da plataforma, com gancho, até 60 caracteres). */
   title: string;
-  /** 话题标签(含 # 前缀,3-6 个)。 */
+  /** Hashtags (com o # na frente, de 3 a 6). */
   hashtags: string[];
-  /** 一两句简介(补充钩子、引导互动)。 */
+  /** Uma ou duas frases de descrição (completam o gancho e convidam à interação). */
   description: string;
-  /** 标题采用的钩子角度(copy-templates 菜单;缺省=旧数据或模型没标)。 */
+  /** O ângulo de gancho que o título usou (menu de copy-templates; ausente significa dado antigo ou que o modelo não marcou). */
   angle?: HookAngleId;
-  /** 收尾行动号召一句(复制时缀在简介后)。 */
+  /** A chamada final em uma frase (na cópia, ela vai logo depois da descrição). */
   cta?: string;
-  /** CTA 类型(copy-templates 菜单)。 */
+  /** Tipo de CTA (menu de copy-templates). */
   ctaType?: CtaTypeId;
 }
 
-/** 生成输入:每条切片的证据链素材。 */
+/** Entrada da geração: o material da cadeia de evidências de cada clipe. */
 export interface PublishSource {
   id: number;
   title: string;
   hook: string;
-  /** 片内正文(超长会被截断)。 */
+  /** O texto de dentro do clipe (o que passar do limite é truncado). */
   text: string;
   keywords: string[];
-  /** 实用密度达线(v0.14):文案要转收藏/搜索导向(CTA 收藏、标题搜索句式)。 */
+  /** A densidade útil passou da linha (v0.14): o texto deve mirar salvamento e busca (CTA de salvar, título em formato de busca). */
   saveWorthy?: boolean;
 }
 
-/** 与 detect.ts 的 chatComplete 同形的注入点。 */
+/** Ponto de injeção com o mesmo formato do chatComplete de detect.ts. */
 export type PublishChatFn = (llm: LlmConfig, system: string, user: string, signal?: AbortSignal) => Promise<string>;
 
-/** 单次生成超时。 */
+/** Tempo máximo de uma geração. */
 export const PUBLISH_TIMEOUT_MS = 90_000;
-/** 正文素材截断长度(标题/钩子/关键词才是主料,正文只是补语境)。 */
+/** Tamanho em que o texto de apoio é truncado (o material principal é o título, o gancho e as palavras-chave; o texto só acrescenta contexto). */
 const TEXT_EXCERPT_CHARS = 300;
 const MAX_HASHTAGS = 6;
 
-export function publishSystemPrompt(zh: boolean): string {
-  if (zh) {
+export function publishSystemPrompt(pt: boolean): string {
+  if (pt) {
     return [
-      "你是短视频运营,为每条切片写发布文案(抖音/小红书/视频号通用)。",
-      "每条输出:title=发布标题(≤30字,别用片名原文照抄)。下笔前先从钩子角度菜单里挑最贴合内容的一个,整批切片换着用,别全走同一个套路:",
+      "Você é responsável pelas redes de um canal de vídeo curto e escreve o texto de publicação de cada clipe (serve para TikTok, Reels, Shorts e Kwai).",
+      "Para cada clipe, produza: title = o título da publicação (até 60 caracteres, e não copie o nome do clipe literalmente). Antes de escrever, escolha no menu de ângulos de gancho o que mais combina com o conteúdo, e varie os ângulos ao longo do lote, em vez de repetir a mesma fórmula em todos:",
       hookAngleMenu(true),
-      // 2026 算法对齐:收藏率与搜索权重最高——标题埋观众会搜的词,干货片 CTA 转收藏/合集
-      "[2026 算法要点]平台现在收藏率与搜索权重最高:标题优先写成「观众会在搜索框里打的问题/关键词句式」(把片内的具体名词/数字埋进标题,不要只写情绪词);标了[可收藏]的干货片,ctaType 必须选 save,CTA 引导「收藏起来」或「更多同场内容看主页合集」,标题走干货句式。",
-      "hashtags=3-6 个话题标签(带#,垂类词优先,泛词最多1个);",
-      "description=一两句简介(补充钩子或语境,≤60字,不要堆表情);",
-      "cta=一句收尾行动号召(≤20字),类型从菜单里挑与内容匹配的:",
+      // Alinhamento com os algoritmos de 2026: salvamento e busca são o que mais
+      // pesa — então o título carrega as palavras que o público digitaria, e o CTA
+      // de conteúdo útil mira salvamento e playlist
+      "[Pontos dos algoritmos em 2026] Hoje as plataformas dão o maior peso à taxa de salvamento e à busca: escreva o título de preferência como \"a pergunta ou a expressão que o público digitaria no campo de busca\" (embuta no título os nomes e os números concretos que aparecem no clipe, em vez de só palavras de emoção); nos clipes marcados com [vale salvar], ctaType precisa ser save, o CTA precisa convidar a \"salvar para depois\" ou apontar \"mais conteúdo dessa transmissão na playlist do perfil\", e o título vai no formato de conteúdo útil.",
+      "hashtags = de 3 a 6 hashtags (com #, priorizando os termos do nicho e no máximo um termo genérico);",
+      "description = uma ou duas frases de descrição (até 120 caracteres, completando o gancho ou o contexto, sem encher de emoji);",
+      "cta = uma frase de chamada final (até 40 caracteres), com o tipo escolhido no menu de acordo com o conteúdo:",
       ctaMenu(true),
-      '严格只输出 JSON:{"posts":[{"id":1,"angle":"question","title":"…","hashtags":["#…"],"description":"…","ctaType":"comment","cta":"…"}]},id 与输入一一对应,angle/ctaType 必须用菜单里的 id。',
+      'Responda com JSON estrito e nada mais: {"posts":[{"id":1,"angle":"question","title":"…","hashtags":["#…"],"description":"…","ctaType":"comment","cta":"…"}]}, com os ids correspondendo um a um à entrada e angle e ctaType sempre vindos dos ids dos menus.',
     ].join("\n");
   }
   return [
@@ -79,16 +85,18 @@ export function publishSystemPrompt(zh: boolean): string {
 export function publishUserPrompt(sources: PublishSource[]): string {
   return sources
     .map((s) => {
-      const kw = s.keywords.length > 0 ? ` 关键词:${s.keywords.join("/")}` : "";
-      const save = s.saveWorthy ? " [可收藏]" : "";
-      return `[${s.id}]${save} 片名:${s.title} 钩子:${s.hook}${kw}\n正文节选:${s.text.slice(0, TEXT_EXCERPT_CHARS)}`;
+      const kw = s.keywords.length > 0 ? ` Palavras-chave: ${s.keywords.join(" / ")}` : "";
+      const save = s.saveWorthy ? " [vale salvar]" : "";
+      return `[${s.id}]${save} Nome do clipe: ${s.title} · Gancho: ${s.hook}${kw}\nTrecho do texto: ${s.text.slice(0, TEXT_EXCERPT_CHARS)}`;
     })
     .join("\n\n");
 }
 
 /**
- * 从一个 LLM 输出对象里解析文案字段(title 必填,其余按约定校验)。
- * 发布文案与一片多版(variants.ts)共用同一套字段口径。
+ * Lê os campos do texto a partir de um objeto de saída do LLM (title é
+ * obrigatório, e o resto é validado conforme o acordado).
+ * O texto de publicação e as várias versões (variants.ts) usam o mesmo conjunto de
+ * campos.
  */
 export function parsePostFields(p: unknown): PublishCopy | null {
   const rec = p as {
@@ -102,7 +110,7 @@ export function parsePostFields(p: unknown): PublishCopy | null {
         .map((h) => (h.trim().startsWith("#") ? h.trim() : `#${h.trim()}`))
         .slice(0, MAX_HASHTAGS)
     : [];
-  // 角度/CTA 类型:菜单外的值直接丢弃(fail-open 成"没标"),不猜不改写
+  // Ângulo e tipo de CTA: valores fora do menu são simplesmente descartados (fail-open para "não marcado"), sem adivinhar nem reescrever
   const cta = typeof rec.cta === "string" && rec.cta.trim() ? rec.cta.trim() : undefined;
   return {
     title: rec.title.trim(),
@@ -114,7 +122,7 @@ export function parsePostFields(p: unknown): PublishCopy | null {
   };
 }
 
-/** 解析生成输出 → id→文案;垃圾输出返回空 Map(fail-open 到"没有文案")。 */
+/** Lê a saída da geração → um mapa de id para texto; saída inaproveitável devolve um Map vazio (fail-open para "sem texto"). */
 export function parsePublishCopies(content: string, validIds: Set<number>): Map<number, PublishCopy> {
   const out = new Map<number, PublishCopy>();
   const cleaned = stripThinkBlocks(content);
@@ -139,12 +147,13 @@ export function parsePublishCopies(content: string, validIds: Set<number>): Map<
 }
 
 /**
- * 批量生成发布文案。fail-open:失败返回 null(调用方据此不写文案文件);
- * 上游取消原样上抛。
+ * Gera o texto de publicação em lote. É fail-open: em caso de falha devolve null
+ * (e quem chamou, por isso, não escreve o arquivo de texto); um cancelamento vindo
+ * de cima é propagado como está.
  */
 export async function generatePublishCopies(
   sources: PublishSource[],
-  zh: boolean,
+  pt: boolean,
   llm: LlmConfig,
   chat: PublishChatFn,
   signal?: AbortSignal
@@ -153,7 +162,7 @@ export async function generatePublishCopies(
   try {
     const timeout = AbortSignal.timeout(PUBLISH_TIMEOUT_MS);
     const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
-    const content = await chat(llm, publishSystemPrompt(zh), publishUserPrompt(sources), combined);
+    const content = await chat(llm, publishSystemPrompt(pt), publishUserPrompt(sources), combined);
     const parsed = parsePublishCopies(content, new Set(sources.map((s) => s.id)));
     return parsed.size > 0 ? parsed : null;
   } catch (e) {
@@ -162,13 +171,13 @@ export async function generatePublishCopies(
   }
 }
 
-/** .post.txt 内容:标题 + 空行 + 话题 + 空行 + 简介(CTA 缀在简介后一行),直接全选复制。 */
+/** Conteúdo do .post.txt: título + linha em branco + hashtags + linha em branco + descrição (com o CTA na linha seguinte à descrição), pronto para selecionar tudo e copiar. */
 export function postTextFile(copy: PublishCopy, aigc = false): string {
   const parts = [copy.title];
   if (copy.hashtags.length > 0) parts.push(copy.hashtags.join(" "));
   const body = [copy.description, copy.cta ?? ""].filter(Boolean).join("\n");
   if (body) parts.push(body);
-  // 开了 AIGC 标识:通用提醒(各平台的具体操作提示在发布包 manifest/文案里)
-  if (aigc) parts.push("[AIGC 标注]发布时按平台要求勾选 AI 生成内容声明(未标注最高罚则为封号)");
+  // Com o selo de conteúdo por IA ligado: um aviso geral (as instruções específicas de cada plataforma estão no manifesto e no texto do pacote de publicação)
+  if (aigc) parts.push("[Sinalização de conteúdo por IA] Ao publicar, marque a declaração de conteúdo gerado por IA conforme a exigência da plataforma (a punição máxima por não sinalizar é a perda da conta)");
   return parts.join("\n\n") + "\n";
 }

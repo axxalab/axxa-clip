@@ -1,37 +1,45 @@
 /**
- * 实用密度信号(v0.14 第十路):候选文本里「值得收藏」的信息浓度。
+ * Sinal de densidade útil (o décimo caminho, v0.14): a concentração de informação
+ * que "vale salvar" dentro do texto de um candidato.
  *
- * 依据:2026 抖音算法收藏率权重据多方口径超 40%、慢推流 7 天长效评估看
- * 收藏与回搜;TikTok 搜索价值计入创作者奖励 RPM。「有用/可收藏/可搜索」
- * 是与「精彩」不同的维度——步骤、清单、具体数字、方法论命中的片段,
- * 观众会长按收藏、事后回搜,这类内容此前在「爆点优先」的目标函数里吃亏。
+ * Base: em 2026, várias fontes apontam que o peso da taxa de salvamento no
+ * algoritmo do Douyin passa de 40%, e a avaliação lenta de 7 dias olha
+ * salvamento e volta pela busca; no TikTok o valor de busca entra no RPM do
+ * programa de criadores. "Útil, salvável e buscável" é uma dimensão diferente de
+ * "espetacular" — os trechos que trazem passos, listas, números concretos e
+ * método fazem o público segurar para salvar e voltar depois pela busca, e esse
+ * tipo de conteúdo até aqui saía perdendo numa função-objetivo focada só em
+ * "destaque".
  *
- * 纯启发式文本统计,零模型零成本;分数只做「小幅加分 + 打标 + 文案导向」,
- * 不推翻爆点排序(信息密度是加分项不是替代项)。纯函数,无 Node 依赖。
+ * É estatística de texto puramente heurística, sem modelo e sem custo; a nota só
+ * serve para "um pequeno bônus + uma etiqueta + a direção do texto de
+ * publicação", e não derruba a ordenação por potencial viral (a densidade de
+ * informação é um bônus, não um substituto). São funções puras, sem dependência
+ * de Node.
  */
 
-/** 步骤/顺序引导词(中英)。 */
-const STEP_RE = /第[一二三四五六七八九十\d]+步|首先|其次|然后|接下来|接着|最后一步|step\s*\d|first,|second,|finally/gi;
-/** 清单/盘点结构(「三个方法」「5 个坑」)。 */
-const LIST_RE = /[一二三四五六七八九十\d]+\s*(?:个|种|条|点|大|招)\s*(?:方法|技巧|误区|坑|建议|习惯|细节|步骤|原则|信号|问题|tips?)/gi;
-/** 方法论/干货词。 */
-const METHOD_RE = /方法|技巧|公式|口诀|配方|做法|教程|攻略|避坑|误区|秘诀|清单|checklist|recipe|formula|how to/gi;
-/** 具体数字(价格/比例/参数——≥2 位才算,单个数字噪声太大)。 */
-const NUMBER_RE = /\d{2,}[%％折万亿元块]?|\d+\.\d+/g;
+/** Palavras que indicam passo ou ordem (em português e em inglês). */
+const STEP_RE = /\b(?:primeiro|segundo|terceiro|depois|em seguida|por fim|por último|passo\s*\d+|etapa\s*\d+|step\s*\d+|first,|second,|finally)\b/gi;
+/** Estrutura de lista ou contagem ("três métodos", "5 erros"). */
+const LIST_RE = /\b(?:um|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|\d+)\s+(?:grandes\s+)?(?:métodos?|metodos?|técnicas?|tecnicas?|dicas?|erros?|armadilhas?|conselhos?|hábitos?|habitos?|detalhes?|passos?|etapas?|princípios?|principios?|sinais?|problemas?|motivos?|razões?|razoes?|maneiras?|formas?|tips?)\b/gi;
+/** Palavras de método e de conteúdo denso. */
+const METHOD_RE = /\b(?:método|metodo|técnica|tecnica|fórmula|formula|receita|passo a passo|tutorial|guia|checklist|lista de verificação|como fazer|o segredo|truque|macete|erro comum|recipe|how to)\b/gi;
+/** Números concretos (preço, proporção, parâmetro — só com 2 dígitos ou mais, porque um dígito sozinho é ruído demais). */
+const NUMBER_RE = /\d{2,}\s*(?:%|reais|mil|mi)?|\d+[.,]\d+/g;
 
 export interface UtilityDensity {
-  /** 0-10:实用密度分。 */
+  /** De 0 a 10: a nota de densidade útil. */
   score: number;
-  /** 命中的证据词(去重,给人看的解释)。 */
+  /** As palavras que serviram de evidência (sem repetição, como explicação para a pessoa). */
   hits: string[];
 }
 
-/** 判定为「值得收藏」的分数线。 */
+/** A nota a partir da qual o trecho é considerado "vale salvar". */
 export const UTILITY_SAVE_WORTHY = 4;
-/** 回流选段排序的加分上限(小幅:密度是加分项不是替代项)。 */
+/** Teto do bônus que volta para a ordenação dos trechos (é pequeno de propósito: a densidade é um bônus, não um substituto). */
 export const UTILITY_BOOST_MAX = 6;
 
-/** 文本 → 实用密度(纯函数)。 */
+/** Texto → densidade útil (função pura). */
 export function utilityDensity(text: string): UtilityDensity {
   if (!text) return { score: 0, hits: [] };
   const hits: string[] = [];
@@ -48,13 +56,14 @@ export function utilityDensity(text: string): UtilityDensity {
     }
     return Math.min(cap, fresh);
   };
-  // 结构性证据(步骤/清单)权重高;方法论词与数字封顶防灌水
+  // A evidência estrutural (passos e listas) pesa mais; as palavras de método e os
+  // números têm teto, para ninguém inflar a nota
   const score =
     collect(STEP_RE, 3) * 2 + collect(LIST_RE, 2) * 3 + collect(METHOD_RE, 3) + collect(NUMBER_RE, 3);
   return { score: Math.min(10, score), hits };
 }
 
-/** 排序加分:达线后每分 +2,封顶 UTILITY_BOOST_MAX。 */
+/** Bônus na ordenação: passando da linha, cada ponto vale +2, com teto em UTILITY_BOOST_MAX. */
 export function utilityBoost(score: number): number {
   if (score < UTILITY_SAVE_WORTHY) return 0;
   return Math.min(UTILITY_BOOST_MAX, (score - UTILITY_SAVE_WORTHY + 1) * 2);
