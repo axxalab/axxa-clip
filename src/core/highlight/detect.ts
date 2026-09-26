@@ -27,6 +27,7 @@ import { applyRuleGate, type GateTier } from "./gate";
 import { utilityDensity, utilityBoost, UTILITY_SAVE_WORTHY } from "../../shared/utility-density";
 import { clipDurationSec, MAX_PIECES, type ClipPiece } from "../../shared/pieces";
 import { isLocalBaseUrl } from "../../shared/llm-preflight";
+import { advanceCompat, recallCompat, rememberCompat, samplingParams, MAX_PARAM_RETRIES, type LlmParamCompat } from "../llm-params";
 import { LLM_LOCAL_TIMEOUT_MS, LLM_REMOTE_TIMEOUT_MS, LlmTransportError, llmRequestBudget, modelErrorDetail, requestLlmText, retryAfterMs, type LlmRequestBudget } from "../llm-transport";
 import { genrePreset, normalizeGenreId, type EvidenceClass } from "../genre";
 import {
@@ -95,7 +96,7 @@ async function chatAttempt(
   signal: AbortSignal | undefined,
   maxTokens: number,
   budget: LlmRequestBudget,
-  includeThinkingParam = true
+  compat: LlmParamCompat
 ): Promise<ChatAttempt> {
   const url = `${llm.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   let res: Awaited<ReturnType<typeof requestLlmText>>;
@@ -112,10 +113,9 @@ async function chatAttempt(
           { role: "system", content: system },
           { role: "user", content: user },
         ],
-        temperature: 0.6,
-        max_tokens: maxTokens,
+        ...samplingParams(compat, maxTokens, 0.6),
         ...extraParams(llm.baseUrl),
-        ...(includeThinkingParam ? thinkingParams(llm.model) : {}),
+        ...(compat.noThinkingParam ? {} : thinkingParams(llm.model)),
       }),
     }, { signal, budget });
   } catch (e) {
@@ -202,19 +202,30 @@ export async function chatComplete(llm: LlmConfig, system: string, user: string,
   // prazo e a mesma cota de uma retentativa por limite de taxa, sem multiplicar a
   // quantidade de requisições camada por camada.
   const budget = llmRequestBudget(isLocalBaseUrl(llm.baseUrl) ? LLM_LOCAL_TIMEOUT_MS : LLM_REMOTE_TIMEOUT_MS, 1);
-  let includeThinkingParam = Object.keys(thinkingParams(llm.model)).length > 0;
-  let first: ChatAttempt;
-  try {
-    first = await chatAttempt(llm, system, user, signal, MAX_TOKENS, budget, includeThinkingParam);
-  } catch (e) {
-    // Um gateway estritamente compatível com OpenAI pode recusar a chave
-    // específica do provedor. A retentativa é feita uma vez sem ela; falhas
-    // comuns de HTTP e de autenticação continuam lançando erro.
-    const message = e instanceof Error ? e.message : String(e);
-    if (!includeThinkingParam || !/HTTP 400/i.test(message) || !/thinking|unknown parameter|unsupported/i.test(message)) throw e;
-    includeThinkingParam = false;
-    first = await chatAttempt(llm, system, user, signal, MAX_TOKENS, budget, false);
-  }
+  // O que já se aprendeu sobre este endpoint+modelo entra desde a primeira requisição
+  let compat = recallCompat(llm.baseUrl, llm.model);
+  const attempt = (maxTokens: number): Promise<ChatAttempt> =>
+    chatAttempt(llm, system, user, signal, maxTokens, budget, compat);
+  /**
+   * O recuo de parâmetro: um 400 que nomeia um parâmetro sem suporte (o `max_tokens` das gerações
+   * novas da OpenAI, a temperatura travada no padrão, o `enable_thinking` num gateway estrito) é
+   * repetido com aquele campo ajustado, e o ajuste fica guardado. Um 400 de outra natureza, um erro
+   * de autenticação e um cancelamento continuam subindo na hora.
+   */
+  const withParamFallback = async (maxTokens: number): Promise<ChatAttempt> => {
+    for (let i = 0; ; i++) {
+      try {
+        return await attempt(maxTokens);
+      } catch (e) {
+        signal?.throwIfAborted();
+        const next = i < MAX_PARAM_RETRIES ? advanceCompat(e instanceof Error ? e.message : String(e), compat) : null;
+        if (!next) throw e;
+        compat = next;
+        rememberCompat(llm.baseUrl, llm.model, next);
+      }
+    }
+  };
+  const first: ChatAttempt = await withParamFallback(MAX_TOKENS);
   if (first.content) return first.content;
   if (first.reasoning && first.finishReason !== "length") return first.reasoning;
   // O erro da própria retentativa com orçamento grande (um 400 por passar do
@@ -223,7 +234,7 @@ export async function chatComplete(llm: LlmConfig, system: string, user: string,
   // normalmente
   let retry: ChatAttempt | null = null;
   try {
-    retry = await chatAttempt(llm, system, user, signal, RETRY_MAX_TOKENS, budget, includeThinkingParam);
+    retry = await withParamFallback(RETRY_MAX_TOKENS);
   } catch (e) {
     if (signal?.aborted) throw e;
     if (e instanceof LlmTransportError) throw e;

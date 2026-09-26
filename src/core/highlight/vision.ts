@@ -25,6 +25,7 @@ import type { AnalysisVideoOptions } from "../analysis-video";
 import type { MediaSignals, TimeRange } from "../signals";
 import { stripThinkBlocks } from "./prefilter";
 import { llmRequestBudget, modelErrorDetail, requestLlmText } from "../llm-transport";
+import { advanceCompat, recallCompat, rememberCompat, samplingParams, MAX_PARAM_RETRIES } from "../llm-params";
 
 /** Teto de quadros amostrados no material inteiro — com o julgamento em lote por mosaico, uma chamada olha nove quadros, então 27 quadros são 3 chamadas. */
 export const VISION_MAX_FRAMES = 27;
@@ -301,7 +302,10 @@ export function sheetUserPrompt(times: number[]): string {
 /** Implementação padrão do julgamento: chat multimodal compatível com OpenAI (o /v1 do Ollama também aceita image_url). */
 export const visionChatComplete: VisionChatFn = async (llm, system, userText, imageBase64Jpeg, signal) => {
   const url = `${llm.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-  const res = await requestLlmText(url, {
+  // Mesmo recuo de parâmetro do caminho de texto: as gerações novas da OpenAI recusam max_tokens e
+  // temperatura fora do padrão, e sem isto a varredura visual falharia inteira nesses modelos.
+  let compat = recallCompat(llm.baseUrl, llm.model);
+  const send = (): Promise<Awaited<ReturnType<typeof requestLlmText>>> => requestLlmText(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${llm.apiKey}` },
     body: JSON.stringify({
@@ -316,10 +320,18 @@ export const visionChatComplete: VisionChatFn = async (llm, system, userText, im
           ],
         },
       ],
-      temperature: 0.2,
-      max_tokens: 300,
+      ...samplingParams(compat, 300, 0.2),
     }),
   }, { signal, budget: llmRequestBudget(VISION_CALL_TIMEOUT_MS, 1) });
+
+  let res = await send();
+  for (let i = 0; !res.ok && i < MAX_PARAM_RETRIES; i++) {
+    const next = advanceCompat(`HTTP ${res.status}: ${res.text}`, compat);
+    if (!next) break;
+    compat = next;
+    rememberCompat(llm.baseUrl, llm.model, next);
+    res = await send();
+  }
   const text = res.text;
   if (!res.ok) throw new Error(`vision HTTP ${res.status}: ${modelErrorDetail(text, llm.apiKey, 200)}`);
   const data = JSON.parse(text) as { choices?: Array<{ message?: { content?: string } }> };

@@ -3,7 +3,8 @@
  * linha do tempo visual e o modo de varredura do collectVisionSignal (com chat e
  * montagem injetados, sem rodar ffmpeg nem endpoint de verdade).
  */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
+import { resetCompat } from "../llm-params";
 import {
   scanFrameBudget,
   pickVisualNotes,
@@ -12,6 +13,9 @@ import {
   SCAN_NOTES_MAX,
   VISION_MAX_FRAMES,
 } from "../highlight/vision";
+
+// o recuo de parâmetro aprendido é global ao módulo; sem limpar, um teste contamina o seguinte
+beforeEach(() => resetCompat());
 
 describe("scanFrameBudget", () => {
   it("um quadro a cada ~30 segundos, com o piso de um mosaico cheio e teto em 270", () => {

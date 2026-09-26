@@ -5,12 +5,15 @@
  * orientações diferentes.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { resetCompat } from "../llm-params";
 import { chatComplete, MAX_TOKENS, RETRY_MAX_TOKENS, thinkingParams } from "../highlight/detect";
 
 const OLLAMA = { baseUrl: "http://localhost:11434/v1", apiKey: "", model: "qwen3:8b" };
 const CLOUD = { baseUrl: "https://api.atlascloud.ai/v1", apiKey: "sk-x", model: "qwen/qwen3.5-flash" };
 
 afterEach(() => {
+  // o recuo de parâmetro aprendido é global ao módulo; sem limpar, um teste contamina o seguinte
+  resetCompat();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });

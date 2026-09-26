@@ -4,7 +4,8 @@
  * Destaques do tipo "contradição" precisam citar dois pontos bem distantes um do
  * outro, e é por este caminho que isso acontece.
  */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
+import { resetCompat } from "../llm-params";
 import { resolveSelection, type RawSelection } from "../highlight/match";
 import { parseParts, parseSelections, parseMomentPicks, dropOverlaps } from "../highlight/detect";
 import { highlightSystemPrompt, buildHighlightPrompt, buildReviewPrompt } from "../highlight/prompt";
@@ -42,6 +43,9 @@ const FLIP = makeTranscript(
 );
 
 const base = { title: "t", hook: "h", score: 90, reason: "r", keywords: [] };
+
+// o recuo de parâmetro aprendido é global ao módulo; sem limpar, um teste contamina o seguinte
+beforeEach(() => resetCompat());
 
 describe("parseParts", () => {
   it("menos de dois trechos conta como não informado (volta para a localização de trecho único)", () => {

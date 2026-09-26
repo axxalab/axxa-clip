@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
+import { resetCompat } from "../llm-params";
 import {
   planFrameTimes,
   parseSheetVerdicts,
@@ -11,6 +12,9 @@ import {
   type VisionChatFn,
 } from "../highlight/vision";
 import type { MediaSignals } from "../signals";
+
+// o recuo de parâmetro aprendido é global ao módulo; sem limpar, um teste contamina o seguinte
+beforeEach(() => resetCompat());
 
 describe("planFrameTimes", () => {
   it("sem nenhum sinal, espalha uniformemente pelo material inteiro e não passa do teto", () => {
