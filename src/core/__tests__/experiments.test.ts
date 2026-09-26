@@ -5,7 +5,7 @@ import { summarizeExperiments } from "../experiments";
 const ledgerItem = (index: number, over: Partial<PublishLedgerItem> = {}): PublishLedgerItem => ({
   contentId: `hc_v${index}`,
   filePath: `/exports/v${index}.mp4`,
-  title: `版本 ${index}`,
+  title: `versão ${index}`,
   platform: "douyin",
   durationSec: 24,
   exportedAt: "2026-08-24T08:00:00.000Z",
@@ -19,7 +19,7 @@ const ledgerItem = (index: number, over: Partial<PublishLedgerItem> = {}): Publi
 
 const metric = (index: number, over: Partial<PerformanceEntry> = {}): PerformanceEntry => ({
   contentId: `hc_v${index}`,
-  title: `版本 ${index}`,
+  title: `versão ${index}`,
   platform: "douyin",
   views: 10_000,
   likes: index === 1 ? 300 : 800,

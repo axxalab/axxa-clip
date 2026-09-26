@@ -14,8 +14,8 @@ function transcript(): Transcript {
     engine: "test",
     durationSec: 12,
     segments: [
-      { id: 1, startSec: 0, endSec: 2, text: "第一句", words: [{ text: "第一句", startSec: 0, endSec: 2 }] },
-      { id: 2, startSec: 2, endSec: 4, text: "第二句", words: [{ text: "第二句", startSec: 2, endSec: 4 }] },
+      { id: 1, startSec: 0, endSec: 2, text: "a primeira frase", words: [{ text: "a primeira frase", startSec: 0, endSec: 2 }] },
+      { id: 2, startSec: 2, endSec: 4, text: "a segunda frase", words: [{ text: "a segunda frase", startSec: 2, endSec: 4 }] },
     ],
   };
 }
@@ -89,14 +89,14 @@ describe("session store recovery", () => {
   it("stores only changed transcript segments and restores them", () => {
     const original = transcript();
     useSession.getState().restore({ ...checkpoint, transcript: original });
-    const edited = { ...original, segments: [original.segments[0], { ...original.segments[1], text: "修正后" }] };
+    const edited = { ...original, segments: [original.segments[0], { ...original.segments[1], text: "depois da correção" }] };
     useSession.getState().editTranscript(edited);
     expect(useSession.getState().editHistory.undo[0]).toMatchObject({ kind: "transcript-update", changes: [{ segmentId: 2 }] });
-    expect(useSession.getState().transcript?.segments[1].text).toBe("修正后");
+    expect(useSession.getState().transcript?.segments[1].text).toBe("depois da correção");
     useSession.getState().undoEdit();
-    expect(useSession.getState().transcript?.segments[1].text).toBe("第二句");
+    expect(useSession.getState().transcript?.segments[1].text).toBe("a segunda frase");
     useSession.getState().redoEdit();
-    expect(useSession.getState().transcript?.segments[1].text).toBe("修正后");
+    expect(useSession.getState().transcript?.segments[1].text).toBe("depois da correção");
   });
 
   it("persists history, clears redo after a branch, and resets it on a new AI baseline", () => {

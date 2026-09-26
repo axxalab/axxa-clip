@@ -11,26 +11,26 @@ describe("assignWordSpeakers", () => {
   ];
 
   it("labels words by maximum overlap", () => {
-    const out = assignWordSpeakers([w("甲", 0.5, 1.0), w("乙", 4.0, 4.5)], turns);
+    const out = assignWordSpeakers([w("ana", 0.5, 1.0), w("bia", 4.0, 4.5)], turns);
     expect(out[0].speaker).toBe(0);
     expect(out[1].speaker).toBe(1);
   });
 
   it("a word straddling a turn change goes to the side covering more of it", () => {
-    const out = assignWordSpeakers([w("跨", 2.8, 3.6)], turns);
+    const out = assignWordSpeakers([w("atravessa", 2.8, 3.6)], turns);
     expect(out[0].speaker).toBe(0); // 0.2s with A vs 0.2s with B — tie keeps first max; adjust span
-    const out2 = assignWordSpeakers([w("跨", 2.9, 3.8)], turns);
+    const out2 = assignWordSpeakers([w("atravessa", 2.9, 3.8)], turns);
     expect(out2[0].speaker).toBe(1); // 0.1s vs 0.4s
   });
 
   it("gap words adopt the nearest turn only within the tolerance", () => {
-    const out = assignWordSpeakers([w("近", 3.15, 3.35), w("远", 8.0, 8.4)], turns);
+    const out = assignWordSpeakers([w("perto", 3.15, 3.35), w("longe", 8.0, 8.4)], turns);
     expect(out[0].speaker).toBe(1); // 0.05s from turn B vs 0.15s from turn A
     expect(out[1].speaker).toBeUndefined(); // 2s past the last turn
   });
 
   it("no turns → words pass through untouched", () => {
-    const words = [w("原", 0, 1)];
+    const words = [w("original", 0, 1)];
     expect(assignWordSpeakers(words, [])).toBe(words);
   });
 });
@@ -66,8 +66,8 @@ describe("labelTranscript", () => {
     engine: "test",
     durationSec: 6,
     segments: [
-      { id: 1, startSec: 0, endSec: 2.5, text: "甲说的话", words: [w("甲说", 0.2, 1.0), w("的话", 1.0, 2.2)] },
-      { id: 2, startSec: 3.4, endSec: 5.5, text: "乙回应", words: [w("乙回", 3.6, 4.4), w("应", 4.4, 5.2)] },
+      { id: 1, startSec: 0, endSec: 2.5, text: "o que a ana disse", words: [w("o que a ana", 0.2, 1.0), w("disse", 1.0, 2.2)] },
+      { id: 2, startSec: 3.4, endSec: 5.5, text: "a bia responde", words: [w("a bia", 3.6, 4.4), w("responde", 4.4, 5.2)] },
     ],
   };
   const turns: SpeakerTurn[] = [

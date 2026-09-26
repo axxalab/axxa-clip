@@ -15,7 +15,7 @@ const T: Transcript = {
   language: "zh",
   engine: "sensevoice",
   durationSec: 3,
-  segments: [{ id: 1, startSec: 0, endSec: 3, text: "你好世界", words: [{ text: "你好", startSec: 0, endSec: 1.5 }] }],
+  segments: [{ id: 1, startSec: 0, endSec: 3, text: "oi mundo", words: [{ text: "oi", startSec: 0, endSec: 1.5 }] }],
 };
 
 describe("transcriptCacheFilename", () => {
@@ -54,7 +54,7 @@ describe("read/write round-trip", () => {
     const st = { size: 500, mtimeMs: 42 };
     await writeTranscriptCache(dir, "/v/podcast.mp4", st, "sensevoice", T);
     const got = await readTranscriptCache(dir, "/v/podcast.mp4", st, "sensevoice");
-    expect(got?.segments[0].text).toBe("你好世界");
+    expect(got?.segments[0].text).toBe("oi mundo");
   });
 
   it("misses when the engine differs (different transcript)", async () => {

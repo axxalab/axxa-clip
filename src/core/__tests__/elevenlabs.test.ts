@@ -6,16 +6,16 @@ describe("parseScribeWords", () => {
     const words = parseScribeWords({
       language_code: "zh",
       words: [
-        { text: "你好", start: 0.1, end: 0.5, type: "word" },
+        { text: "oi", start: 0.1, end: 0.5, type: "word" },
         { text: " ", start: 0.5, end: 0.6, type: "spacing" },
-        { text: "世界", start: 0.6, end: 1.0, type: "word" },
-        { text: "坏的", type: "word" }, // no timestamps
+        { text: "mundo", start: 0.6, end: 1.0, type: "word" },
+        { text: "quebrada", type: "word" }, // sem marca de tempo
         { text: "", start: 1, end: 2, type: "word" }, // empty
       ],
     });
     expect(words).toEqual([
-      { text: "你好", startSec: 0.1, endSec: 0.5, timingSource: "native" },
-      { text: "世界", startSec: 0.6, endSec: 1.0, timingSource: "native" },
+      { text: "oi", startSec: 0.1, endSec: 0.5, timingSource: "native" },
+      { text: "mundo", startSec: 0.6, endSec: 1.0, timingSource: "native" },
     ]);
   });
 

@@ -45,7 +45,7 @@ describe("subtitle import to media export", () => {
     const transcript = JSON.parse(stdout);
     expect(transcript.engine).toBe("subtitle-srt");
     expect(transcript.segments[0].words[0].timingSource).toBe("estimated");
-    expect(stderr).toContain("已导入字幕");
+    expect(stderr).toContain("Legenda importada");
   }, 15_000);
 
   it("MCP stdio forwards the subtitle path to the same import pipeline", async () => {

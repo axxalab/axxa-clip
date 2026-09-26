@@ -10,10 +10,10 @@ function word(text: string, startSec: number, endSec: number, timingSource?: Tra
 describe("lintSubtitleTimeline", () => {
   it("passes a readable native timeline", () => {
     const report = lintSubtitleTimeline([
-      word("这", 0, 0.4, "native"),
-      word("一", 0.4, 0.8, "native"),
-      word("句", 0.8, 1.2, "native"),
-      word("正常。", 1.2, 2, "native"),
+      word("essa", 0, 0.4, "native"),
+      word("frase", 0.4, 0.8, "native"),
+      word("está", 0.8, 1.2, "native"),
+      word("normal.", 1.2, 2, "native"),
     ], VERTICAL_LAYOUT, "keyword");
     expect(report.status).toBe("pass");
     expect(report.lineCount).toBe(1);
@@ -22,8 +22,8 @@ describe("lintSubtitleTimeline", () => {
 
   it("reports overlap, excessive reading speed and uncertain timing", () => {
     const report = lintSubtitleTimeline([
-      word("非常", 0, 0.1, "edited"),
-      word("快的字幕", 0.04, 0.2, "interpolated"),
+      word("muito", 0, 0.1, "edited"),
+      word("rápida a legenda", 0.04, 0.2, "interpolated"),
     ], VERTICAL_LAYOUT, "keyword");
     expect(report.status).toBe("error");
     expect(report.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining([
@@ -36,14 +36,14 @@ describe("lintSubtitleTimeline", () => {
   });
 
   it("does not label legacy words as uncertain", () => {
-    const report = lintSubtitleTimeline([word("旧", 0, 0.5), word("项目", 0.5, 1.2)], VERTICAL_LAYOUT, "keyword");
+    const report = lintSubtitleTimeline([word("projeto", 0, 0.5), word("antigo", 0.5, 1.2)], VERTICAL_LAYOUT, "keyword");
     expect(report.uncertainWords).toBe(0);
     expect(report.issues.some((issue) => issue.code === "uncertain-timing")).toBe(false);
   });
 
   it("lints the same unbreakable keyword run used by the renderer", () => {
-    const words = Array.from("超级好用").map((text, index) => word(text, index * 0.5, index * 0.5 + 0.5, "native"));
-    const report = lintSubtitleTimeline(words, { ...VERTICAL_LAYOUT, maxLineUnits: 4 }, "keyword", [], ["超级好用"]);
+    const words = "muito bom de usar".split(" ").map((text, index) => word(text, index * 0.5, index * 0.5 + 0.5, "native"));
+    const report = lintSubtitleTimeline(words, { ...VERTICAL_LAYOUT, maxLineUnits: 4 }, "keyword", [], ["muito bom de usar"]);
     expect(report.lineCount).toBe(1);
     expect(report.issues.some((issue) => issue.code === "oversize-token")).toBe(true);
   });

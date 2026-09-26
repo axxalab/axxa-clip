@@ -83,7 +83,7 @@ describe("exportClips HDR colour receipts", () => {
           colorInspectionFailed: false,
         });
       }
-      expect(results.find((result) => result.id === 0)?.title).toBe("精华合集");
+      expect(results.find((result) => result.id === 0)?.title).toBe("Compilado dos melhores momentos");
       expect(collectSignalsEvidence).not.toHaveBeenCalled();
 
       const receipt = await readReceipt(outDir);
@@ -94,7 +94,7 @@ describe("exportClips HDR colour receipts", () => {
         expect(clip.render?.visualEnhance).toBeNull();
         expect(clip.render?.color).toMatchObject({ detected: "pq", action: "passthrough" });
       }
-      expect(receipt.clips.find((clip) => clip.title === "精华合集")).toMatchObject({
+      expect(receipt.clips.find((clip) => clip.title === "Compilado dos melhores momentos")).toMatchObject({
         colorConverted: false,
         colorConversionSkipped: true,
         colorInspectionFailed: false,

@@ -9,7 +9,7 @@ import {
 
 describe("quality evaluation", () => {
   it("computes deterministic multilingual text error rates", () => {
-    expect(characterErrorRate("你好世界", "你好世间")).toBeCloseTo(0.25);
+    expect(characterErrorRate("\u4f60\u597d\u4e16\u754c", "\u4f60\u597d\u4e16\u95f4")).toBeCloseTo(0.25);
     expect(wordErrorRate("hello brave world", "hello world")).toBeCloseTo(1 / 3);
   });
 

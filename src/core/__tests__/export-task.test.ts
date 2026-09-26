@@ -33,7 +33,7 @@ describe("desktop export ownership", () => {
     const nextStep = vi.fn();
     const job = runner.run(async (signal) => {
       await optionalExportStep(signal, () => translateSegments([
-        { id: 1, text: "测试", startSec: 0, endSec: 1 },
+        { id: 1, text: "teste", startSec: 0, endSec: 1 },
       ], "en", { baseUrl: "http://127.0.0.1:1", model: "test", apiKey: "" }, async (_llm, _system, _user, inner) => {
         started();
         return new Promise((_resolve, reject) => inner!.addEventListener("abort", () => reject(inner!.reason), { once: true }));

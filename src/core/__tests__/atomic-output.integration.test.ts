@@ -18,10 +18,10 @@ async function workspace(): Promise<string> {
 describe("safe media publication", () => {
   it("preserves existing output on a failed, empty, or cancelled producer and removes only its own workspace", async () => {
     const folder = await workspace();
-    const output = join(folder, "成片.mp4");
+    const output = join(folder, "video-pronto.mp4");
     const existing = Buffer.from("existing completed output");
     await writeFile(output, existing);
-    await writeFile(join(folder, "成片.mp4.list.txt"), "user notes");
+    await writeFile(join(folder, "video-pronto.mp4.list.txt"), "user notes");
     await expect(withAtomicOutput(output, async (path) => {
       await writeFile(path, "incomplete");
       throw new Error("encoder failed");
@@ -33,7 +33,7 @@ describe("safe media publication", () => {
       controller.abort(new Error("cancelled"));
     }, controller.signal)).rejects.toThrow("cancelled");
     expect(await readFile(output)).toEqual(existing);
-    expect((await readdir(folder)).sort()).toEqual(["成片.mp4", "成片.mp4.list.txt"]);
+    expect((await readdir(folder)).sort()).toEqual(["video-pronto.mp4", "video-pronto.mp4.list.txt"]);
   });
 
   it("waits for a real FFmpeg cancellation before removing its output, preserving the old file", async () => {

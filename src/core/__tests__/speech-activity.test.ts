@@ -8,7 +8,7 @@ import {
 } from "../speech-activity";
 import type { TranscriptWord } from "../../shared/api-types";
 
-const word = (startSec: number, endSec: number): TranscriptWord => ({ text: "词", startSec, endSec });
+const word = (startSec: number, endSec: number): TranscriptWord => ({ text: "palavra", startSec, endSec });
 
 describe("speech activity evidence", () => {
   it("sorts, clamps and merges close detector spans", () => {

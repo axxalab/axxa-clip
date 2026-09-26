@@ -6,7 +6,7 @@ import type { TranscriptWord } from "../../shared/api-types";
 const w = (text: string, s: number, e: number): TranscriptWord => ({ text, startSec: s, endSec: e });
 
 describe("buildOverlayPayload", () => {
-  const words = [w("你看", 0, 0.4), w("这个", 0.4, 0.8), w("速度", 0.8, 1.2), w("真的", 3.0, 3.4), w("绝了", 3.4, 3.8)];
+  const words = [w("olha", 0, 0.4), w("essa", 0.4, 0.8), w("velocidade", 0.8, 1.2), w("muito", 3.0, 3.4), w("absurda", 3.4, 3.8)];
 
   it("derives geometry from the ASS layout", () => {
     const p = buildOverlayPayload(words, VERTICAL_LAYOUT);
@@ -25,38 +25,38 @@ describe("buildOverlayPayload", () => {
   });
 
   it("marks keyword words after fusion", () => {
-    const kw = buildOverlayPayload(words, VERTICAL_LAYOUT, { keywords: ["速度"] });
+    const kw = buildOverlayPayload(words, VERTICAL_LAYOUT, { keywords: ["velocidade"] });
     const flat = kw.lines.flatMap((l) => l.words);
-    expect(flat.find((x) => x.text === "速度")?.keyword).toBe(true);
-    expect(flat.find((x) => x.text === "你看")?.keyword).toBe(false);
+    expect(flat.find((x) => x.text === "velocidade")?.keyword).toBe(true);
+    expect(flat.find((x) => x.text === "olha")?.keyword).toBe(false);
   });
 
   it("respects forced breaks (jump-cut splice points)", () => {
-    const tight = [w("一", 0, 0.3), w("二", 0.3, 0.6), w("三", 0.6, 0.9)];
+    const tight = [w("um", 0, 0.3), w("dois", 0.3, 0.6), w("tres", 0.6, 0.9)];
     const p = buildOverlayPayload(tight, VERTICAL_LAYOUT, { forcedBreaks: [0.6] });
     expect(p.lines.length).toBe(2);
-    expect(p.lines[1].words[0].text).toBe("三");
+    expect(p.lines[1].words[0].text).toBe("tres");
   });
 
   it("holds each line until the next begins (anti-flicker) but clears on a real pause", () => {
-    // 0.4s gap after "这个" → bridged; 1.8s gap after "速度" → capped hold, not bridged
+    // O vão de 0,4s depois de «essa» é atravessado; o de 1,8s depois de «velocidade» segura só até o teto, sem atravessar
     const p = buildOverlayPayload(words, { ...VERTICAL_LAYOUT, maxLineUnits: 4 });
     expect(p.lines.length).toBeGreaterThanOrEqual(3);
-    // line "你看" (ends 0.4) holds to "这个" start (0.4) — contiguous, no flicker
+    // A linha «olha» (que acaba em 0,4) se segura até o começo de «essa» (0,4) — contígua, sem piscar
     expect(p.lines[0].endMs).toBe(p.lines[1].startMs);
-    // "速度" ends 1.2 before a 1.8s pause → held only +0.8 cap = 2.0s, not to 3.0
+    // «velocidade» acaba em 1,2 antes de uma pausa de 1,8s → se segura só o teto de +0,8 = 2,0s, e não até 3,0
     const beforePause = p.lines[2];
     expect(beforePause.endMs).toBe(2000);
   });
 
   it("carries per-word speaker ids through for caption coloring", () => {
     const spoken = [
-      { ...w("甲", 0, 0.4), speaker: 0 },
-      { ...w("乙", 0.4, 0.8), speaker: 1 },
+      { ...w("ana", 0, 0.4), speaker: 0 },
+      { ...w("bia", 0.4, 0.8), speaker: 1 },
     ];
     const p = buildOverlayPayload(spoken, VERTICAL_LAYOUT);
     const flat = p.lines.flatMap((l) => l.words);
-    expect(flat.find((x) => x.text === "甲")?.speaker).toBe(0);
-    expect(flat.find((x) => x.text === "乙")?.speaker).toBe(1);
+    expect(flat.find((x) => x.text === "ana")?.speaker).toBe(0);
+    expect(flat.find((x) => x.text === "bia")?.speaker).toBe(1);
   });
 });

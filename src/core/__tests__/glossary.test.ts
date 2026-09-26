@@ -15,7 +15,7 @@ import type { Transcript } from "../../shared/api-types";
 
 // Alguns ideogramas ficam como escapes Unicode: material em escrita ideográfica combina
 // como subcadeia direta, e esse caminho continua coberto.
-const CJ = { errado: "川普", certo: "特朗普" };
+const CJ = { errado: "\u5ddd\u666e", certo: "\u7279\u6717\u666e" };
 
 function makeTranscript(texts: string[]): Transcript {
   let t = 0;
