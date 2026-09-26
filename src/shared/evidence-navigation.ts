@@ -7,7 +7,7 @@ export type EvidenceResult =
   | { kind: "transcript"; id: string; startSec: number; endSec: number; hit: TranscriptSearchHit }
   | { kind: "visual"; id: string; startSec: number; endSec: number; hit: VisualEvidenceHit };
 
-/** 统一时间序用于鼠标与键盘导航，过滤源素材范围之外的旧证据。 */
+/** Uma ordem de tempo só para a navegação pelo mouse e pelo teclado, filtrando a evidência antiga que está fora do intervalo do material de origem. */
 export function evidenceResults(
   transcript: readonly TranscriptSearchHit[], visual: readonly VisualEvidenceHit[],
   durationSec: number, source: EvidenceSource = "all",
@@ -21,14 +21,14 @@ export function evidenceResults(
     .sort((a, b) => a.startSec - b.startSec);
 }
 
-/** 首次 Enter 定位首项，之后才前进；反向首次从末项开始。 */
+/** O primeiro Enter posiciona no primeiro item, e só depois avança; ao contrário, o primeiro vai para o último item. */
 export function nextEvidenceIndex(current: number, length: number, delta: 1 | -1): number {
   if (length <= 0) return -1;
   if (current < 0) return delta === 1 ? 0 : length - 1;
   return (Math.min(current, length - 1) + delta + length) % length;
 }
 
-/** 试听有短上下文且不超过 30 秒；选段保留完整句子，最终由用户确认。 */
+/** A audição tem um contexto curto e não passa de 30 segundos; a escolha do trecho preserva frases inteiras, e a confirmação final é da pessoa. */
 export function evidenceContext(result: EvidenceResult, segments: readonly TranscriptSegment[], durationSec: number): {
   startSec: number; endSec: number; segmentIds: number[];
 } {

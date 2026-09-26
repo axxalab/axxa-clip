@@ -47,7 +47,7 @@ export const ASR_CATALOG: AsrEngineFacts[] = [
   {
     id: "fireredasr",
     kind: "local",
-    langs: ["zh", "方言", "en"],
+    langs: ["zh", "dialetos", "en"],
     sizeMB: 520,
     speed: 2,
     accuracy: 3,

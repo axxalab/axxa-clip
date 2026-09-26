@@ -3,6 +3,15 @@ import { wordsInPieces } from "./pieces";
 
 const UNCERTAIN_SOURCES = new Set<WordTimingSource>(["interpolated", "edited", "estimated"]);
 
+/** Ideogramas e kana, escritos como escapes Unicode (a escrita ideográfica se junta sem espaço). */
+const CJK_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+
+/** Junta duas palavras como a legenda faz: entre palavras latinas entra um espaço, e na escrita ideográfica elas se encostam. */
+function joinWordText(current: string, next: string): string {
+  const space = !CJK_RE.test(current.slice(-1)) && !CJK_RE.test(next.charAt(0)) ? " " : "";
+  return `${current}${space}${next}`;
+}
+
 export interface TimingQualitySummary {
   totalWords: number;
   uncertainWords: number;
@@ -30,7 +39,7 @@ export function summarizeTimingQuality(words: readonly TranscriptWord[]): Timing
     uncertainWords++;
     if (current && word.startSec - current.endSec <= 0.35) {
       current.endSec = Math.max(current.endSec, word.endSec);
-      current.text += word.text;
+      current.text = joinWordText(current.text, word.text);
       current.wordCount++;
     } else {
       current = {

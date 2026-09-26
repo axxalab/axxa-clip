@@ -23,7 +23,7 @@ export function canSearchSimilarTranscript(query: string): boolean {
   return length >= 4 && length <= MAX_QUERY_LENGTH;
 }
 
-/** 只有全文与词序一致、时间合法时才采用词级定位；纠错后的旧词序不可复用。 */
+/** A localização por palavra só é usada quando o texto inteiro e a ordem das palavras batem e o tempo é válido; a ordem antiga das palavras, depois de uma correção, não pode ser reaproveitada. */
 function timedCharacters(segment: TranscriptSegment): Array<{ startSec: number; endSec: number; timing: SearchTiming }> | null {
   const refs: Array<{ startSec: number; endSec: number; timing: SearchTiming }> = [];
   let text = "";
