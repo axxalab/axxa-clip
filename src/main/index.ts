@@ -2,9 +2,9 @@ import { runSpeechWorker } from "./run-speech-worker";
 import { qwenHealth } from "../core/transcribe/qwen-local";
 import type { SpeechRunOptions, AlignmentRequest, AlignmentPreview } from "../shared/api-types";
 /**
- * Electron main process: window lifecycle + IPC surface.
- * All heavy pipeline work lives in src/core and is invoked from here,
- * never from the renderer directly.
+ * Processo principal do Electron: ciclo de vida da janela + superfície de IPC.
+ * Todo o trabalho pesado da esteira vive em src/core e é chamado daqui,
+ * nunca direto da camada de renderização.
  */
 import { app, shell, BrowserWindow, ipcMain, dialog, protocol } from "electron";
 import { join } from "path";
@@ -94,13 +94,15 @@ import type { Transcript, TranscriptWord, LlmConfig, HighlightCandidate, ExportO
 const VIDEO_EXTENSIONS = ["mp4", "mkv", "mov", "flv", "ts", "webm", "avi", "m4v"];
 const AUDIO_EXTENSIONS = ["mp3", "m4a", "wav", "aac", "flac"];
 
-// ---- 本地媒体预览协议(审阅台) ----
-// 渲染层的 <video> 通过 hotclip-media:// 流式读取源文件;必须在 app ready
-// 前注册特权,才能拿到 fetch/流/Range 能力(拖进度条依赖 206 分段响应)。
-// [FIX] 补齐 standard/secure/bypassCSP:只有 stream+supportFetchAPI 时,该 scheme
-// 走的是"非标准 scheme"路径——URL 归一化与同源判定行为都和标准 scheme 不同,
-// 会让下面"用 path 区分媒体资源"的语义变得不可靠。standard 让 pathname 按
-// 标准层级解析,secure 拿到安全上下文,bypassCSP 免于被页面 CSP 二次裁剪。
+// ---- Protocolo de pré-visualização de mídia local (mesa de revisão) ----
+// O <video> da camada de renderização lê o arquivo de origem em fluxo por hotclip-media://;
+// o privilégio precisa ser registrado ANTES do app ready para haver fetch/fluxo/Range
+// (arrastar a linha de tempo depende da resposta 206 em partes).
+// [CORREÇÃO] standard/secure/bypassCSP completam o registro: só com stream+supportFetchAPI o
+// scheme entra pelo caminho de "scheme não padrão" — a normalização da URL e a decisão de mesma
+// origem se comportam de outro jeito, e a semântica de "distinguir a mídia pelo path" logo
+// abaixo fica pouco confiável. standard faz o pathname ser lido em níveis como manda o padrão,
+// secure dá contexto seguro e bypassCSP evita um segundo corte pelo CSP da página.
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "hotclip-media",
@@ -114,7 +116,7 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-// 只放行本会话里 probe 成功过的文件——协议不做任意路径读取
+// Só passa o arquivo que teve probe bem-sucedido nesta sessão — o protocolo não lê caminho arbitrário
 const allowedMedia = new Set<string>();
 
 const MEDIA_MIME: Record<string, string> = {
@@ -134,19 +136,20 @@ const MEDIA_MIME: Record<string, string> = {
 };
 
 /**
- * hotclip-media://local/<view>/<encodeURIComponent(路径)> → 带 Range 的文件流响应。
+ * hotclip-media://local/<view>/<encodeURIComponent(caminho)> → fluxo do arquivo com Range.
  *
- * [FIX] 路径多了一段 `<view>`(main / crop / review)。原实现是
- * `hotclip-media://local/<encodeURIComponent(路径)>?view=main`,但:
- *   ① serveMedia 只取 pathname,query 被整段丢弃 → 三个 view 返回字节完全相同的流;
- *   ② Chromium 判定"是否同一媒体资源"时忽略 query → 多个 <video> 仍共享一份
- *      媒体缓冲,一路坏则全坏,且该 URL 本会话内不再可播。
- * 把 view 编进 pathname 才真正让每个消费方拿到独立的媒体资源。
- * view 只参与资源区分,不参与鉴权(鉴权仍看真实路径是否在 allowedMedia 里)。
+ * [CORREÇÃO] O caminho ganhou um trecho `<view>` (main / crop / review). A primeira versão era
+ * `hotclip-media://local/<encodeURIComponent(caminho)>?view=main`, mas:
+ *   ① serveMedia só olha o pathname e a query era descartada inteira → as três views devolviam
+ *      exatamente os mesmos bytes;
+ *   ② o Chromium ignora a query ao decidir "é a mesma mídia?" → vários <video> continuavam
+ *      dividindo um único buffer, um estragava todos e a URL não tocava mais nesta sessão.
+ * Codificar a view no pathname é o que dá a cada consumidor uma mídia independente. A view só
+ * distingue o recurso, não autoriza (a autorização segue olhando se o caminho está em allowedMedia).
  */
 async function serveMedia(request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname.replace(/^\//, "");
-  // 第一段 = view(兼容旧式无 view 的单段 URL),其余 = 编码后的真实路径
+  // O primeiro trecho = view (aceitando a URL antiga de um trecho só, sem view), o resto = caminho real codificado
   const slash = pathname.indexOf("/");
   const encodedPath = slash === -1 ? pathname : pathname.slice(slash + 1);
   const filePath = decodeURIComponent(encodedPath);
@@ -167,9 +170,10 @@ async function serveMedia(request: Request): Promise<Response> {
     "Content-Length": String(range.end - range.start + 1),
   };
   if (range.status === 206) headers["Content-Range"] = `bytes ${range.start}-${range.end}/${size}`;
-  // [FIX] 不用 Readable.toWeb:Node Readable 的 error 事件不保证转成 Web Stream 的
-  // controller.error(),响应体会"静默截断"——Chromium 侧就报 PIPELINE_ERROR_READ
-  // (error.code=2)。自建 stream 显式传播错误,并在消费方取消时销毁文件句柄。
+  // [CORREÇÃO] Readable.toWeb está fora: o evento error de um Readable do Node não vira
+  // controller.error() no Web Stream, e o corpo da resposta é "truncado em silêncio" — o
+  // Chromium então acusa PIPELINE_ERROR_READ (error.code=2). O fluxo feito à mão propaga o erro
+  // explicitamente e destrói o descritor do arquivo quando o consumidor cancela.
   const nodeStream = createReadStream(filePath, { start: range.start, end: range.end });
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -203,7 +207,7 @@ function createWindow(): void {
 
   mainWindow.on("ready-to-show", () => mainWindow.show());
 
-  // External links open in the system browser, never inside the app shell.
+  // Link externo abre no navegador do sistema, nunca dentro da casca do app.
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
     return { action: "deny" };
@@ -216,7 +220,7 @@ function createWindow(): void {
   }
 }
 
-// ---- IPC: file import + probing (wizard step 1) ----
+// ---- IPC: importar e sondar o arquivo (passo 1 do assistente) ----
 
 ipcMain.handle("hotclip:select-media", async () => {
   const result = await dialog.showOpenDialog({
@@ -313,7 +317,7 @@ ipcMain.handle("hotclip:session-checkpoint-clear", () =>
   queueProjectPersistence(() => clearSessionCheckpoint(app.getPath("userData")))
 );
 
-// ---- IPC:真实发布表现反馈(设置中心) ----
+// ---- IPC: retorno do desempenho real da publicação (central de configurações) ----
 
 ipcMain.handle("hotclip:performance-get", async () => {
   const userData = app.getPath("userData");
@@ -348,7 +352,7 @@ ipcMain.handle("hotclip:performance-template", async () => {
   const pending = items.filter((item) => !item.metricsImportedAt);
   if (pending.length === 0) return null;
   const result = await dialog.showSaveDialog({
-    defaultPath: join(app.getPath("documents"), "HotClip-表现数据回填.csv"),
+    defaultPath: join(app.getPath("documents"), "HotClip-dados-de-desempenho.csv"),
     filters: [{ name: "CSV", extensions: ["csv"] }],
   });
   if (result.canceled || !result.filePath) return null;
@@ -361,7 +365,7 @@ ipcMain.handle("hotclip:performance-clear", async () => {
   await Promise.all([clearPerformanceMemory(userData), clearPublishMetrics(userData)]);
 });
 
-// ---- IPC:桌面健康检查与安全修复 ----
+// ---- IPC: diagnóstico da máquina e reparo seguro ----
 
 const diagnosticsConfig = (value: unknown): LlmConfig | null => {
   if (!value || typeof value !== "object") return null;
@@ -432,10 +436,10 @@ ipcMain.handle("hotclip:diagnostics-prepare-models", async (event, llm: unknown,
   }
 });
 
-// 出厂导出根目录:~/影片/HotClip——新手在文件管理器里找得到(issue #3)
+// Raiz de exportação de fábrica: ~/Vídeos/HotClip — quem está começando acha no gerenciador de arquivos (issue #3)
 ipcMain.handle("hotclip:default-out-dir", async () => join(app.getPath("videos"), "HotClip"));
 
-// ---- IPC: 模型存放位置(设置页)——1GB 的东西放哪儿,用户有权知道和决定 ----
+// ---- IPC: onde os modelos ficam (página de configurações) — 1GB de arquivos, o usuário tem direito de saber e decidir ----
 
 ipcMain.handle("hotclip:models-info", async () =>
   inspectModels(modelsRoot(), defaultModelsRoot(app.getPath("userData")))
@@ -446,25 +450,25 @@ ipcMain.handle("hotclip:models-move", async (_event, dir: unknown) => {
   const userData = app.getPath("userData");
   const target = dir.trim();
   const landed = await moveModelsDir(modelsRoot(), target);
-  // 搬成了才落配置:写早了会指向一个还没搬过去的空目录,模型全被判为「未安装」
+  // A configuração só é gravada depois da mudança: gravar antes aponta para uma pasta vazia e todo modelo é dado como «não instalado»
   const isDefault = landed === defaultModelsRoot(userData);
   writeAppSettings(userData, { ...readAppSettings(userData), modelsDir: isDefault ? undefined : landed });
   return landed;
 });
 
-// 在文件管理器里打开目录(设置页的「打开文件夹」);不存在时静默,别弹系统错误框
+// Abrir a pasta no gerenciador de arquivos (o «abrir pasta» das configurações); se não existir, silêncio, sem caixa de erro do sistema
 ipcMain.on("hotclip:open-folder", (_event, dir: unknown) => {
   if (typeof dir === "string" && dir.trim()) void shell.openPath(dir);
 });
 
-// 录播监听的目录选择
+// Escolha da pasta vigiada das gravações
 ipcMain.handle("hotclip:select-dir", async () => {
   const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
 });
 
-// BGM 文件选择(声音设计)
+// Escolha do arquivo de trilha (desenho de som)
 ipcMain.handle("hotclip:select-audio", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],
@@ -474,8 +478,8 @@ ipcMain.handle("hotclip:select-audio", async () => {
   return result.filePaths[0];
 });
 
-// AI 生成版权安全 BGM(v0.14 云端档):按品类风格生成纯音乐,存 userData
-// 复用;生成完由渲染层把路径设进 bgmPath,走既有混音链
+// Trilha instrumental livre de direitos gerada por IA (edição em nuvem, v0.14): música pura no estilo da categoria, guardada em userData
+// para reuso; ao terminar, a camada de renderização põe o caminho em bgmPath e a mixagem de sempre entra em ação
 ipcMain.handle("hotclip:generate-bgm", async (_event, config: unknown, genreId: unknown) => {
   const llm = (config ?? {}) as LlmConfig;
   return await generateAiBgm({
@@ -486,7 +490,7 @@ ipcMain.handle("hotclip:generate-bgm", async (_event, config: unknown, genreId: 
   });
 });
 
-// 水印 logo 选择(品牌预设)
+// Escolha do logotipo da marca d'água (preset de marca)
 ipcMain.handle("hotclip:select-image", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],
@@ -501,26 +505,26 @@ ipcMain.handle("hotclip:probe-media", async (_event, filePath: unknown) => {
     throw new Error("probe-media requires a file path");
   }
   const info = await probeMedia(filePath);
-  allowedMedia.add(filePath); // probe 成功的文件才可被预览协议读取
+  allowedMedia.add(filePath); // só o arquivo com probe bem-sucedido pode ser lido pelo protocolo de pré-visualização
   return info;
 });
 
-// ---- IPC: 审阅台波形(上下文窗口的音频峰值) ----
+// ---- IPC: forma de onda da mesa de revisão (picos de áudio da janela de contexto) ----
 
 ipcMain.handle("hotclip:audio-peaks", async (_event, filePath: unknown, startSec: unknown, endSec: unknown) => {
   if (typeof filePath !== "string" || !filePath.trim()) throw new Error("audio-peaks requires a file path");
   const from = typeof startSec === "number" && Number.isFinite(startSec) ? Math.max(0, startSec) : 0;
   const to = typeof endSec === "number" && Number.isFinite(endSec) ? endSec : 0;
   if (to <= from) throw new Error("audio-peaks requires a valid range");
-  // 窗口封顶 10 分钟,防误传超大区间把内存打爆
+  // Janela limitada a 10 minutos, para um intervalo gigante enviado por engano não estourar a memória
   const info = await probeMedia(filePath).catch(() => null);
   const track = await extractPeaks(filePath, from, Math.min(to, from + 600), info?.audioStreamIndex);
   return { values: Array.from(track.values), startSec: track.startSec, hopSec: track.hopSec };
 });
 
-// ---- IPC: 工作台时间轴数据(全场响度/弹幕热度曲线 + 缩略图胶片带) ----
-// 响度复用 warmSignals 缓存的 ebur128 采样(转写期已并行采过,不再解码一遍);
-// 弹幕读视频旁的弹幕文件;缩略图串行抽 8 帧。各路 fail-open。
+// ---- IPC: dados da linha de tempo da bancada (curva de volume do material inteiro / calor do chat + tira de miniaturas) ----
+// O volume reaproveita as amostras de ebur128 guardadas por warmSignals (colhidas em paralelo na transcrição, sem decodificar de novo);
+// o chat vem do arquivo ao lado do vídeo; as miniaturas saem de 8 quadros, um a um. Cada trilha falha em aberto.
 
 const timelineCache = new Map<string, Promise<import("../shared/api-types").TimelineData>>();
 
@@ -560,14 +564,14 @@ ipcMain.handle("hotclip:timeline-data", async (_event, filePath: unknown, durati
   return p;
 });
 
-// ---- IPC: 候选片段接触表(审阅台画面速览,复用 VLM 同款拼图) ----
+// ---- IPC: folha de contato dos candidatos (olhada rápida na imagem, a mesma colagem do VLM) ----
 
 ipcMain.handle("hotclip:contact-sheet", async (_event, filePath: unknown, startSec: unknown, endSec: unknown) => {
   if (typeof filePath !== "string" || !filePath.trim()) throw new Error("contact-sheet requires a file path");
   const from = typeof startSec === "number" && Number.isFinite(startSec) ? Math.max(0, startSec) : 0;
   const to = typeof endSec === "number" && Number.isFinite(endSec) ? endSec : 0;
   if (to <= from) throw new Error("contact-sheet requires a valid range");
-  // 片内均匀取 9 帧,首尾各让出一点(边界帧常是转场半帧)
+  // 9 quadros bem distribuídos dentro do trecho, cedendo um pouco das pontas (o quadro da borda costuma ser meia transição)
   const span = to - from;
   const pad = Math.min(0.3, span / 10);
   const usable = span - pad * 2;
@@ -583,21 +587,21 @@ ipcMain.handle("hotclip:contact-sheet", async (_event, filePath: unknown, startS
   return b64 ? `data:image/jpeg;base64,${b64}` : "";
 });
 
-// ---- IPC: 问 LLM 端点要模型清单 ----
-// 模型 id 会随厂商换代失效,写死的预设迟早 404;让用户一键拉真实清单。
-// listModels 自身 fail-open(返回 error 不抛),这里照原样透传给渲染进程。
+// ---- IPC: pedir a lista de modelos ao endpoint de LLM ----
+// O id de um modelo vence quando o fornecedor troca de geração; um preset fixo dá 404 cedo ou tarde, então o usuário busca a lista real com um clique.
+// listModels falha em aberto (devolve error em vez de lançar) e aqui a resposta é repassada como veio ao processo de renderização.
 
 ipcMain.handle("hotclip:llm-models", async (_event, baseUrl: unknown, apiKey: unknown) => {
   if (typeof baseUrl !== "string" || !baseUrl.trim()) {
-    return { ids: [], error: "缺少 base_url / missing base_url" };
+    return { ids: [], error: "falta o base_url / missing base_url" };
   }
   return listModels(baseUrl.trim(), typeof apiKey === "string" ? apiKey : "");
 });
 
-// ---- IPC: 审阅反馈回流(导出时记录采用/否决,下次检测注入偏好) ----
+// ---- IPC: retorno da revisão (o aceite/veto é gravado na exportação e vira preferência na detecção seguinte) ----
 
 ipcMain.handle("hotclip:review-record", async (_event, video: unknown, kept: unknown, rejected: unknown) => {
-  // 白名单清洗:渲染进程数据只取偏好档需要的字段并限长
+  // Limpeza por lista de permissão: dos dados do processo de renderização só ficam os campos do arquivo de preferência, com tamanho limitado
   const clean = (list: unknown): ReviewedCandidate[] =>
     Array.isArray(list)
       ? list
@@ -625,16 +629,16 @@ ipcMain.handle("hotclip:review-record", async (_event, video: unknown, kept: unk
   });
 });
 
-// ---- IPC: transcription (wizard step 2) ----
-// Engine instances are cheap; models are downloaded once into userData.
+// ---- IPC: transcrição (passo 2 do assistente) ----
+// A instância do motor é barata; o modelo é baixado uma única vez para userData.
 
-// 模型位置用户可改(设置页),每次现读配置——搬完家后续下载立刻落新位置
+// O usuário pode mudar onde os modelos ficam (configurações), então a configuração é lida a cada vez — depois da mudança, o download seguinte já vai para o lugar novo
 const modelsRoot = (): string => resolveModelsRoot(app.getPath("userData"));
 const transcriptCacheDir = (): string => join(app.getPath("userData"), "transcript-cache");
 const baseRenderCacheDir = (): string => join(app.getPath("userData"), "render-cache");
 const baseEvidenceCacheDir = (): string => join(app.getPath("userData"), "evidence-index");
 
-/** catalog id → engine factory + its model asset (for install checks). */
+/** id do catálogo → fábrica do motor + o modelo de que ele depende (para checar a instalação). */
 const ASR_ENGINES = {
   sensevoice: { make: () => new SenseVoiceEngine(modelsRoot()), asset: SENSEVOICE_MODEL },
   paraformer: { make: () => new ParaformerEngine(modelsRoot()), asset: PARAFORMER_MODEL },
@@ -667,9 +671,9 @@ ipcMain.handle("hotclip:alignment-preview", async (_event, filePath: string, tra
   finally { if (alignmentAbort === abort) alignmentAbort = null; }
 });
 
-// Tier-0 signal collection is slow on long sources (full audio + downscaled
-// video scan), so it kicks off IN PARALLEL with transcription — by the time
-// the user reaches highlight detection the evidence is already there.
+// A coleta de sinais de nível 0 é lenta em material longo (áudio inteiro + varredura do vídeo
+// reduzido), então ela começa EM PARALELO com a transcrição — quando a pessoa chega na detecção
+// de destaques as evidências já estão prontas.
 const signalsCache = new Map<string, Promise<import("@core/signals").MediaSignals | undefined>>();
 
 async function warmSignals(
@@ -691,8 +695,8 @@ async function warmSignals(
       analysis,
     }).catch(() => undefined);
     signalsCache.set(key, p);
-    // bound the cache — sources are large strings but promises are cheap;
-    // keep the last few files only
+    // Cache limitado: o material é uma string grande, mas a promessa é barata;
+    // só os últimos arquivos ficam guardados
     if (signalsCache.size > 4) {
       const first = signalsCache.keys().next().value;
       if (first !== undefined) signalsCache.delete(first);
@@ -715,7 +719,7 @@ ipcMain.handle("hotclip:transcribe", async (event, filePath: unknown, engineId: 
   transcribing = true;
   const abort = new AbortController();
   transcriptionAbort = abort;
-  void warmSignals(filePath); // runs alongside transcription
+  void warmSignals(filePath); // roda junto com a transcrição
   try {
     const resolvedEngineId =
       engineId === "elevenlabs" || engineId === "qwen3"
@@ -723,16 +727,16 @@ ipcMain.handle("hotclip:transcribe", async (event, filePath: unknown, engineId: 
         : typeof engineId === "string" && engineId in ASR_ENGINES
           ? engineId
           : "sensevoice";
-    // Persistent cache: same file (size+mtime) + same engine → skip the slowest
-    // step entirely. Stat may fail (unusual paths) — then we just transcribe.
+    // Cache persistente: mesmo arquivo (tamanho+mtime) + mesmo motor → o passo mais lento é
+    // pulado por completo. O stat pode falhar (caminho incomum) — aí é só transcrever.
     let fileStat: { size: number; mtimeMs: number } | undefined;
     try {
       fileStat = await stat(filePath);
     } catch {
       fileStat = undefined;
     }
-    // 缓存永远存 ASR 原始结果,词表在返回侧应用——词表更新后同素材
-    // 重放替换即可生效,不重跑 ASR
+    // O cache guarda sempre o resultado cru do ASR, e o vocabulário é aplicado na volta — depois
+    // de atualizar o vocabulário, basta reproduzir o mesmo material para a troca valer, sem rodar o ASR de novo
     const glossary = await loadGlossary(app.getPath("userData"));
     if (fileStat && !options.restart && resolvedEngineId !== "qwen3") {
       const cached = await readTranscriptCache(transcriptCacheDir(), filePath, fileStat, resolvedEngineId);
@@ -748,8 +752,8 @@ ipcMain.handle("hotclip:transcribe", async (event, filePath: unknown, engineId: 
       });
     } catch (e) {
       if (abort.signal.aborted) throw new Error("speech:cancelled");
-      // 失败后补一次探测,把「素材真没音轨」从模型下载/解压/解码失败里
-      // 区分出来打标记——否则 UI 只能笼统提示,误导用户反复转码(issue #2)
+      // Depois da falha vem mais uma sondagem, para separar «o material realmente não tem trilha de áudio»
+      // de uma falha de download/descompactação/decodificação — senão a interface só dá um aviso genérico e a pessoa fica transcodificando à toa (issue #2)
       const raw = e instanceof Error ? e.message : String(e);
       const media = await probeMedia(filePath).catch(() => null);
       throw new Error(tagTranscribeError(raw, media));
@@ -764,9 +768,9 @@ ipcMain.handle("hotclip:transcribe", async (event, filePath: unknown, engineId: 
   }
 });
 
-// ---- IPC: highlight detection (wizard step 2, after transcription) ----
-// The LLM key comes from the renderer's settings; it is used for this one
-// call and never persisted in the main process.
+// ---- IPC: detecção de destaques (passo 2 do assistente, depois da transcrição) ----
+// A chave do LLM vem das configurações da camada de renderização; ela serve só para esta
+// chamada e nunca é gravada no processo principal.
 
 ipcMain.handle(
   "hotclip:detect-highlights",
@@ -774,9 +778,9 @@ ipcMain.handle(
     let t = transcript as Transcript;
     const config = llm as LlmConfig;
     if (!t || !Array.isArray(t.segments)) throw new Error("detect-highlights requires a transcript");
-    if (!config?.baseUrl || !config?.model) throw new Error("请先在设置里配置 LLM(baseUrl/model)");
-    // 参考爆款画像(可选):用户显式给的输入,分析失败按无参考继续,
-    // 但失败原因必须随结果带回给 UI——不静默丢
+    if (!config?.baseUrl || !config?.model) throw new Error("configure o LLM (baseUrl/model) nas configurações primeiro");
+    // Perfil do vídeo de referência (opcional): entrada dada explicitamente pelo usuário; se a análise falhar,
+    // segue como se não houvesse referência, mas o motivo da falha volta junto com o resultado para a interface — nada é descartado em silêncio
     let reference: ReferenceProfile | undefined;
     let referenceError: string | undefined;
     if (typeof referencePath === "string" && referencePath.trim()) {
@@ -791,34 +795,34 @@ ipcMain.handle(
         referenceError = e instanceof Error ? e.message : String(e);
       }
     }
-    // Tier-0 audiovisual evidence (loudness peaks + cut density), capped so a
-    // pathological source can never stall detection; failures degrade to none.
+    // Evidência audiovisual de nível 0 (picos de volume + densidade de cortes), com teto para um
+    // material patológico nunca travar a detecção; a falha degrada para nenhuma evidência.
     let signals;
     if (typeof filePath === "string" && filePath.trim()) {
-      // usually already resolved (warmed during transcription); cap the cold path
+      // normalmente já está resolvido (aquecido durante a transcrição); o teto é para o caminho frio
       signals = await Promise.race([
         warmSignals(filePath),
         new Promise<undefined>((r) => setTimeout(() => r(undefined), 120_000)),
       ]).catch(() => undefined);
     }
-    // Multi-speaker attribution (opt-in): label the transcript so the LLM knows
-    // who says what. Fail-open — a diarization hiccup must not block detection.
+    // Atribuição de fala a vários participantes (opcional): rotula a transcrição para o LLM saber
+    // quem diz o quê. Falha em aberto — um engasgo da diarização não pode travar a detecção.
     let labeled: Transcript | undefined;
     if (diarize === true && typeof filePath === "string" && filePath.trim()) {
       t = await diarizeTranscript(t, filePath).catch(() => t);
-      labeled = t; // surface the labeled transcript so export can color captions by speaker
+      labeled = t; // devolve a transcrição rotulada para a exportação poder colorir a legenda por falante
     }
-    // 两级漏斗第一级(可选):本地小模型初筛;字段不合法直接不启用
+    // Primeiro nível do funil (opcional): triagem por um modelo pequeno local; campo inválido simplesmente não liga a triagem
     const pf = prefilter as { baseUrl?: unknown; model?: unknown } | null | undefined;
     const localFilter =
       pf && typeof pf.baseUrl === "string" && pf.baseUrl.trim() && typeof pf.model === "string" && pf.model.trim()
         ? { baseUrl: pf.baseUrl, model: pf.model }
         : null;
-    // 画面侧信号(并发采集,各自 fail-open——失败/证据太薄都退回纯文本检测):
-    // - 表情峰值:YuNet+FER+ 零配置自动跑(有画面就看,首次自动下载小模型);
-    // - 视觉爆点:端侧 VL 抽帧(可选,需用户配置 Ollama 视觉模型)。
+    // Sinais da imagem (colhidos em paralelo, cada um falhando em aberto — na falha ou com evidência fraca volta a detecção só por texto):
+    // - pico de expressão facial: YuNet+FER roda sem configuração nenhuma (se tem imagem, olha; o modelo pequeno é baixado na primeira vez);
+    // - estouro visual: VL local por amostragem de quadros (opcional, exige um modelo de visão do Ollama configurado).
     let visionStats: VisionStats | undefined;
-    // 候选段画面复核用的视觉端点(与信号通道同一配置;hasVideo 时才会被赋值)
+    // Endpoint de visão da revisão de imagem dos candidatos (a mesma configuração do canal de sinais; só recebe valor quando hasVideo)
     let reviewVisionCfg: { baseUrl: string; model: string; apiKey?: string } | null = null;
     let reviewAnalysis: AnalysisVideoOptions | undefined;
     let emotionStats: EmotionStats | undefined;
@@ -827,15 +831,15 @@ ipcMain.handle(
     let voicePending: Promise<Awaited<ReturnType<typeof collectVoiceEmotionSignal>>> = Promise.resolve(null);
     if (typeof filePath === "string" && filePath.trim()) {
       const media = await probeMedia(filePath).catch(() => null);
-      // 弹幕热度(零配置):视频旁同名 .xml(录播姬约定)自动发现,纯音频也适用
+      // Calor do chat (sem configuração): o .xml de mesmo nome ao lado do vídeo (convenção do gravador) é descoberto sozinho, e serve até para áudio puro
       if (media && media.durationSec > 1) {
         const dm = await collectDanmakuSignal(filePath, media.durationSec);
         if (dm) {
           signals = { loudPeaks: [], cutDense: [], ...signals, danmakuPeaks: dm.danmakuPeaks };
           danmakuStats = dm.stats;
         }
-        // 语音情绪/笑声掌声(零配置,复用已装的 SenseVoice 权重):纯音频素材也适用,
-        // 与画面侧信号并发跑——它只吃 CPU 解码,不和抽帧抢 ffmpeg
+        // Emoção da voz / risada e palmas (sem configuração, reaproveitando o SenseVoice já instalado): funciona também em material só de áudio,
+        // e roda em paralelo com os sinais da imagem — só consome CPU na decodificação, sem disputar o ffmpeg
         voicePending = Promise.race([
           collectVoiceEmotionSignal({
             videoPath: filePath,
@@ -871,9 +875,9 @@ ipcMain.handle(
                 durationSec: media.durationSec,
                 config: visionCfg,
                 signals,
-                // 全场扫描档(v0.13):用户显式开启才跑(费时;云端按量计费)
+                // Edição de varredura completa (v0.13): só roda se o usuário ligar (é demorado; na nuvem é cobrado por uso)
                 scan: scan === true,
-                // 接触表九宫格的序号标注字体(与字幕同一捆绑字体)
+                // Fonte da numeração dos nove quadros da folha de contato (a mesma fonte empacotada da legenda)
                 fontFile: app.isPackaged
                   ? join(process.resourcesPath, "fonts", "SourceHanSansSC-Bold.otf")
                   : join(app.getAppPath(), "resources", "fonts", "SourceHanSansSC-Bold.otf"),
@@ -888,7 +892,7 @@ ipcMain.handle(
             cutDense: [],
             ...signals,
             ...(visionOutcome ? { visualPeaks: visionOutcome.visualPeaks } : {}),
-            // 画面时刻线(全场扫描档):画面描述回流选段证据
+            // Linha do tempo da imagem (varredura completa): a descrição do que aparece volta como evidência da escolha
             ...(visionOutcome && visionOutcome.visualNotes.length > 0 ? { visualNotes: visionOutcome.visualNotes } : {}),
             ...(emotionOutcome ? { emotionPeaks: emotionOutcome.emotionPeaks } : {}),
           };
@@ -913,17 +917,17 @@ ipcMain.handle(
         voiceStats = voiceOutcome.stats;
       }
     }
-    // 时长档:非法值回落标准档
+    // Faixa de duração: valor inválido volta para a faixa padrão
     const clipLength =
       length === "short" || length === "long" || length === "standard" ? length : undefined;
-    // 商品词:白名单清洗(字符串数组,单词 ≤30 字,最多 20 个)
+    // Palavras do produto: limpeza por lista de permissão (array de strings, palavra de até 30 caracteres, no máximo 20)
     const productWords = Array.isArray(products)
       ? products.filter((p): p is string => typeof p === "string" && p.trim().length > 0).map((p) => p.trim().slice(0, 30)).slice(0, 20)
       : [];
-    // 审阅偏好回流:本机历史采用/否决样例进提示词(空记忆无感)
+    // Retorno das preferências de revisão: exemplos de aceite/veto do histórico da máquina entram no prompt (memória vazia não muda nada)
     const reviewMemory = await loadReviewMemory(app.getPath("userData"));
     const performanceMemory = await loadPerformanceMemory(app.getPath("userData"));
-    // 品类判据:白名单清洗(id 必须是字符串,自定义文本截断由 core 侧兜)
+    // Critérios da categoria: limpeza por lista de permissão (o id precisa ser string; o corte do texto personalizado fica com o core)
     const g = genre as { id?: unknown; custom?: unknown } | null | undefined;
     const genreArg =
       g && (typeof g.id === "string" || typeof g.custom === "string")
@@ -932,7 +936,7 @@ ipcMain.handle(
             custom: typeof g.custom === "string" ? g.custom : undefined,
           }
         : undefined;
-    // 用户点题:白名单清洗(两段自由文本,截断由 core 侧 briefSection 兜)
+    // Pauta do usuário: limpeza por lista de permissão (dois textos livres; o corte fica com briefSection, no core)
     const b = brief as { focus?: unknown; exclude?: unknown } | null | undefined;
     const briefArg =
       b && ((typeof b.focus === "string" && b.focus.trim()) || (typeof b.exclude === "string" && b.exclude.trim()))
@@ -942,8 +946,8 @@ ipcMain.handle(
           }
         : undefined;
     const outcome = await detectHighlights(t, config, undefined, signals, localFilter, clipLength, productWords, reference, reviewMemory, genreArg, briefArg, performanceMemory);
-    // 候选段画面复核(v0.12):每条候选一张接触表让 VL 看画面,画面分回流
-    // 排序、看点进 reason。fail-open:失败/超时沿用原候选。
+    // Revisão da imagem dos candidatos (v0.12): uma folha de contato por candidato para o VL olhar a imagem, e a nota da imagem volta
+    // para a ordenação, com o que se vê entrando em reason. Falha em aberto: na falha ou no tempo esgotado, o candidato original continua valendo.
     let candidates = outcome.candidates;
     if (reviewVisionCfg && candidates.length > 0 && typeof filePath === "string") {
       const reviewed = await reviewCandidatesVision({
@@ -968,7 +972,7 @@ ipcMain.handle(
   }
 );
 
-/** Ensure diarization models, run, and label the transcript. Throws on failure. */
+/** Garante os modelos de diarização, roda e rotula a transcrição. Lança em caso de falha. */
 async function diarizeTranscript(t: Transcript, filePath: string): Promise<Transcript> {
   const root = modelsRoot();
   await ensureModel(root, SEGMENTATION_MODEL);
@@ -977,15 +981,15 @@ async function diarizeTranscript(t: Transcript, filePath: string): Promise<Trans
   return labelTranscript(t, turns);
 }
 
-// ---- IPC: export selected clips (wizard step 3) ----
-// Output goes to <导出根目录>/<source-name>/ — 出厂是 ~/Movies/HotClip,界面可改。
+// ---- IPC: exportar os clipes escolhidos (passo 3 do assistente) ----
+// A saída vai para <raiz de exportação>/<nome-do-material>/ — de fábrica ~/Movies/HotClip, e a interface permite mudar.
 
-// 导出取消:单并发导出,一个活动控制器;cancel 会 kill 正在跑的 ffmpeg
+// Cancelar a exportação: uma exportação por vez, um controlador ativo; cancel mata o ffmpeg em execução
 const exportTasks = new ExportTaskRunner();
 ipcMain.on("hotclip:export-cancel", () => exportTasks.cancel());
 app.on("before-quit", () => exportTasks.cancel());
 
-/** 一条候选实际要用的词表:拼接片只取落在各段内的词,单段照旧按区间取。 */
+/** O vocabulário que um candidato realmente usa: o trecho colado só pega as palavras dentro de cada pedaço, e o trecho único segue pelo intervalo. */
 function clipWords(transcript: Transcript, c: HighlightCandidate): TranscriptWord[] {
   const words = sliceWords(transcript, c.startSec, c.endSec);
   return c.pieces && c.pieces.length > 1 ? wordsInPieces(words, c.pieces) : words;
@@ -1012,17 +1016,17 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
   const needWords = Boolean(opts.transcript) && exportNeedsTranscript({ ...opts, captionStyle: style ?? "none", muteTerms });
   const sourceName = sanitizeFilename(basename(filePath, extname(filePath)), "video");
   const outDir = clipOutDir(opts.outDir, app.getPath("videos"), sourceName);
-  // bundled caption font: packaged → resources/fonts, dev → repo resources/fonts
+  // fonte de legenda empacotada: no pacote → resources/fonts, em desenvolvimento → resources/fonts do repositório
   const fontsDir = app.isPackaged
     ? join(process.resourcesPath, "fonts")
     : join(app.getAppPath(), "resources", "fonts");
-  // 镜头吸附的外扩守卫:片外紧邻词的时刻(有转写才算得出;没有则 undefined,
-  // 吸附退化为「只信片内词」的保守模式)
+  // Guarda da folga do encaixe no corte de câmera: o instante da palavra vizinha de fora do trecho (só existe com transcrição;
+  // sem ela é undefined, e o encaixe cai no modo conservador de «confiar só nas palavras de dentro»)
   const allWords = opts.transcript
     ? opts.transcript.segments.flatMap((s) => s.words).sort((a, b) => a.startSec - b.startSec)
     : null;
-  // 双语字幕:导出前把所有选中切片覆盖的整句一次性批量翻译好(fail-open——
-  // 翻译失败/端点不可用只是没有译文轨,绝不拖垮导出)。
+  // Legenda bilíngue: antes de exportar, todas as frases inteiras cobertas pelos trechos escolhidos são traduzidas de uma vez
+  // (falha em aberto — se a tradução falhar ou o endpoint cair, fica só sem trilha traduzida, nunca derrubando a exportação).
   let translations: Map<number, string> | null = null;
   let translatable: ReturnType<typeof collectClipSegments> = [];
   const tr = opts.translate;
@@ -1034,9 +1038,9 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
     preparing("translation");
     translations = await optionalExportStep(abortSignal, () => translateSegments(translatable, tr.targetLang, tr.llm, chatComplete, abortSignal));
   }
-  // 发布文案(可选):一次 LLM 批量为所有切片生成标题+话题+简介(fail-open)。
+  // Texto de publicação (opcional): uma chamada de LLM gera título + hashtags + descrição para todos os trechos (falha em aberto).
   const zh = !(opts.transcript?.language ?? "zh").startsWith("en");
-  // saveWorthy:实用密度达线的候选(v0.14),发布文案转收藏/搜索导向
+  // saveWorthy: o candidato que alcança a densidade de utilidade (v0.14) leva um texto de publicação voltado para salvar/buscar
   const copySources = list.map((c) => ({ id: c.id, title: c.title, hook: c.hook, text: c.text, keywords: c.keywords, saveWorthy: Boolean(c.utility) }));
   let publishCopies: Map<number, import("@core/publish").PublishCopy> | null = null;
   const pub = opts.publishCopy;
@@ -1044,8 +1048,8 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
     preparing("publish");
     publishCopies = await optionalExportStep(abortSignal, () => generatePublishCopies(copySources, zh, pub.llm, chatComplete, abortSignal));
   }
-  // 一片多版(可选):一次 LLM 为整批切片生成差异化包装计划(fail-open——
-  // 失败只是没有变体,原版照常导出)。
+  // Várias versões de um trecho (opcional): uma chamada de LLM monta o plano de embalagem diferente para o lote inteiro (falha em aberto —
+  // na falha fica só sem variação, e a versão original é exportada como sempre).
   let variantPlans: Map<number, import("@core/variants").VariantPackaging[]> | null = null;
   const varOpt = opts.variants;
   if (varOpt?.llm?.baseUrl && varOpt.llm.model && Number(varOpt.count) >= 2) {
@@ -1060,8 +1064,8 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
     ));
   }
   preparing("media");
-  // 精准切点:主转写不是 Paraformer 档时才有意义(它自己的 CIF 时间戳已是
-  // 最优);对齐器整批复用一个,模型首次使用才下载(用户显式开了才发生)
+  // Corte preciso: só faz sentido quando a transcrição principal não é a edição Paraformer (o carimbo de tempo CIF dele já é
+  // o melhor possível); o alinhador é reaproveitado pelo lote inteiro e o modelo só é baixado no primeiro uso (o que só acontece se o usuário ligar)
   const alignWords =
     opts.preciseAlign && needWords && opts.transcript && opts.transcript.engine !== "paraformer-local"
       ? createClipAligner(modelsRoot(), abortSignal)
@@ -1071,14 +1075,14 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
       title: c.title,
       startSec: c.startSec,
       endSec: c.endSec,
-      // 多片段拼接:段清单原样带下去,段间空隙在 export 里当强制剪除区间处理
+      // Colagem de vários pedaços: a lista de pedaços segue como está, e o vão entre eles é tratado na exportação como intervalo de corte forçado
       pieces: Array.isArray(c.pieces) && c.pieces.length > 1 ? c.pieces : undefined,
       snapContext: allWords ? snapContextAround(allWords, c.startSec, c.endSec) : undefined,
       manualBounds: c.manualBounds === true,
-      // 拼接片的词表只取真正剪进去的那几段——空隙里的词既不该上字幕,
-      // 也不该参与跳剪/重录判定
+      // O vocabulário do trecho colado só pega os pedaços que de fato entraram no corte — a palavra que cai num vão
+      // não deve ir para a legenda nem participar da decisão de corte seco / regravação
       words: needWords ? clipWords(opts.transcript!, c) : undefined,
-      // 多留 1.5s 余量:导出时镜头吸附最多外扩 0.8s,夹取在 export 里做
+      // 1,5s de folga a mais: na exportação o encaixe no corte de câmera estica até 0,8s, e o aparo acontece no export
       translation: translations
         ? clipTranslationLines(translatable, translations, c.startSec - 1.5, c.endSec + 1.5)
         : undefined,
@@ -1101,25 +1105,25 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
     : baseSpecs;
   const exported = await exportClips(
     filePath,
-    // 一片多版:变体克隆原 spec(换标题/悬念句/文案/封面峰),紧跟原版排列;
-    // 全局爆点闪现没开时,最后一版再换开场结构(flash-forward 差异维度)
+    // Várias versões: a variação clona o spec original (trocando título/frase de suspense/texto/pico da capa) e fica logo depois da original;
+    // com o flash do estouro global desligado, a última versão troca também a estrutura de abertura (dimensão de diferença do flash-forward)
     exportSpecs,
     outDir,
     {
       vertical: Boolean(opts.vertical),
       captionStyle: style,
       jumpCut,
-      // 保留呼吸口(v0.14):跳剪的剪口留一口气;只在跳剪开着时有意义
+      // Manter o respiro (v0.14): o corte seco deixa um fôlego na emenda; só faz sentido com o corte seco ligado
       keepBreath: Boolean(opts.keepBreath),
-      // 说话人标签(v0.14):缺省开——词表没有说话人标注时自然不生效
+      // Etiqueta de falante (v0.14): ligada por padrão — sem marcação de falante no vocabulário ela simplesmente não aparece
       speakerLabels: opts.speakerLabels !== false,
-      // 模板受控微扰(v0.14):批量出片反量产指纹,显式开启才抖
+      // Perturbação controlada do modelo (v0.14): contra a impressão digital de produção em série; só tremula se for ligada explicitamente
       templateJitter: Boolean(opts.templateJitter),
       cleanFillers,
       cutRetakes,
       autoZoom: Boolean(opts.autoZoom),
       autoEnhance: Boolean(opts.autoEnhance),
-      // 音效/BGM/品类分档:声音设计层(见 core/sound-design.ts 与 genre.ts)
+      // Efeito sonoro / trilha / faixa da categoria: a camada de desenho de som (veja core/sound-design.ts e genre.ts)
       sfx: Boolean(opts.sfx),
       bgmPath: typeof opts.bgmPath === "string" && opts.bgmPath.trim() ? opts.bgmPath : undefined,
       genreId: typeof opts.genreId === "string" ? opts.genreId : undefined,
@@ -1127,37 +1131,37 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
       titleCard: Boolean(opts.titleCard),
       openingHook: Boolean(opts.openingHook),
       normalizeLoudness: Boolean(opts.normalizeLoudness),
-      // 修复:这四个开关此前从未传进导出层——UI 点了没效果,被 fail-open
-      // 语义掩盖(降噪/合集/横屏版/高潮前置在桌面端一直是死开关)
+      // Correção: estas quatro chaves nunca chegavam à camada de exportação — clicar na interface não fazia nada, e a
+      // semântica de falha em aberto escondia isso (redução de ruído / compilado / versão horizontal / clímax na frente eram chaves mortas no desktop)
       denoise: Boolean(opts.denoise),
       denoiseMode: opts.denoiseMode === "smart" ? "smart" : "basic",
       muteTerms: muteTerms.length > 0 ? muteTerms : undefined,
       compilation: Boolean(opts.compilation),
       coldOpen: Boolean(opts.coldOpen),
       alsoLandscape: Boolean(opts.alsoLandscape),
-      // 爆点闪现(v0.12):情绪峰画面 0.3-1s 前置,视觉钩子
+      // Flash do estouro (v0.12): a imagem do pico de emoção entra de 0,3 a 1s antes, como gancho visual
       flashForward: Boolean(opts.flashForward),
-      // 精准切点(v0.12):Paraformer 二遍对齐修正词级时间戳
+      // Corte preciso (v0.12): a segunda passada do Paraformer corrige o carimbo de tempo por palavra
       alignWords,
       faceTrack: true,
       snapToShots: true,
       brand: sanitizeBrand(opts.brand),
-      // 画质档只影响 CRF;不认的值回落 high,保持历史默认画质
+      // A faixa de qualidade só mexe no CRF; valor desconhecido volta para high, mantendo a qualidade padrão de sempre
       crf: QUALITY_CRF[opts.quality && opts.quality in QUALITY_CRF ? opts.quality : "high"],
       translateLang: translations ? opts.translate!.targetLang : undefined,
       subtitleFile: Boolean(opts.subtitleFile),
       timeline: Boolean(opts.timeline),
-      // 剪映草稿(v0.14):AI 切点进剪映时间轴,国民级「粗剪→精修」通道
+      // Rascunho do CapCut (v0.14): o corte da IA entra na linha de tempo do CapCut, o caminho popular de «corte bruto → acabamento»
       jianyingDraft: Boolean(opts.jianyingDraft),
       aigcLabel: Boolean(opts.aigcLabel),
-      // 留证包(v0.14):源片前后各 3 分钟流复制留档(授权审核新规)
+      // Pacote de comprovação (v0.14): 3 minutos antes e depois do material original, copiados em fluxo para arquivo (exigência nova das análises de autorização)
       evidencePack: Boolean(opts.evidencePack),
-      // AI 封面双档(v0.14):透传用户 LLM 档的 Atlas Key,导出层判端点可用性
+      // Capa por IA em duas edições (v0.14): a Atlas Key da edição de LLM do usuário é repassada, e a camada de exportação decide se o endpoint está disponível
       aiCover:
         opts.aiCover?.llm?.baseUrl && opts.aiCover.llm.apiKey && (opts.aiCover.tier === "volume" || opts.aiCover.tier === "premium")
           ? { tier: opts.aiCover.tier, baseUrl: opts.aiCover.llm.baseUrl, apiKey: opts.aiCover.llm.apiKey, zh }
           : undefined,
-      // 平台发布包:未知平台 id 直接过滤(不猜),空清单等于没开
+      // Pacote de publicação por plataforma: id de plataforma desconhecido é simplesmente filtrado (nada de adivinhar), e lista vazia é o mesmo que desligado
       publishPack: Array.isArray(opts.publishPack) ? validPlatformIds(opts.publishPack.filter((p): p is string => typeof p === "string")) : undefined,
       seriesPack: Boolean(opts.seriesPack),
       modelsRoot: modelsRoot(),
@@ -1207,8 +1211,8 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
   return exported;
 }));
 
-// ---- 录播监听:watch 文件夹,新录播写完落稳后自动全托管切片 ----
-// 轮询式监听(网络盘/分段写盘下 fs.watch 不可靠);已处理记录持久化,重启不重切。
+// ---- Vigia de gravações: uma pasta é observada e, quando uma gravação nova termina de ser escrita, o corte sai sozinho de ponta a ponta ----
+// A vigilância é por consulta periódica (fs.watch não é confiável em disco de rede / escrita em partes); o registro do que já foi processado é persistente, e reiniciar não corta de novo.
 
 const WATCH_POLL_MS = 15_000;
 let watchTimer: NodeJS.Timeout | null = null;
@@ -1261,8 +1265,8 @@ async function readAutomationTasks(): Promise<AutomationTask[]> {
 }
 
 /**
- * 一个录播文件的完整处理(转写→找爆点→导出),watch 文件夹与 webhook 共用。
- * 所有来源进入同一持久队列;成败都记 seen,失败只允许用户显式重试。
+ * O processamento completo de uma gravação (transcrever → achar os estouros → exportar), usado pela pasta vigiada e pelo webhook.
+ * Toda origem entra na mesma fila persistente; o sucesso e a falha vão os dois para seen, e só o usuário pode pedir a repetição explicitamente.
  */
 function makeRecordingProcessor(
   seen: SeenMap,
@@ -1389,7 +1393,7 @@ function makeRecordingProcessor(
 ipcMain.handle("hotclip:watch-start", async (event, dir: unknown, llm: unknown, outDir: unknown) => {
   if (typeof dir !== "string" || !dir.trim()) throw new Error("watch requires a directory");
   const config = llm as LlmConfig;
-  if (!config?.baseUrl || !config?.model) throw new Error("请先在设置里配置 LLM(baseUrl/model)");
+  if (!config?.baseUrl || !config?.model) throw new Error("configure o LLM (baseUrl/model) nas configurações primeiro");
   await webhookHandle?.close();
   webhookHandle = null;
   webhookInfo = null;
@@ -1451,11 +1455,11 @@ ipcMain.handle("hotclip:automation-tasks-clear", () => withAutomationTasks((task
 ipcMain.handle("hotclip:automation-task-retry", async (event, id: unknown, llm: unknown, outDir: unknown) => {
   if (typeof id !== "string") return false;
   const config = llm as LlmConfig;
-  if (!config?.baseUrl || !config?.model) throw new Error("请先在设置里配置 LLM(baseUrl/model)");
+  if (!config?.baseUrl || !config?.model) throw new Error("configure o LLM (baseUrl/model) nas configurações primeiro");
   const task = (await readAutomationTasks()).find((item) => item.id === id);
   if (!task || ["queued", "running", "completed"].includes(task.status)) return false;
   const info = await stat(task.sourcePath).catch(() => null);
-  if (!info?.isFile()) throw new Error("源文件不存在或不可读");
+  if (!info?.isFile()) throw new Error("o arquivo de origem não existe ou não pode ser lido");
   const seen = await loadWatchSeen();
   const emit = (e: Omit<WatchEvent, "at">): void => {
     if (!event.sender.isDestroyed()) event.sender.send("hotclip:watch-event", { ...e, at: Date.now() });
@@ -1465,20 +1469,20 @@ ipcMain.handle("hotclip:automation-task-retry", async (event, id: unknown, llm: 
   return true;
 });
 
-// ---- 录播 webhook:录播姬/blrec 下播回调即出片(比轮询更实时) ----
-// 只绑回环;回调给的路径必须落在用户指定的录播目录内(外部输入不可信)。
+// ---- Webhook de gravação: o aviso de fim de transmissão do gravador (recorder/blrec) já gera o corte (mais imediato que a consulta periódica) ----
+// Só o laço local é atendido; o caminho que o aviso traz precisa estar dentro da pasta de gravações indicada pelo usuário (entrada externa não é confiável).
 ipcMain.handle(
   "hotclip:webhook-start",
   async (event, dir: unknown, llm: unknown, outDir: unknown, port: unknown, token: unknown) => {
-    if (typeof dir !== "string" || !dir.trim()) throw new Error("webhook 需要指定录播目录");
+    if (typeof dir !== "string" || !dir.trim()) throw new Error("o webhook precisa de uma pasta de gravações");
     const config = llm as LlmConfig;
-    if (!config?.baseUrl || !config?.model) throw new Error("请先在设置里配置 LLM(baseUrl/model)");
+    if (!config?.baseUrl || !config?.model) throw new Error("configure o LLM (baseUrl/model) nas configurações primeiro");
     if (watchTimer) clearInterval(watchTimer);
     watchTimer = null;
     watchDirPath = null;
     const recDir = dir.trim();
     const s = await stat(recDir).catch(() => null);
-    if (!s?.isDirectory()) throw new Error(`录播目录不存在: ${recDir}`);
+    if (!s?.isDirectory()) throw new Error(`a pasta de gravações não existe: ${recDir}`);
     await webhookHandle?.close();
     webhookHandle = null;
 
@@ -1494,15 +1498,15 @@ ipcMain.handle(
       workDir: recDir,
       onLog: (message) => emit({ type: "error", file: "webhook", path: recDir, message }),
       onRecording: (e) => {
-        // 回调只说"写完了",文件是否真的可读由这里核实;重复回调靠 seen 挡掉
+        // O aviso só diz "terminei de escrever"; se o arquivo é mesmo legível quem confere é este trecho, e o aviso repetido é barrado por seen
         webhookChain = webhookChain.then(async () => {
           const st = await stat(e.path).catch(() => null);
           if (!st?.isFile()) {
-            emit({ type: "error", file: basename(e.path), path: e.path, message: "回调指向的文件不存在或不可读" });
+            emit({ type: "error", file: basename(e.path), path: e.path, message: "o arquivo apontado pelo aviso não existe ou não pode ser lido" });
             return;
           }
           const f: WatchedFile = { path: e.path, size: st.size, mtimeMs: st.mtimeMs };
-          if (isSeen(seen, f)) return; // 同一文件的重复回调(写完 + 后处理完)
+          if (isSeen(seen, f)) return; // aviso repetido do mesmo arquivo (fim da escrita + fim do pós-processamento)
           await process(f);
         });
       },
@@ -1524,7 +1528,7 @@ ipcMain.handle("hotclip:webhook-status", async () => ({
   dir: webhookInfo?.dir ?? null,
 }));
 
-// ---- 新版本检查:启动后渲染层问一次,失败静默 ----
+// ---- Verificação de versão nova: a camada de renderização pergunta uma vez na inicialização, e a falha é silenciosa ----
 let updateCache: UpdateInfo | null | undefined;
 ipcMain.handle("hotclip:check-update", async () => {
   if (updateCache !== undefined) return updateCache;
@@ -1532,13 +1536,13 @@ ipcMain.handle("hotclip:check-update", async () => {
   return updateCache;
 });
 
-// ---- 热词词表:错词→对词,转写后自动应用(桌面/MCP/录播监听共用一份) ----
+// ---- Vocabulário de termos: palavra errada → palavra certa, aplicado sozinho depois da transcrição (o desktop, o MCP e o vigia de gravações usam o mesmo) ----
 ipcMain.handle("hotclip:glossary-get", async () => loadGlossary(app.getPath("userData")));
 ipcMain.handle("hotclip:glossary-set", async (_event, entries: unknown) => {
   await saveGlossary(app.getPath("userData"), Array.isArray(entries) ? entries : []);
 });
 
-// 外链只放行本项目 GitHub(防任意 URL 注入系统浏览器)
+// Link externo só é liberado para o GitHub deste projeto (contra injeção de URL arbitrária no navegador do sistema)
 ipcMain.on("hotclip:open-url", (_event, url: unknown) => {
   if (typeof url === "string" && url.startsWith("https://github.com/xixihhhh/hotclip")) {
     void shell.openExternal(url);

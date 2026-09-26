@@ -1,10 +1,10 @@
 import { ASR_CATALOG } from "../../../shared/asr-catalog";
 /**
- * API provider: resolves the active HotClipApi implementation.
+ * Provedor de API: resolve qual implementação de HotClipApi está ativa.
  *
- * - Inside Electron the preload script exposes `window.hotclip` (IPC-backed).
- * - In a plain browser (design preview today, web platform later) we fall back
- *   to a mock so the full UI stays renderable and testable without Electron.
+ * - Dentro do Electron, o script de preload expõe `window.hotclip` (apoiado em IPC).
+ * - Num navegador comum (hoje a pré-visualização do design, amanhã a plataforma web) a
+ *   saída é um mock, para a interface inteira continuar renderizável e testável sem Electron.
  */
 import type {
   HotClipApi,
@@ -29,7 +29,7 @@ import { parseSubtitleTranscript } from "../../../shared/subtitle-import";
 import { clipDurationSec } from "../../../shared/pieces";
 
 const MOCK_MEDIA: MediaInfo = {
-  durationSec: 5427.4, // 1:30:27 — a typical podcast episode
+  durationSec: 5427.4, // 1:30:27 — a duração típica de um episódio de podcast
   hasVideo: true,
   hasAudio: true,
   width: 1920,
@@ -41,31 +41,32 @@ const MOCK_MEDIA: MediaInfo = {
 };
 
 const MOCK_SENTENCES = [
-  "大家好，欢迎来到我的直播间。",
-  "今天给大家带来一款超级好用的纸巾，三层加厚，湿水不破。",
-  "很多朋友问我，这个和超市里十几块的有什么区别。",
-  "区别就在这里——你看这个吸水速度，直接倒半杯水都不带渗的。",
-  "而且它是整箱装，算下来一包才两块多，真的闭眼入。",
-  "喜欢的朋友点击下方小黄车，今天下单还送同款便携装。",
+  "Oi, gente, bem-vindo à minha live.",
+  "Hoje eu trouxe um papel toalha muito bom, três camadas e não rasga molhado.",
+  "Muita gente me pergunta qual é a diferença entre esse e o de dez reais do mercado.",
+  "A diferença é essa aqui: olha a velocidade de absorção, eu jogo meio copo de água e não passa nada.",
+  "E vem a caixa fechada, sai por menos de três reais o pacote, pode comprar sem medo.",
+  "Quem gostou clica no link aqui embaixo, quem pedir hoje leva a versão de bolso de brinde.",
 ];
 
 function mockTranscript(): Transcript {
   let t = 4.2;
   const segments = MOCK_SENTENCES.map((text, i) => {
     const dur = 2.2 + text.length * 0.14;
-    const words = Array.from(text).map((ch, j) => ({
-      text: ch,
-      startSec: t + (dur * j) / text.length,
-      endSec: t + (dur * (j + 1)) / text.length,
-      // Keep one deterministic estimated-timing sentence so browser QA can
-      // exercise the focused-review UI; all other mock words emulate native ASR.
+    const pieces = text.split(" ");
+    const words = pieces.map((piece, j) => ({
+      text: piece,
+      startSec: t + (dur * j) / pieces.length,
+      endSec: t + (dur * (j + 1)) / pieces.length,
+      // Uma frase com tempo estimado, sempre a mesma, para o QA no navegador exercitar a
+      // interface de revisão dirigida; as outras palavras do mock imitam o ASR nativo.
       timingSource: i === 1 ? "edited" as const : "native" as const,
     }));
     const seg = { id: i + 1, startSec: t, endSec: t + dur, text, words };
     t += dur + 0.6;
     return seg;
   });
-  return { language: "zh", segments, engine: "mock", durationSec: MOCK_MEDIA.durationSec };
+  return { language: "pt", segments, engine: "mock", durationSec: MOCK_MEDIA.durationSec };
 }
 
 type ProgressCb = (p: TranscribeProgressEvent) => void;
@@ -80,7 +81,7 @@ const emitExport = (p: ExportProgressEvent): void => exportListeners.forEach((cb
 const urlImportListeners = new Set<(p: UrlImportProgressEvent) => void>();
 const emitUrlImport = (p: UrlImportProgressEvent): void => urlImportListeners.forEach((cb) => cb(p));
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-// 录播监听演示:启动后按剧本吐一轮事件
+// Demonstração do vigia de gravações: ao ligar, uma rodada de eventos sai conforme o roteiro
 type WatchCb = (e: WatchEvent) => void;
 const watchListeners = new Set<WatchCb>();
 let watchRunning = false;
@@ -96,15 +97,15 @@ let mockActiveProjectId: string | null = null;
 let mockProjectSerial = 0;
 let mockProjects: Array<{ summary: ProjectSummary; checkpoint: SessionCheckpoint }> = [];
 let mockAutomationTasks: AutomationTask[] = [
-  { id: "demo-done", sourcePath: "/demo/访谈回放.mp4", sourceName: "访谈回放.mp4", sourceSize: 1_200_000_000, sourceMtimeMs: 1, trigger: "folder", status: "completed", stage: "exporting", attempts: 1, clips: 5, outDir: "/demo/访谈回放-hotclip", createdAt: "2026-08-23T02:10:00Z", updatedAt: "2026-08-23T02:18:00Z" },
-  { id: "demo-failed", sourcePath: "/demo/断流回放.flv", sourceName: "断流回放.flv", sourceSize: 420_000_000, sourceMtimeMs: 2, trigger: "webhook", status: "failed", stage: "transcribing", attempts: 1, error: "媒体文件尾部不完整", createdAt: "2026-08-22T12:00:00Z", updatedAt: "2026-08-22T12:01:00Z" },
+  { id: "demo-done", sourcePath: "/demo/entrevista-gravada.mp4", sourceName: "entrevista-gravada.mp4", sourceSize: 1_200_000_000, sourceMtimeMs: 1, trigger: "folder", status: "completed", stage: "exporting", attempts: 1, clips: 5, outDir: "/demo/entrevista-gravada-hotclip", createdAt: "2026-08-23T02:10:00Z", updatedAt: "2026-08-23T02:18:00Z" },
+  { id: "demo-failed", sourcePath: "/demo/live-que-caiu.flv", sourceName: "live-que-caiu.flv", sourceSize: 420_000_000, sourceMtimeMs: 2, trigger: "webhook", status: "failed", stage: "transcribing", attempts: 1, error: "o fim do arquivo de mídia está incompleto", createdAt: "2026-08-22T12:00:00Z", updatedAt: "2026-08-22T12:01:00Z" },
 ];
 let mockPerformanceEntries: PerformanceEntry[] = [
-  { title: "三分钟讲清直播间投流误区", hook: "投流越多,为什么人反而越少?", platform: "bilibili", views: 128_000, likes: 8_240, comments: 611, shares: 1_420, saves: 3_180, durationSec: 43, keywords: ["投流", "直播运营"], importedAt: "2026-08-20T00:00:00Z" },
-  { contentId: "hc_exp_control", title: "纸巾吸水实测", hook: "半杯水倒下去会发生什么", platform: "douyin", views: 86_000, likes: 5_600, comments: 288, shares: 932, saves: 1_410, durationSec: 24, keywords: ["实测", "生活用品"], publishedAt: "2026-08-21T08:00:00Z", importedAt: "2026-08-22T00:00:00Z" },
-  { contentId: "hc_exp_challenger", title: "两块钱的纸巾能有多离谱", hook: "别看价格,先看这半杯水", platform: "douyin", views: 100_000, likes: 12_000, comments: 500, shares: 1_600, saves: 2_500, durationSec: 24, keywords: ["实测", "生活用品"], publishedAt: "2026-08-21T09:00:00Z", importedAt: "2026-08-22T00:00:00Z" },
-  { title: "主播闲聊片段", platform: "bilibili", views: 2_100, likes: 33, comments: 4, shares: 1, saves: 2, durationSec: 58, importedAt: "2026-08-22T00:00:00Z" },
-  { title: "今天给大家介绍一下", platform: "douyin", views: 1_280, likes: 12, comments: 1, shares: 0, saves: 1, durationSec: 37, importedAt: "2026-08-22T00:00:00Z" },
+  { title: "três minutos para entender os erros de impulsionamento na live", hook: "quanto mais eu impulsiono, por que aparece menos gente?", platform: "youtube", views: 128_000, likes: 8_240, comments: 611, shares: 1_420, saves: 3_180, durationSec: 43, keywords: ["impulsionamento", "gestão de live"], importedAt: "2026-08-20T00:00:00Z" },
+  { contentId: "hc_exp_control", title: "teste de absorção do papel toalha", hook: "o que acontece ao jogar meio copo de água", platform: "tiktok", views: 86_000, likes: 5_600, comments: 288, shares: 932, saves: 1_410, durationSec: 24, keywords: ["teste real", "casa"], publishedAt: "2026-08-21T08:00:00Z", importedAt: "2026-08-22T00:00:00Z" },
+  { contentId: "hc_exp_challenger", title: "o papel toalha de três reais é absurdo", hook: "esquece o preço, olha esse meio copo de água", platform: "tiktok", views: 100_000, likes: 12_000, comments: 500, shares: 1_600, saves: 2_500, durationSec: 24, keywords: ["teste real", "casa"], publishedAt: "2026-08-21T09:00:00Z", importedAt: "2026-08-22T00:00:00Z" },
+  { title: "trecho de conversa solta da live", platform: "youtube", views: 2_100, likes: 33, comments: 4, shares: 1, saves: 2, durationSec: 58, importedAt: "2026-08-22T00:00:00Z" },
+  { title: "hoje eu vou apresentar para vocês", platform: "tiktok", views: 1_280, likes: 12, comments: 1, shares: 0, saves: 1, durationSec: 37, importedAt: "2026-08-22T00:00:00Z" },
 ];
 
 function mockPerformanceSummary(): PerformanceSummary {
@@ -127,10 +128,10 @@ function mockPerformanceSummary(): PerformanceSummary {
       awaitingMetrics: experimentMeasured ? 1 : 3,
       measured: experimentMeasured ? 3 : 1,
       recent: [
-        { contentId: "hc_exp_challenger", filePath: "/demo/纸巾-v2.mp4", title: "两块钱的纸巾能有多离谱", platform: "douyin", durationSec: 24, exportedAt: "2026-08-21T07:00:00Z", metricsImportedAt: experimentMeasured ? "2026-08-22T00:00:00Z" : undefined, experimentId: "hcx_demo", variantIndex: 2, variantTotal: 2, variantRole: "challenger", experimentDimensions: ["packaging"] },
-        { contentId: "hc_exp_control", filePath: "/demo/纸巾-v1.mp4", title: "纸巾吸水实测", platform: "douyin", durationSec: 24, exportedAt: "2026-08-21T07:00:00Z", metricsImportedAt: experimentMeasured ? "2026-08-22T00:00:00Z" : undefined, experimentId: "hcx_demo", variantIndex: 1, variantTotal: 2, variantRole: "control", experimentDimensions: ["packaging"] },
-        { contentId: "hc_demo1", filePath: "/demo/省钱教程.mp4", title: "三步省下订阅费", platform: "douyin", durationSec: 32, exportedAt: "2026-08-24T08:00:00Z" },
-        { contentId: "hc_demo2", filePath: "/demo/设置技巧.mp4", title: "九成人开错的设置", platform: "xiaohongshu", durationSec: 28, exportedAt: "2026-08-24T07:00:00Z", metricsImportedAt: "2026-08-24T09:00:00Z" },
+        { contentId: "hc_exp_challenger", filePath: "/demo/papel-toalha-v2.mp4", title: "o papel toalha de três reais é absurdo", platform: "douyin", durationSec: 24, exportedAt: "2026-08-21T07:00:00Z", metricsImportedAt: experimentMeasured ? "2026-08-22T00:00:00Z" : undefined, experimentId: "hcx_demo", variantIndex: 2, variantTotal: 2, variantRole: "challenger", experimentDimensions: ["packaging"] },
+        { contentId: "hc_exp_control", filePath: "/demo/papel-toalha-v1.mp4", title: "teste de absorção do papel toalha", platform: "douyin", durationSec: 24, exportedAt: "2026-08-21T07:00:00Z", metricsImportedAt: experimentMeasured ? "2026-08-22T00:00:00Z" : undefined, experimentId: "hcx_demo", variantIndex: 1, variantTotal: 2, variantRole: "control", experimentDimensions: ["packaging"] },
+        { contentId: "hc_demo1", filePath: "/demo/como-economizar.mp4", title: "três passos para cortar a assinatura", platform: "tiktok", durationSec: 32, exportedAt: "2026-08-24T08:00:00Z" },
+        { contentId: "hc_demo2", filePath: "/demo/dica-de-ajuste.mp4", title: "o ajuste que nove de dez pessoas erram", platform: "instagram", durationSec: 28, exportedAt: "2026-08-24T07:00:00Z", metricsImportedAt: "2026-08-24T09:00:00Z" },
       ],
     },
     experiments: {
@@ -148,14 +149,14 @@ function mockPerformanceSummary(): PerformanceSummary {
         createdAt: "2026-08-21T07:00:00Z",
         ...(experimentMeasured ? { leaderContentId: "hc_exp_challenger", relativeLiftPct: 64.8, absoluteLiftPoints: 9.95 } : {}),
         variants: [
-          { contentId: "hc_exp_control", title: "纸巾吸水实测", index: 1, role: "control", ...(control ? { views: control.views, weightedEngagementRate: 15.35, publishedAt: control.publishedAt } : {}) },
-          { contentId: "hc_exp_challenger", title: "两块钱的纸巾能有多离谱", index: 2, role: "challenger", ...(challenger ? { views: challenger.views, weightedEngagementRate: 25.3, publishedAt: challenger.publishedAt } : {}) },
+          { contentId: "hc_exp_control", title: "teste de absorção do papel toalha", index: 1, role: "control", ...(control ? { views: control.views, weightedEngagementRate: 15.35, publishedAt: control.publishedAt } : {}) },
+          { contentId: "hc_exp_challenger", title: "o papel toalha de três reais é absurdo", index: 2, role: "challenger", ...(challenger ? { views: challenger.views, weightedEngagementRate: 25.3, publishedAt: challenger.publishedAt } : {}) },
         ],
       }],
     },
   };
 }
-// 浏览器预览的词表持久化:localStorage 模拟主进程的 glossary.json
+// Persistência do vocabulário na pré-visualização do navegador: o localStorage faz o papel do glossary.json do processo principal
 const GLOSSARY_LS_KEY = "hotclip-glossary";
 function mockGlossaryLoad(): GlossaryEntry[] {
   try {
@@ -165,11 +166,11 @@ function mockGlossaryLoad(): GlossaryEntry[] {
   }
 }
 
-/** Browser-mode mock: deterministic fake data with realistic staged latency. */
+/** Mock do modo navegador: dados falsos determinísticos, com uma latência encenada realista. */
 const browserMock: HotClipApi = {
   async selectMedia() {
     await sleep(300);
-    return "/demo/我的直播回放-2026-07-04.mp4";
+    return "/demo/minha-live-2026-07-04.mp4";
   },
   async importMediaUrl() {
     mockUrlImportCancelled = false;
@@ -183,7 +184,7 @@ const browserMock: HotClipApi = {
     emitUrlImport({ stage: "merging" });
     await sleep(300);
     emitUrlImport({ stage: "done", fraction: 1 });
-    return { filePath: "/demo/网络导入-创作者访谈.mp4" };
+    return { filePath: "/demo/importado-da-web-entrevista.mp4" };
   },
   onUrlImportProgress(cb) {
     urlImportListeners.add(cb);
@@ -339,7 +340,7 @@ const browserMock: HotClipApi = {
     await sleep(250);
     if (mockSpeechCancelled) throw new Error("speech:cancelled");
     mockSpeechCompleted = 0;
-    // 与主进程同款:转写结果返回前自动应用热词词表
+    // Igual ao processo principal: o vocabulário de termos é aplicado antes de devolver a transcrição
     return applyGlossaryToTranscript(mockTranscript(), mockGlossaryLoad()).transcript;
   },
   async importSubtitle(_filePath, text, format) {
@@ -357,7 +358,7 @@ const browserMock: HotClipApi = {
     const results = [];
     for (let i = 0; i < clips.length; i++) {
       if (mockExportCancelled) throw new Error("export cancelled");
-      // 演示切片内实时编码进度
+      // Demonstra o progresso real da codificação dentro de cada trecho
       for (let f = 0; f <= 1; f += 0.25) {
         emitExport({ current: i + 1, total: clips.length, clipId: clips[i].id, stage: "cutting", fraction: f });
         await sleep(220);
@@ -368,7 +369,7 @@ const browserMock: HotClipApi = {
       results.push({
         id: clips[i].id,
         title: clips[i].title,
-        path: `/Movies/HotClip/我的直播回放-2026-07-04/0${i + 1}-${clips[i].title}.mp4`,
+        path: `/Movies/HotClip/minha-live-2026-07-04/0${i + 1}-${clips[i].title}.mp4`,
         sizeBytes: 8_400_000 + i * 1_700_000,
         durationSec: clipDurationSec(clips[i]),
       });
@@ -376,24 +377,24 @@ const browserMock: HotClipApi = {
     emitExport({ current: clips.length, total: clips.length, clipId: clips.at(-1)?.id ?? 0, stage: "finalizing" });
     await sleep(600);
     if (mockExportCancelled) throw new Error("export cancelled");
-    // 与主进程同款:精华合集按时间序流复制拼接,附章节时间戳
+    // Igual ao processo principal: o compilado é colado por cópia de fluxo na ordem do tempo, com o carimbo de cada capítulo
     if (options?.compilation && results.length > 1) {
       results.push({
         id: 0,
-        title: "精华合集",
-        path: "/Movies/HotClip/我的直播回放-2026-07-04/00-精华合集.mp4",
+        title: "Compilado dos melhores momentos",
+        path: "/Movies/HotClip/minha-live-2026-07-04/00-compilado.mp4",
         sizeBytes: results.reduce((a, r) => a + r.sizeBytes, 0),
         durationSec: results.reduce((a, r) => a + r.durationSec, 0),
       });
     }
-    // 多画幅:横屏原画幅版落「横屏/」子目录(演示条目)
+    // Vários enquadramentos: a versão horizontal original vai para a subpasta «horizontal/» (item de demonstração)
     if (options?.alsoLandscape && options?.vertical) {
       for (const r of results.filter((x) => x.id > 0)) {
         results.push({
           ...r,
           id: -r.id - 1,
-          title: `${r.title}(横屏)`,
-          path: r.path.replace("/我的直播回放-2026-07-04/", "/我的直播回放-2026-07-04/横屏/"),
+          title: `${r.title} (horizontal)`,
+          path: r.path.replace("/minha-live-2026-07-04/", "/minha-live-2026-07-04/horizontal/"),
         });
       }
     }
@@ -407,33 +408,33 @@ const browserMock: HotClipApi = {
     mockExportCancelled = true;
   },
   revealClip() {
-    /* browser mock: nothing to reveal */
+    /* mock do navegador: não há nada para revelar */
   },
-  // 浏览器预览拿不到本地文件——审阅台的视频区退化为提示,时间轴仍可用
+  // A pré-visualização do navegador não alcança arquivo local — a área de vídeo da mesa de revisão vira um aviso, e a linha de tempo continua funcionando
   mediaUrl: () => "",
   async selectImage() {
     await sleep(300);
-    return "/demo/brand-logo.png"; // 浏览器预览:返回假路径让 UI 流程可走通
+    return "/demo/brand-logo.png"; // pré-visualização do navegador: um caminho falso volta para o fluxo da interface poder ser percorrido
   },
   async selectAudio() {
     await sleep(300);
-    return "/demo/bgm.mp3"; // 浏览器预览:返回假路径让 UI 流程可走通
+    return "/demo/bgm.mp3"; // pré-visualização do navegador: um caminho falso volta para o fluxo da interface poder ser percorrido
   },
-  // AI 配乐:浏览器预览模拟生成延迟后返回假路径(真实生成走 Atlas 云端)
+  // Trilha por IA: a pré-visualização do navegador simula o tempo de geração e devolve um caminho falso (a geração real passa pela nuvem Atlas)
   async generateBgm() {
     await sleep(1800);
     return "/demo/ai-bgm-auto-mock.mp3";
   },
-  // 浏览器预览拿不到本地帧——画面速览退化为不展示
+  // A pré-visualização do navegador não alcança quadro local — a olhada rápida na imagem simplesmente não aparece
   async contactSheet() {
     return "";
   },
-  // 浏览器预览没有主进程可以代发请求——给一份演示清单,让选模型的 UI 走得通
+  // A pré-visualização do navegador não tem processo principal para fazer o pedido — uma lista de demonstração faz a interface de escolha de modelo funcionar
   async listLlmModels() {
     await sleep(400);
     return { ids: ["deepseek-v4-flash", "deepseek-v4-pro", "qwen-plus", "glm-4.7"], error: null };
   },
-  // 浏览器预览没有本地偏好档——记录静默丢弃
+  // A pré-visualização do navegador não tem arquivo de preferências local — o registro é descartado em silêncio
   async recordReview() {},
   async performanceGet() {
     await sleep(180);
@@ -444,13 +445,13 @@ const browserMock: HotClipApi = {
     const at = new Date().toISOString();
     mockPerformanceEntries = [
       ...mockPerformanceEntries,
-      { title: "新导入的高收藏教程", hook: "这个设置九成人都开错了", platform: "xiaohongshu", views: 45_000, likes: 3_600, comments: 190, shares: 740, saves: 2_900, durationSec: 31, keywords: ["教程", "设置"], importedAt: at },
+      { title: "tutorial recém-importado, muito salvo", hook: "esse ajuste nove de dez pessoas erram", platform: "instagram", views: 45_000, likes: 3_600, comments: 190, shares: 740, saves: 2_900, durationSec: 31, keywords: ["tutorial", "ajuste"], importedAt: at },
     ];
     return { imported: 1, skipped: 0, total: mockPerformanceEntries.length, correlation: { matched: 1, unmatched: 0, ambiguous: 0, unmatchedTitles: [], ambiguousTitles: [] } };
   },
   async performanceTemplate() {
     await sleep(350);
-    return { count: 2, path: "/demo/HotClip-表现数据回填.csv" };
+    return { count: 2, path: "/demo/HotClip-dados-de-desempenho.csv" };
   },
   async performanceClear() {
     await sleep(250);
@@ -464,12 +465,12 @@ const browserMock: HotClipApi = {
       checks: [
         { id: "binary:ffmpeg", name: "ffmpeg", status: "ok" as const, detail: "ffmpeg 7.1 bundled" },
         { id: "binary:ffprobe", name: "ffprobe", status: "ok" as const, detail: "ffprobe 7.1 bundled" },
-        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "warn" as const, detail: "未安装(约 1.1GB)", fix: "可预先下载,也可首次转写时自动下载" },
-        { id: "disk", name: "磁盘空间", status: "ok" as const, detail: "可用 86.4GB" },
-        { id: "llm", name: "LLM 端点", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "未配置" },
-        { id: "cache", name: "转写缓存", status: "ok" as const, detail: "248MB" },
-        { id: "render-cache", name: "基础渲染缓存", status: "ok" as const, detail: "386MB(重复导出直接复用,自动限制为 1GB)" },
-        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "多模态证据索引", status: "ok" as const, detail: locale === "en" ? "18MB (motion/shot/vision evidence reused across jobs; automatically limited to 64MB)" : "18MB(运动/镜头/视觉证据跨任务复用,自动限制为 64MB)" },
+        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "warn" as const, detail: "não instalado (cerca de 1,1GB)", fix: "pode ser baixado antes, ou sozinho na primeira transcrição" },
+        { id: "disk", name: "espaço em disco", status: "ok" as const, detail: "86,4GB livres" },
+        { id: "llm", name: "endpoint de LLM", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "não configurado" },
+        { id: "cache", name: "cache de transcrição", status: "ok" as const, detail: "248MB" },
+        { id: "render-cache", name: "cache da renderização base", status: "ok" as const, detail: "386MB (a exportação repetida reaproveita direto; o limite automático é 1GB)" },
+        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "índice de evidências multimodais", status: "ok" as const, detail: locale === "en" ? "18MB (motion/shot/vision evidence reused across jobs; automatically limited to 64MB)" : "18MB (as evidências de movimento/corte/imagem são reaproveitadas entre tarefas; o limite automático é 64MB)" },
       ],
     };
   },
@@ -481,12 +482,12 @@ const browserMock: HotClipApi = {
       checks: [
         { id: "binary:ffmpeg", name: "ffmpeg", status: "ok" as const, detail: "ffmpeg 7.1 bundled" },
         { id: "binary:ffprobe", name: "ffprobe", status: "ok" as const, detail: "ffprobe 7.1 bundled" },
-        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "warn" as const, detail: "未安装(约 1.1GB)", fix: "可预先下载,也可首次转写时自动下载" },
-        { id: "disk", name: "磁盘空间", status: "ok" as const, detail: "可用 86.8GB" },
-        { id: "llm", name: "LLM 端点", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "未配置" },
-        { id: "cache", name: "转写缓存", status: "ok" as const, detail: "248MB" },
-        { id: "render-cache", name: "基础渲染缓存", status: "ok" as const, detail: "空(导出后按需积累)" },
-        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "多模态证据索引", status: "ok" as const, detail: locale === "en" ? "18MB (motion/shot/vision evidence reused across jobs; automatically limited to 64MB)" : "18MB(运动/镜头/视觉证据跨任务复用,自动限制为 64MB)" },
+        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "warn" as const, detail: "não instalado (cerca de 1,1GB)", fix: "pode ser baixado antes, ou sozinho na primeira transcrição" },
+        { id: "disk", name: "espaço em disco", status: "ok" as const, detail: "86,8GB livres" },
+        { id: "llm", name: "endpoint de LLM", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "não configurado" },
+        { id: "cache", name: "cache de transcrição", status: "ok" as const, detail: "248MB" },
+        { id: "render-cache", name: "cache da renderização base", status: "ok" as const, detail: "vazio (vai se formando depois das exportações)" },
+        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "índice de evidências multimodais", status: "ok" as const, detail: locale === "en" ? "18MB (motion/shot/vision evidence reused across jobs; automatically limited to 64MB)" : "18MB (as evidências de movimento/corte/imagem são reaproveitadas entre tarefas; o limite automático é 64MB)" },
       ],
     };
   },
@@ -498,12 +499,12 @@ const browserMock: HotClipApi = {
       checks: [
         { id: "binary:ffmpeg", name: "ffmpeg", status: "ok" as const, detail: "ffmpeg 7.1 bundled" },
         { id: "binary:ffprobe", name: "ffprobe", status: "ok" as const, detail: "ffprobe 7.1 bundled" },
-        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "warn" as const, detail: "未安装(约 1.1GB)", fix: "可预先下载,也可首次转写时自动下载" },
-        { id: "disk", name: "磁盘空间", status: "ok" as const, detail: "可用 86.8GB" },
-        { id: "llm", name: "LLM 端点", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "未配置" },
-        { id: "cache", name: "转写缓存", status: "ok" as const, detail: "248MB" },
-        { id: "render-cache", name: "基础渲染缓存", status: "ok" as const, detail: "386MB(重复导出直接复用,自动限制为 1GB)" },
-        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "多模态证据索引", status: "ok" as const, detail: locale === "en" ? "Empty (builds as sources are analyzed)" : "空(分析素材后按需积累)" },
+        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "warn" as const, detail: "não instalado (cerca de 1,1GB)", fix: "pode ser baixado antes, ou sozinho na primeira transcrição" },
+        { id: "disk", name: "espaço em disco", status: "ok" as const, detail: "86,8GB livres" },
+        { id: "llm", name: "endpoint de LLM", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "não configurado" },
+        { id: "cache", name: "cache de transcrição", status: "ok" as const, detail: "248MB" },
+        { id: "render-cache", name: "cache da renderização base", status: "ok" as const, detail: "386MB (a exportação repetida reaproveita direto; o limite automático é 1GB)" },
+        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "índice de evidências multimodais", status: "ok" as const, detail: locale === "en" ? "Empty (builds as sources are analyzed)" : "vazio (vai se formando conforme o material é analisado)" },
       ],
     };
   },
@@ -515,12 +516,12 @@ const browserMock: HotClipApi = {
       checks: [
         { id: "binary:ffmpeg", name: "ffmpeg", status: "ok" as const, detail: "ffmpeg 7.1 bundled" },
         { id: "binary:ffprobe", name: "ffprobe", status: "ok" as const, detail: "ffprobe 7.1 bundled" },
-        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "ok" as const, detail: "已安装" },
-        { id: "disk", name: "磁盘空间", status: "ok" as const, detail: "可用 85.3GB" },
-        { id: "llm", name: "LLM 端点", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "未配置" },
-        { id: "cache", name: "转写缓存", status: "ok" as const, detail: "248MB" },
-        { id: "render-cache", name: "基础渲染缓存", status: "ok" as const, detail: "386MB(重复导出直接复用,自动限制为 1GB)" },
-        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "多模态证据索引", status: "ok" as const, detail: locale === "en" ? "18MB (motion/shot/vision evidence reused across jobs; automatically limited to 64MB)" : "18MB(运动/镜头/视觉证据跨任务复用,自动限制为 64MB)" },
+        { id: "model:sensevoice-2024-07-17", name: "SenseVoice", status: "ok" as const, detail: "instalado" },
+        { id: "disk", name: "espaço em disco", status: "ok" as const, detail: "85,3GB livres" },
+        { id: "llm", name: "endpoint de LLM", status: llm ? "ok" as const : "warn" as const, detail: llm ? `${llm.model} endpoint reachable` : "não configurado" },
+        { id: "cache", name: "cache de transcrição", status: "ok" as const, detail: "248MB" },
+        { id: "render-cache", name: "cache da renderização base", status: "ok" as const, detail: "386MB (a exportação repetida reaproveita direto; o limite automático é 1GB)" },
+        { id: "evidence-index", name: locale === "en" ? "Multimodal evidence index" : "índice de evidências multimodais", status: "ok" as const, detail: locale === "en" ? "18MB (motion/shot/vision evidence reused across jobs; automatically limited to 64MB)" : "18MB (as evidências de movimento/corte/imagem são reaproveitadas entre tarefas; o limite automático é 64MB)" },
       ],
     };
   },
@@ -533,7 +534,7 @@ const browserMock: HotClipApi = {
     await sleep(250);
     const hopSec = 1 / 30;
     const n = Math.max(0, Math.floor((endSec - startSec) / hopSec));
-    // 确定性伪波形:说话/停顿交替的包络,让浏览器预览看得出时间轴长什么样
+    // Forma de onda falsa determinística: um envelope que alterna fala e pausa, para a pré-visualização do navegador mostrar como a linha de tempo se parece
     const values = Array.from({ length: n }, (_, i) => {
       const t = startSec + i * hopSec;
       const talking = (Math.sin(t * 0.9) + 1) / 2 > 0.25 ? 1 : 0.1;
@@ -542,7 +543,7 @@ const browserMock: HotClipApi = {
     });
     return { values, startSec, hopSec };
   },
-  // 浏览器预览:确定性伪曲线——几处高斯峰叠底噪,时间轴的样子完整可看
+  // Pré-visualização do navegador: curva falsa determinística — alguns picos gaussianos sobre um ruído de fundo, e a linha de tempo aparece inteira
   async timelineData(_filePath, durationSec) {
     await sleep(400);
     const bins = Math.min(720, Math.max(120, Math.round(durationSec / 5)));
@@ -565,12 +566,12 @@ const browserMock: HotClipApi = {
   },
   async selectDir() {
     await sleep(300);
-    return "/demo/录播文件夹";
+    return "/demo/pasta-de-gravacoes";
   },
   async defaultOutDir() {
     return "/Movies/HotClip";
   },
-  // 浏览器预览没有真模型目录:给一份形态真实的清点结果,设置页照样能看
+  // A pré-visualização do navegador não tem pasta de modelos de verdade: um inventário de forma realista faz a página de configurações continuar legível
   async modelsInfo() {
     await sleep(200);
     const root = "/Library/Application Support/hotclip/models";
@@ -595,20 +596,20 @@ const browserMock: HotClipApi = {
     return dir;
   },
   openFolder() {
-    /* browser mock: no file manager to open */
+    /* mock do navegador: não há gerenciador de arquivos para abrir */
   },
   async watchStart(dir) {
     watchRunning = true;
     watchDirDemo = dir;
-    // 演示剧本:一条新录播被发现 → 转写 → 找爆点 → 出片完成
-    const file = "直播回放-2026-07-10.flv";
+    // Roteiro da demonstração: uma gravação nova é descoberta → transcrição → busca dos estouros → corte pronto
+    const file = "live-gravada-2026-07-10.flv";
     const path = `${dir}/${file}`;
     const script: Array<[Omit<WatchEvent, "at">, number]> = [
       [{ type: "found", file, path }, 1200],
       [{ type: "transcribing", file, path }, 2600],
       [{ type: "detecting", file, path }, 5200],
       [{ type: "exporting", file, path }, 7400],
-      [{ type: "done", file, path, clips: 4, outDir: `${dir}/直播回放-2026-07-10-hotclip` }, 9600],
+      [{ type: "done", file, path, clips: 4, outDir: `${dir}/live-gravada-2026-07-10-hotclip` }, 9600],
     ];
     for (const [e, delay] of script) setTimeout(() => emitWatch(e), delay);
   },
@@ -619,7 +620,7 @@ const browserMock: HotClipApi = {
   async watchStatus() {
     return { running: watchRunning, dir: watchDirDemo };
   },
-  // 浏览器预览起不了真的 HTTP 端点,复用同一套演示剧本(UI 流程能完整走通)
+  // A pré-visualização do navegador não sobe um endpoint HTTP de verdade, então o mesmo roteiro de demonstração é reaproveitado (o fluxo da interface roda inteiro)
   async webhookStart(dir, llm, outDir, port) {
     await this.watchStart(dir, llm, outDir);
     webhookPortDemo = port ?? 17650;
@@ -638,7 +639,7 @@ const browserMock: HotClipApi = {
     return () => watchListeners.delete(cb);
   },
   async checkUpdate() {
-    return null; // 浏览器预览不做更新提示
+    return null; // a pré-visualização do navegador não avisa de atualização
   },
   async glossaryGet() {
     await sleep(80);
@@ -652,15 +653,15 @@ const browserMock: HotClipApi = {
   },
   async detectHighlights(transcript, _llm, _filePath, diarize, prefilter, vision, _length, products, referencePath, _genre, _brief, scan): Promise<DetectHighlightsResult> {
     await sleep(1500);
-    // 浏览器预览:给了参考视频就演示一份画像
+    // Pré-visualização do navegador: se um vídeo de referência foi dado, um perfil de demonstração aparece
     const reference = referencePath
       ? { durationSec: 42, speechRate: 5.2, avgSentenceLen: 14, cutsPerMin: 18, hookLine: "Você acredita que foi a mesma pessoa que editou isso?", charUnits: false }
       : undefined;
-    // 浏览器预览:开了本地初筛就演示一份漏斗统计
+    // Pré-visualização do navegador: com a triagem local ligada, uma estatística de funil aparece
     const funnel = prefilter
       ? { totalSegments: 220, keptSegments: 41, totalChars: 12800, keptChars: 2400 }
       : undefined;
-    // 开了视觉信号就演示一份抽帧统计;开了全场扫描给扫描档的量级
+    // Com o sinal visual ligado aparece uma estatística de amostragem de quadros; com a varredura completa, a ordem de grandeza da edição de varredura
     const visionStats = vision
       ? scan
         ? {
@@ -670,17 +671,17 @@ const browserMock: HotClipApi = {
             fullScan: true,
             notedMoments: 14,
             notes: [
-              { t: 48, energy: 8, note: "纸巾吸水实验特写", visibleText: ["三层加厚", "¥2.9"] },
-              { t: 126, energy: 7, note: "价格对比画面", visibleText: ["十几块 vs 两块多"] },
+              { t: 48, energy: 8, note: "close no teste de absorção do papel toalha", visibleText: ["três camadas", "R$ 2,90"] },
+              { t: 126, energy: 7, note: "imagem da comparação de preço", visibleText: ["dez reais vs três reais"] },
             ],
           }
         : { framesTotal: 20, framesScored: 18, peakCount: 3 }
       : undefined;
-    // 表情峰值信号零配置自动跑,浏览器预览恒给演示统计
+    // O sinal de pico de expressão roda sozinho, sem configuração, e a pré-visualização do navegador sempre entrega a estatística de demonstração
     const emotionStats = { framesTotal: 96, facesScored: 74, peakCount: 2 };
-    // 弹幕信号:演示"录播旁发现了同名弹幕 XML"的情况
+    // Sinal do chat: demonstra o caso de «um XML de chat de mesmo nome foi achado ao lado da gravação»
     const danmakuStats = { count: 4213, peakCount: 5 };
-    // 语气信号:复用本地转写权重,零配置自动跑,浏览器预览恒给演示统计
+    // Sinal de entonação: reaproveita os pesos da transcrição local, roda sem configuração, e a pré-visualização do navegador sempre entrega a estatística de demonstração
     const voiceStats = { windowsPlanned: 100, windowsScored: 96, emotionPeakCount: 3, eventPeakCount: 2 };
     const segs = transcript.segments;
     const pick = (from: number, to: number, id: number, title: string, hook: string, score: number, reason: string): HighlightCandidate => ({
@@ -693,7 +694,7 @@ const browserMock: HotClipApi = {
       score,
       reason,
       boundary: id === 2 ? "anchored" : "exact",
-      keywords: id === 2 ? ["十几块", "区别"] : ["吸水速度", "半杯水"],
+      keywords: id === 2 ? ["dez reais", "diferença"] : ["velocidade de absorção", "meio copo de água"],
       scoreDims:
         id === 1
           ? { hook: 91, flow: 84, value: 88, trend: 72 }
@@ -702,27 +703,28 @@ const browserMock: HotClipApi = {
             : { hook: 22, flow: 60, value: 30, trend: 40 },
       dimNotes:
         id === 1
-          ? { hook: "实测演示开场,3秒内有画面冲击", flow: "起于提问收于结论,完整", value: "省钱结论直接可用", trend: "比价内容平台长青" }
+          ? { hook: "abre com a demonstração do teste, e há impacto de imagem nos 3 primeiros segundos", flow: "começa na pergunta e fecha na conclusão, completo", value: "a conclusão de economia dá para usar na hora", trend: "comparar preço nunca sai de moda nas plataformas" }
           : undefined,
-      teaser: id === 1 ? "倒半杯水会怎样?" : id === 2 ? "差价10倍的真相" : "",
-      // 实用密度演示:比价内容(数字密)标「可收藏」
-      utility: id === 2 ? { score: 5, hits: ["十几块", "两块多"] } : undefined,
+      teaser: id === 1 ? "e se cair meio copo de água?" : id === 2 ? "a verdade da diferença de 10 vezes" : "",
+      // Demonstração da densidade de utilidade: conteúdo de comparação de preço (cheio de número) é marcado como «vale salvar»
+      utility: id === 2 ? { score: 5, hits: ["dez reais", "três reais"] } : undefined,
       recommended: id === 1,
-      reviewNote: id === 3 ? "开场是问候语,前3秒没有钩子,独立可看性弱" : id === 2 ? "结尾截在逗号上,建议人工顺一下切点" : "",
+      reviewNote: id === 3 ? "a abertura é só um cumprimento, não há gancho nos 3 primeiros segundos e sozinho se entende pouco" : id === 2 ? "o final foi cortado numa vírgula; vale acertar o ponto de corte à mão" : "",
       visualEvidence: id === 1
-        ? { score: 9, scene: "主播近景展示纸巾吸水实验", match: true, visibleText: ["三层加厚", "¥2.9"] }
+        ? { score: 9, scene: "quem apresenta mostra de perto o teste de absorção do papel toalha", match: true, visibleText: ["três camadas", "R$ 2,90"] }
         : undefined,
-      // 质量门三档演示:1=建议发 2=需人审(规则层抓到硬伤) 3=弃
+      // As três faixas do portão de qualidade: 1=vale publicar, 2=precisa de olho humano (a camada de regras achou um defeito duro), 3=descartar
       gate: id === 1 ? "publish" : id === 2 ? "review" : "drop",
       gateNotes:
         id === 2
-          ? ["结尾没收住(截在逗号上)"]
+          ? ["o final não fecha (foi cortado numa vírgula)"]
           : id === 3
-            ? ["开场是问候语,单独看没有信息量,不值得发布"]
+            ? ["a abertura é só um cumprimento, sozinha não informa nada e não vale publicar"]
             : undefined,
     });
-    // 多片段拼接演示:承诺句和后面的打脸句相隔很远,摆在一起才成立——
-    // 浏览器预览要能走通拼接的整条 UI(候选卡的拼接标记 + 审阅台的段清单预览)
+    // Demonstração da colagem de vários pedaços: a frase da promessa e a frase que a desmente estão bem
+    // longe uma da outra, e só juntas o trecho se sustenta — a pré-visualização do navegador precisa
+    // percorrer toda a interface da colagem (a marca de colagem no cartão do candidato + a lista de pedaços na mesa de revisão)
     const stitched: HighlightCandidate = {
       id: 4,
       startSec: segs[1].startSec,
@@ -732,31 +734,31 @@ const browserMock: HotClipApi = {
         { startSec: segs[5].startSec, endSec: segs[5].endSec },
       ],
       text: `${segs[1].text} …… ${segs[5].text}`,
-      title: "刚说闭眼入,转头就要你下单",
-      hook: "今天给大家带来一款超级好用的纸巾,三层加厚,湿水不破",
+      title: "acabou de dizer que pode comprar sem medo e já manda fechar o pedido",
+      hook: "hoje eu trouxe um papel toalha muito bom, três camadas e não rasga molhado",
       score: 88,
-      reason: "前后对照,冲突型钩子停留力最强",
+      reason: "o antes e o depois lado a lado: gancho de contradição é o que mais segura a pessoa",
       boundary: "anchored",
-      keywords: ["湿水不破", "小黄车"],
+      keywords: ["não rasga molhado", "link da loja"],
       scoreDims: { hook: 86, flow: 70, value: 80, trend: 84 },
       dimNotes: {
-        hook: "承诺句开场,立刻立起对照",
-        flow: "拼接片,已核对两段各自完整、没有断章取义",
-        value: "对照本身就是信息",
-        trend: "打脸型内容平台长期吃香",
+        hook: "abre na frase da promessa e o contraste se arma na hora",
+        flow: "trecho colado, com os dois pedaços conferidos: cada um está completo e nada foi tirado de contexto",
+        value: "o contraste, por si, já é a informação",
+        trend: "conteúdo que desmente vai bem nas plataformas há muito tempo",
       },
-      teaser: "他自己打了自己的脸",
+      teaser: "ele mesmo se desmentiu",
       recommended: true,
       reviewNote: "",
       gate: "publish",
     };
     const candidates = [
-      pick(3, 4, 1, "半杯水都不渗?实测给你看", "你看这个吸水速度,直接倒半杯水都不带渗的", 92, "强演示钩子+价格反差,完播率高"),
-      pick(1, 2, 2, "十几块和两块多的纸巾差在哪", "很多朋友问我,这个和超市里十几块的有什么区别", 81, "悬念提问开场,击中比价心理"),
+      pick(3, 4, 1, "meio copo de água e não passa nada? o teste está aqui", "olha a velocidade de absorção: eu jogo meio copo de água e não passa nada", 92, "gancho de demonstração forte + contraste de preço, com boa taxa de conclusão"),
+      pick(1, 2, 2, "onde está a diferença entre o de dez e o de três reais", "muita gente me pergunta qual é a diferença entre esse e o de dez reais do mercado", 81, "abre com uma pergunta em suspense e acerta quem compara preço"),
       stitched,
-      pick(0, 1, 3, "欢迎来到直播间", "大家好,欢迎来到我的直播间", 38, "开场白"),
+      pick(0, 1, 3, "bem-vindo à live", "oi, gente, bem-vindo à minha live", 38, "só a abertura"),
     ];
-    // 商品讲解模式:与主进程同款——命中的商品词确定性并入候选 keywords
+    // Modo de apresentação de produto: igual ao processo principal — a palavra de produto encontrada entra nas keywords do candidato de forma determinística
     if (products && products.length > 0) {
       for (const c of candidates) {
         const hits = products.filter((p) => p.trim() && c.text.toLowerCase().includes(p.trim().toLowerCase()));
@@ -764,8 +766,8 @@ const browserMock: HotClipApi = {
         c.keywords = [...c.keywords, ...hits.filter((h) => !seen.has(h.toLowerCase()))];
       }
     }
-    // Multi-speaker demo: label the transcript by alternating segments so the
-    // browser preview can show per-speaker caption coloring end-to-end.
+    // Demonstração de vários falantes: a transcrição é rotulada alternando os trechos, para a
+    // pré-visualização do navegador mostrar a legenda colorida por falante de ponta a ponta.
     if (diarize) {
       const labeled: Transcript = {
         ...transcript,
@@ -781,7 +783,7 @@ const browserMock: HotClipApi = {
   },
 };
 
-/** True when running inside Electron with the preload bridge available. */
+/** Verdadeiro quando o código roda dentro do Electron, com a ponte de preload disponível. */
 export function isElectron(): boolean {
   return typeof window !== "undefined" && "hotclip" in window && window.hotclip !== undefined;
 }
