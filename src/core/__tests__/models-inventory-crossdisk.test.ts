@@ -1,8 +1,10 @@
 /**
- * 跨盘搬家(issue #3 的主场景——用户就是想把 1GB 模型挪到别的盘)。
- * 跨盘时 rename 会 EXDEV 失败,退回「复制 → 校验 → 删原件」。这条路径最容易
- * 把模型搬丢,所以单独 mock 出 EXDEV 来跑:复制成功要真删原件,复制失败必须
- * 原件分毫不动、并且不留半成品目标目录。
+ * Mudança entre discos (o cenário principal da issue #3 — o que a pessoa quer é justamente levar 1GB de
+ * modelos para outro disco).
+ * Entre discos o rename falha com EXDEV e o caminho vira «copiar → conferir → apagar o original». É por
+ * aqui que os modelos mais correm risco de se perder, então o EXDEV é simulado num teste próprio: se a
+ * cópia dá certo, o original tem mesmo de sair; se a cópia falha, o original não pode perder um byte e
+ * não pode sobrar uma pasta de destino pela metade.
  */
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
@@ -13,7 +15,7 @@ vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
   return {
     ...actual,
-    // 默认转发真实实现,测试内按需改写成失败
+    // Por padrão repassa para a implementação real, e cada teste troca por uma falha quando precisa
     rename: (...args: Parameters<typeof actual.rename>) => renameMock(...args),
     cp: (...args: Parameters<typeof actual.cp>) => cpMock(...args),
   };
@@ -33,7 +35,7 @@ beforeEach(async () => {
   base = await mkdtemp(join(tmpdir(), "hotclip-xdisk-"));
   renameMock.mockReset();
   cpMock.mockReset();
-  // 跨盘:rename 一律失败,cp 走真实复制
+  // Entre discos: o rename sempre falha, e o cp faz a cópia de verdade
   renameMock.mockRejectedValue(EXDEV);
   cpMock.mockImplementation((...args: Parameters<typeof realCp>) => realCp(...args));
 });
@@ -49,27 +51,27 @@ async function seed(root: string): Promise<void> {
   await writeFile(join(root, "yunet", "face.onnx"), "y".repeat(1024));
 }
 
-describe("moveModelsDir 跨盘", () => {
-  it("rename 失败后走复制:文件完整到位,原目录才被删", async () => {
+describe("moveModelsDir entre discos", () => {
+  it("com o rename falhando, a cópia assume: os arquivos chegam inteiros e só então a pasta original sai", async () => {
     const from = join(base, "old");
     const to = join(base, "new");
     await seed(from);
 
     const landed = await moveModelsDir(from, to);
 
-    expect(renameMock).toHaveBeenCalled(); // 先试过 rename
-    expect(cpMock).toHaveBeenCalled(); // 再退回复制
+    expect(renameMock).toHaveBeenCalled(); // o rename foi tentado primeiro
+    expect(cpMock).toHaveBeenCalled(); // e a cópia assumiu depois
     expect(landed).toBe(to);
     expect(await readFile(join(to, "sense-voice", "model.onnx"), "utf8")).toBe("x".repeat(4096));
     expect(await dirSize(to)).toBe(5120);
     await expect(readdir(from)).rejects.toThrow();
   });
 
-  it("复制中途失败:原目录分毫不动,半成品目标被清掉", async () => {
+  it("falha no meio da cópia: a pasta original não perde um byte e o destino pela metade é apagado", async () => {
     const from = join(base, "old");
     const to = join(base, "new");
     await seed(from);
-    // 第一个子目录复制成功,第二个炸掉——模拟中途断电/磁盘满
+    // A primeira subpasta copia bem e a segunda explode — simulando queda de energia ou disco cheio no meio
     let call = 0;
     cpMock.mockImplementation((...args: Parameters<typeof realCp>) => {
       call += 1;
@@ -77,24 +79,24 @@ describe("moveModelsDir 跨盘", () => {
       return realCp(...args);
     });
 
-    await expect(moveModelsDir(from, to)).rejects.toThrow(/原目录未改动/);
+    await expect(moveModelsDir(from, to)).rejects.toThrow(/a pasta original não foi alterada/);
 
-    expect(await dirSize(from)).toBe(5120); // 原件一个字节没少
+    expect(await dirSize(from)).toBe(5120); // o original não perdeu um byte
     expect(await readFile(join(from, "yunet", "face.onnx"), "utf8")).toBe("y".repeat(1024));
-    await expect(readdir(to)).rejects.toThrow(); // 半成品目标已清除
+    await expect(readdir(to)).rejects.toThrow(); // o destino pela metade foi apagado
   });
 
-  it("复制结果字节数少于原件 → 判定没搬成,原件保留", async () => {
+  it("a cópia com menos bytes que o original → a mudança não valeu, e o original fica", async () => {
     const from = join(base, "old");
     const to = join(base, "new");
     await seed(from);
-    // 复制"成功"但实际只落了一部分内容(静默截断类故障)
+    // A cópia «deu certo», mas só parte do conteúdo chegou (a falha de truncamento silencioso)
     cpMock.mockImplementation(async (src: string, dest: string) => {
       await mkdir(dest, { recursive: true });
       await writeFile(join(dest, "truncated.bin"), "z");
     });
 
-    await expect(moveModelsDir(from, to)).rejects.toThrow(/原目录未改动/);
+    await expect(moveModelsDir(from, to)).rejects.toThrow(/a pasta original não foi alterada/);
     expect(await dirSize(from)).toBe(5120);
   });
 });

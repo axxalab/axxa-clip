@@ -3,9 +3,9 @@ import { ParaformerEngine } from "./transcribe/paraformer";
 import { FireRedEngine } from "./transcribe/firered";
 import type { SpeechRunOptions } from "../shared/api-types";
 /**
- * 自动切片公共管线(无 UI 依赖):转写(带缓存)→ 信号采集 → LLM 找爆点 →
- * 导出推荐切片。MCP Server 与录播监听(watch 文件夹)共用同一条路径,
- * 与桌面端"一键全自动"产出保持一致。
+ * A esteira comum do corte automático (sem depender de interface): transcrição (com cache) → coleta de
+ * sinais → o LLM acha os estouros → exportação dos trechos recomendados. O servidor MCP e o vigia de
+ * gravações (a pasta vigiada) usam este mesmo caminho, e o resultado é igual ao do «tudo automático» do desktop.
  */
 import { join, dirname, basename, extname } from "path";
 import { stat } from "fs/promises";
@@ -32,32 +32,32 @@ import type { AnalysisVideoOptions } from "./analysis-video";
 export interface AutoClipConfig {
   modelsRoot: string;
   cacheDir: string;
-  /** Explicit UTF-8 SRT/WebVTT transcript for this source; bypasses ASR/cache. */
+  /** Uma transcrição explícita em UTF-8 SRT/WebVTT deste material; dispensa o ASR e o cache. */
   subtitlePath?: string;
   asr?: SpeechRunOptions & { engineId?: string };
-  /** Reusable bounded base-render cache; omit to disable. */
+  /** O cache limitado e reaproveitável da renderização base; sem ele, desligado. */
   renderCacheDir?: string;
-  /** Reusable bounded source-analysis evidence; omit to disable. */
+  /** As evidências reaproveitáveis e limitadas da análise do material; sem elas, desligado. */
   evidenceCacheDir?: string;
   llm: LlmConfig;
-  /** 输出目录;缺省源视频旁 `<名>-hotclip/`。 */
+  /** A pasta de saída; por padrão `<nome>-hotclip/` ao lado do vídeo de origem. */
   outDir?: string;
-  /** 字幕字体目录(烧录 CJK 一致性)。 */
+  /** A pasta de fontes da legenda (para a queima ficar igual em qualquer máquina). */
   fontsDir?: string;
-  /** 热词词表(转写后自动应用;字幕/找爆点/文案全用修正后文本)。 */
+  /** O vocabulário de termos (aplicado sozinho depois da transcrição; a legenda, a busca de estouros e o texto usam todos a versão corrigida). */
   glossary?: GlossaryEntry[];
   maxClips?: number;
   vertical?: boolean;
   captions?: boolean;
-  /** Opt-in local signalstats-based picture correction; neutral footage is untouched. */
+  /** Correção de imagem local por signalstats, ligada por escolha; material neutro não é tocado. */
   autoEnhance?: boolean;
-  /** Optional audio cleanup for unattended/headless exports; omitted means unchanged/off. */
+  /** Limpeza de áudio opcional para exportações sem ninguém olhando; ausente significa sem mudança. */
   denoiseMode?: "basic" | "smart";
-  /** 参考爆款画像(analyzeReferenceVideo 的产物);选段向它的节奏靠拢。 */
+  /** O perfil do vídeo de referência (o que analyzeReferenceVideo produz); a escolha dos trechos se aproxima do ritmo dele. */
   reference?: ReferenceProfile;
-  /** 本机审阅记忆(桌面审阅台积累的采用/否决样例);选段向用户口味靠拢。 */
+  /** A memória de revisão desta máquina (os exemplos de aceite e veto acumulados na mesa de revisão do desktop); a escolha dos trechos se aproxima do gosto da pessoa. */
   reviewMemory?: ReviewRecord[];
-  /** 真实发布表现记忆(CSV/JSON 导入);选段向观众验证过的模式靠拢。 */
+  /** A memória de desempenho real das publicações (importada de CSV/JSON); a escolha dos trechos se aproxima do que o público já validou. */
   performanceMemory?: PerformanceEntry[];
   onStage?: (stage: "transcribing" | "detecting" | "exporting") => void;
   signal?: AbortSignal;
@@ -67,13 +67,14 @@ export interface AutoClipResult {
   outDir: string;
   transcript: Transcript;
   candidates: HighlightCandidate[];
-  /** AI 复评后建议发布并成功导出的切片。 */
+  /** Os trechos que a revisão da IA recomendou publicar e que foram exportados com sucesso. */
   exported: ExportedClip[];
 }
 
 /**
- * 端侧转写(SenseVoice,带缓存;首次自动下载模型)。缓存永远存 ASR 原始
- * 结果,词表在读取侧应用——词表更新后同素材重放替换即可,不重跑 ASR。
+ * Transcrição local (SenseVoice, com cache; o modelo é baixado sozinho na primeira vez). O cache guarda
+ * sempre o resultado cru do ASR, e o vocabulário é aplicado na leitura — depois de atualizar o
+ * vocabulário, basta reproduzir o mesmo material para a troca valer, sem rodar o ASR de novo.
  */
 export async function transcribeCached(
   videoPath: string,
@@ -85,11 +86,11 @@ export async function transcribeCached(
   asr: SpeechRunOptions & { engineId?: string } = {}
 ): Promise<Transcript> {
   signal?.throwIfAborted();
-  // User-supplied text is authoritative, including on failure. Never silently
-  // replace it with ASR or run ASR glossary corrections over reviewed subtitles.
+  // O texto dado pela pessoa manda, inclusive quando algo falha. Nunca se troca esse texto pelo do ASR em
+  // silêncio, nem se roda a correção de vocabulário do ASR sobre uma legenda que já foi revisada.
   if (subtitlePath !== undefined) return importSubtitleFile(videoPath, subtitlePath, signal);
   const s = await stat(videoPath).catch(() => null);
-  if (!s || !s.isFile()) throw new Error(`文件不存在或不可读: ${videoPath}`);
+  if (!s || !s.isFile()) throw new Error(`o arquivo não existe ou não pode ser lido: ${videoPath}`);
   const fileStat = { size: s.size, mtimeMs: s.mtimeMs };
   const applied = (t: Transcript): Transcript => applyGlossaryToTranscript(t, glossary ?? []).transcript;
   const engineId = asr.engineId ?? "sensevoice";
@@ -105,8 +106,10 @@ export async function transcribeCached(
 }
 
 /**
- * 分析参考爆款 → 风格画像:端侧转写(带缓存)+ 全片镜头检测。
- * 转写失败上抛(用户显式给的输入,静默丢弃是坑);镜头检测失败退 null 维度。
+ * Analisa o vídeo de referência → perfil de estilo: transcrição local (com cache) + detecção de cortes
+ * de câmera no vídeo inteiro.
+ * Uma falha na transcrição é lançada para cima (é entrada dada explicitamente pela pessoa, e descartar em
+ * silêncio é armadilha); uma falha na detecção de cortes só deixa aquela dimensão em null.
  */
 export async function analyzeReferenceVideo(
   refPath: string,
@@ -133,13 +136,13 @@ export async function analyzeReferenceVideo(
   return buildReferenceProfile(transcript, boundaries);
 }
 
-/** 找爆点(与桌面端同款证据链:响度/镜头 + 表情峰值,全部 fail-open)。 */
+/** Acha os estouros (com a mesma cadeia de evidências do desktop: volume/cortes + pico de expressão, tudo falhando em aberto). */
 export async function detectForPipeline(
   videoPath: string,
   transcript: Transcript,
   cfg: Pick<AutoClipConfig, "modelsRoot" | "evidenceCacheDir" | "llm" | "maxClips" | "reference" | "reviewMemory" | "performanceMemory" | "signal">
 ): Promise<HighlightCandidate[]> {
-  if (transcript.segments.length === 0) throw new Error("转写结果为空(可能是无人声素材)");
+  if (transcript.segments.length === 0) throw new Error("a transcrição saiu vazia (o material pode não ter voz)");
   const media = await probeMedia(videoPath).catch(() => null);
   const analysis: AnalysisVideoOptions = media?.hasVideo
     ? { videoStreamIndex: media.videoStreamIndex, color: planColorRender(media) }
@@ -153,9 +156,11 @@ export async function detectForPipeline(
     if (cfg.signal?.aborted) throw error;
     return undefined;
   });
-  // 弹幕热度(零配置):录播姬随录播落的同名 .xml 自动发现——录播监听场景的
-  // 主证据。它只是读个文件,先于贵信号采集:弹幕峰值(观众逐秒投的票)要
-  // 参与引导表情/语音情绪的采样预算,笑声和表情最该去观众炸锅的地方找
+  // Calor do chat (sem configuração): o .xml de mesmo nome que o gravador deixa ao lado da gravação é
+  // descoberto sozinho — é a evidência principal no cenário do vigia de gravações. Como só lê um arquivo,
+  // vem antes da coleta cara: o pico do chat (o voto que o público dá a cada segundo) precisa guiar o
+  // orçamento de amostragem da expressão e da emoção da voz, já que a risada e a expressão devem ser
+  // procuradas justamente onde o público foi à loucura
   const danmaku = await collectDanmakuSignal(videoPath, transcript.durationSec);
   const guided = danmaku
     ? { loudPeaks: [], cutDense: [], ...signals, danmakuPeaks: danmaku.danmakuPeaks }
@@ -167,7 +172,7 @@ export async function detectForPipeline(
     signals: guided,
     analysis,
   }).catch(() => null);
-  // 语音情绪/笑声掌声(零配置,复用已装的 SenseVoice 权重):文字稿看不见的那半条证据
+  // Emoção da voz / risada e palmas (sem configuração, reaproveitando os pesos do SenseVoice já instalado): a metade da evidência que a transcrição não mostra
   const voice = await collectVoiceEmotionSignal({
     videoPath,
     durationSec: transcript.durationSec,
@@ -195,7 +200,7 @@ export async function detectForPipeline(
   return outcome.candidates.slice(0, max);
 }
 
-/** 全托管一条龙:转写 → 找爆点 → 导出推荐条(竖屏/字幕/跳剪/响度默认全开)。 */
+/** Tudo de ponta a ponta: transcrição → busca dos estouros → exportação dos recomendados (vertical, legenda, corte seco e volume vêm ligados por padrão). */
 export async function autoClip(videoPath: string, cfg: AutoClipConfig): Promise<AutoClipResult> {
   cfg.signal?.throwIfAborted();
   cfg.onStage?.("transcribing");
@@ -204,8 +209,8 @@ export async function autoClip(videoPath: string, cfg: AutoClipConfig): Promise<
   cfg.onStage?.("detecting");
   const candidates = await detectForPipeline(videoPath, transcript, cfg);
   cfg.signal?.throwIfAborted();
-  // 无人值守只发「建议发」档:质量门判需人审/弃的没有人看过,不能自动发出去
-  // (gate 缺省 = 信号候选/复评没跑,沿用 recommended 的老语义)
+  // Sem ninguém olhando, só a faixa «vale publicar» sai: o que o portão de qualidade mandou para revisão humana ou descartou não foi visto por ninguém e não pode ser publicado sozinho
+  // (gate ausente = o candidato de sinal / a revisão não rodaram, e aí vale a semântica antiga de recommended)
   const publishable = candidates.filter((c) => c.recommended && (c.gate === undefined || c.gate === "publish"));
   const outDir =
     cfg.outDir ?? join(dirname(videoPath), `${sanitizeFilename(basename(videoPath, extname(videoPath)), "video")}-hotclip`);
@@ -220,7 +225,7 @@ export async function autoClip(videoPath: string, cfg: AutoClipConfig): Promise<
       title: c.title,
       startSec: c.startSec,
       endSec: c.endSec,
-      // 多片段拼接:段清单带下去,词表只取真正剪进去的那几段
+      // Colagem de vários pedaços: a lista de pedaços segue junto, e do vocabulário só entram os pedaços que de fato foram cortados para dentro
       pieces: c.pieces && c.pieces.length > 1 ? c.pieces : undefined,
       words: captions
         ? c.pieces && c.pieces.length > 1

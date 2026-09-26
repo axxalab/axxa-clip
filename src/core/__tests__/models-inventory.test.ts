@@ -1,6 +1,7 @@
 /**
- * 模型搬家(issue #3):用户拿这个功能挪 1GB 的模型,搬丢了要重下一小时。
- * 所以这里钉死的不是「搬得成」,而是「搬不成时原件必须还在」。
+ * Mudança de pasta dos modelos (issue #3): é com isso que a pessoa move 1GB de modelos, e perder tudo
+ * no caminho custa uma hora de download. Então o que fica pregado aqui não é «a mudança funciona», e sim
+ * «quando a mudança não funciona, o original continua lá».
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "fs/promises";
@@ -28,12 +29,12 @@ async function seedModels(root: string): Promise<void> {
 }
 
 describe("dirSize", () => {
-  it("递归累加子目录里的文件字节", async () => {
+  it("soma recursivamente os bytes dos arquivos das subpastas", async () => {
     await seedModels(base);
     expect(await dirSize(base)).toBe(3072);
   });
 
-  it("目录不存在算 0,不抛异常(设置页不该因为路径没了整页报错)", async () => {
+  it("pasta inexistente conta 0, sem lançar exceção (a página de configurações não deve quebrar inteira porque um caminho sumiu)", async () => {
     expect(await dirSize(join(base, "nope"))).toBe(0);
   });
 });
@@ -54,32 +55,33 @@ describe("MODEL_CATALOG", () => {
 });
 
 describe("isInside", () => {
-  it("识别子目录与自身", () => {
+  it("reconhece a subpasta e a própria pasta", () => {
     expect(isInside("/a/b", "/a/b/c")).toBe(true);
     expect(isInside("/a/b", "/a/b")).toBe(true);
   });
 
-  it("同级和上级不算内部", () => {
+  it("a pasta irmã e a de cima não contam como dentro", () => {
     expect(isInside("/a/b", "/a/c")).toBe(false);
     expect(isInside("/a/b", "/a")).toBe(false);
   });
 
-  // Windows 语义借 path.win32 在任意平台复现——issue #4:用户(中文用户名)想把
-  // 模型从 C 盘搬去 E 盘,relative() 跨盘返回绝对路径,曾被误判成「目标在内部」
-  describe("Windows 路径", () => {
+  // A semântica do Windows é reproduzida em qualquer plataforma por path.win32 — issue #4: alguém (com
+  // acento no nome de usuário) quis mover os modelos do disco C para o E, e o relative() entre discos
+  // devolve caminho absoluto, o que era julgado por engano como «o destino está dentro»
+  describe("caminhos do Windows", () => {
     const w = nodePath.win32;
 
-    it("跨盘目标不算内部(issue #4:C 盘搬 E 盘曾被误拦)", () => {
-      expect(isInside("C:\\Users\\楚心\\AppData\\Roaming\\hotclip\\models", "E:\\AI-tool\\hotclip\\models", w)).toBe(false);
+    it("destino em outro disco não conta como dentro (issue #4: mover de C para E era barrado por engano)", () => {
+      expect(isInside("C:\\Users\\Conceição\\AppData\\Roaming\\hotclip\\models", "E:\\AI-tool\\hotclip\\models", w)).toBe(false);
       expect(isInside("C:\\models", "D:\\models", w)).toBe(false);
     });
 
-    it("同盘子目录与自身仍然算内部", () => {
+    it("no mesmo disco, a subpasta e a própria pasta continuam contando como dentro", () => {
       expect(isInside("C:\\models", "C:\\models\\sub", w)).toBe(true);
       expect(isInside("C:\\models", "c:\\models", w)).toBe(true);
     });
 
-    it("同盘同级/上级/同名前缀不算内部", () => {
+    it("no mesmo disco, a pasta irmã, a de cima e a de prefixo igual não contam como dentro", () => {
       expect(isInside("C:\\models", "C:\\models2", w)).toBe(false);
       expect(isInside("C:\\a\\models", "C:\\a", w)).toBe(false);
     });
@@ -87,7 +89,7 @@ describe("isInside", () => {
 });
 
 describe("moveModelsDir", () => {
-  it("同盘搬家:文件原样到新目录,旧目录清空", async () => {
+  it("mudança no mesmo disco: os arquivos vão inteiros para a pasta nova e a antiga fica vazia", async () => {
     const from = join(base, "old");
     const to = join(base, "new");
     await seedModels(from);
@@ -97,64 +99,64 @@ describe("moveModelsDir", () => {
     expect(landed).toBe(to);
     expect(await readFile(join(to, "sherpa-onnx-sense-voice", "model.onnx"), "utf8")).toBe("x".repeat(2048));
     expect(await dirSize(to)).toBe(3072);
-    await expect(readdir(from)).rejects.toThrow(); // 旧目录已不复存在
+    await expect(readdir(from)).rejects.toThrow(); // a pasta antiga não existe mais
   });
 
-  it("目标就是当前目录时直接返回,不做任何事", async () => {
+  it("com o destino igual à pasta atual, devolve na hora sem fazer nada", async () => {
     const dir = join(base, "same");
     await seedModels(dir);
     expect(await moveModelsDir(dir, dir)).toBe(dir);
     expect(await dirSize(dir)).toBe(3072);
   });
 
-  it("拒绝搬进自己的子目录(否则递归复制自己)", async () => {
+  it("recusa mover para dentro da própria subpasta (senão se copiaria em recursão)", async () => {
     const from = join(base, "models");
     await seedModels(from);
-    await expect(moveModelsDir(from, join(from, "inner"))).rejects.toThrow(/内部/);
-    expect(await dirSize(from)).toBe(3072); // 原件没被动过
+    await expect(moveModelsDir(from, join(from, "inner"))).rejects.toThrow(/dentro da pasta de modelos atual/);
+    expect(await dirSize(from)).toBe(3072); // o original não foi tocado
   });
 
-  it("目标目录非空时拒绝,避免同名模型互相覆盖", async () => {
+  it("recusa quando a pasta de destino não está vazia, para modelos de mesmo nome não se sobrescreverem", async () => {
     const from = join(base, "old");
     const to = join(base, "busy");
     await seedModels(from);
     await mkdir(to, { recursive: true });
     await writeFile(join(to, "someone-elses-file"), "keep me");
 
-    await expect(moveModelsDir(from, to)).rejects.toThrow(/空/);
-    expect(await dirSize(from)).toBe(3072); // 原件仍在
-    expect(await readFile(join(to, "someone-elses-file"), "utf8")).toBe("keep me"); // 别人的文件没被删
+    await expect(moveModelsDir(from, to)).rejects.toThrow(/não está vazia/);
+    expect(await dirSize(from)).toBe(3072); // o original continua lá
+    expect(await readFile(join(to, "someone-elses-file"), "utf8")).toBe("keep me"); // o arquivo de outra pessoa não foi apagado
   });
 
-  it("还没下过模型时:换个位置即可,不报错", async () => {
+  it("sem nenhum modelo baixado ainda: basta trocar o lugar, sem erro", async () => {
     const to = join(base, "fresh");
     expect(await moveModelsDir(join(base, "never-downloaded"), to)).toBe(to);
   });
 });
 
 describe("app-settings", () => {
-  it("没有配置文件时回落出厂模型目录", () => {
+  it("sem arquivo de configuração, volta para a pasta de modelos de fábrica", () => {
     expect(resolveModelsRoot(base)).toBe(defaultModelsRoot(base));
     expect(readAppSettings(base)).toEqual({});
   });
 
-  it("写过自定义目录后按自定义的算", () => {
+  it("depois de gravar uma pasta personalizada, é ela que vale", () => {
     writeAppSettings(base, { modelsDir: "/data/hotclip-models" });
     expect(resolveModelsRoot(base)).toBe("/data/hotclip-models");
   });
 
-  it("清空自定义目录 → 回到出厂位置", () => {
+  it("limpar a pasta personalizada → volta para o lugar de fábrica", () => {
     writeAppSettings(base, { modelsDir: "/data/x" });
     writeAppSettings(base, { modelsDir: undefined });
     expect(resolveModelsRoot(base)).toBe(defaultModelsRoot(base));
   });
 
-  it("配置文件损坏 → 回落默认而不是崩掉(设置坏了不能挡住出片)", async () => {
+  it("configuração corrompida → volta para o padrão em vez de quebrar (uma configuração ruim não pode impedir a exportação)", async () => {
     await writeFile(join(base, "settings.json"), "{ not json");
     expect(resolveModelsRoot(base)).toBe(defaultModelsRoot(base));
   });
 
-  it("空白路径视为没设置", async () => {
+  it("caminho em branco conta como não configurado", async () => {
     await writeFile(join(base, "settings.json"), JSON.stringify({ modelsDir: "   " }));
     expect(resolveModelsRoot(base)).toBe(defaultModelsRoot(base));
   });

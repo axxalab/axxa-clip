@@ -1,10 +1,12 @@
 /**
- * 模型清点与搬家(issue #3)。
+ * Inventário dos modelos e mudança de pasta (issue #3).
  *
- * 用户找不到那 1GB 模型存在哪儿——目录以前从没在界面上露过面。这里负责
- * 「一共几个、各占多大、装没装」和「整个目录挪到别的盘」两件事。
- * 搬家的安全底线:**旧目录在新目录完整落地之前一个字节都不能删**——
- * 模型重下一次要一个多小时,搬家搬丢了比不能搬严重得多。
+ * As pessoas não achavam onde aquele 1GB de modelos ficava — a pasta nunca tinha aparecido na interface.
+ * Este módulo cuida de duas coisas: «quantos são, quanto cada um ocupa e quais estão instalados» e
+ * «mover a pasta inteira para outro disco».
+ * O limite de segurança da mudança: **nem um byte da pasta antiga sai antes de a nova estar inteira no
+ * lugar** — baixar os modelos de novo leva mais de uma hora, e perder tudo numa mudança é muito pior que
+ * não poder mudar.
  */
 import { cp, mkdir, readdir, rename, rm, stat } from "fs/promises";
 import * as nodePath from "path";
@@ -26,7 +28,7 @@ import {
   type ModelAsset,
 } from "./models";
 
-/** 全部可下载模型,按用户能理解的用途分组标签(界面直接展示这个顺序)。 */
+/** Todos os modelos que dá para baixar, agrupados pela finalidade que a pessoa entende (a interface mostra nesta ordem). */
 export const MODEL_CATALOG: Array<{ asset: ModelAsset; useKey: string }> = [
   { asset: SENSEVOICE_MODEL, useKey: "useAsrFast" },
   { asset: PARAFORMER_MODEL, useKey: "useAsrAccurate" },
@@ -43,24 +45,24 @@ export const MODEL_CATALOG: Array<{ asset: ModelAsset; useKey: string }> = [
 
 export interface ModelEntry {
   id: string;
-  /** 用途文案的 i18n key(界面自己翻译)。 */
+  /** A chave de i18n do texto de finalidade (a interface traduz por conta própria). */
   useKey: string;
   installed: boolean;
-  /** 已装模型的实际磁盘占用;未装为 0。 */
+  /** O espaço em disco realmente ocupado por um modelo instalado; 0 quando não está instalado. */
   bytes: number;
-  /** 未装时给出的预计下载体积。 */
+  /** O tamanho estimado do download, mostrado quando não está instalado. */
   approxBytes: number;
 }
 
 export interface ModelsInfo {
   root: string;
   defaultRoot: string;
-  /** 已装模型合计占用。 */
+  /** O total ocupado pelos modelos instalados. */
   totalBytes: number;
   entries: ModelEntry[];
 }
 
-/** 递归统计目录占用;读不到的条目算 0(权限/竞态不该让整页报错)。 */
+/** Soma o espaço da pasta recursivamente; o que não puder ser lido conta 0 (permissão ou concorrência não devem derrubar a página inteira). */
 export async function dirSize(path: string): Promise<number> {
   let total = 0;
   let items: string[];
@@ -77,7 +79,7 @@ export async function dirSize(path: string): Promise<number> {
   return total;
 }
 
-/** 清点模型:装了哪些、各占多大、总共多大。 */
+/** Faz o inventário dos modelos: quais estão instalados, quanto cada um ocupa e quanto é o total. */
 export async function inspectModels(root: string, defaultRoot: string): Promise<ModelsInfo> {
   const entries: ModelEntry[] = [];
   for (const { asset, useKey } of MODEL_CATALOG) {
@@ -98,13 +100,14 @@ export async function inspectModels(root: string, defaultRoot: string): Promise<
   };
 }
 
-/** isInside 需要的最小 path 能力面;默认取当前平台实现,单测里可换 path.win32 复现 Windows 行为。 */
+/** A superfície mínima do path de que isInside precisa; por padrão a implementação da plataforma atual, e no teste unitário dá para trocar por path.win32 e reproduzir o comportamento do Windows. */
 type PathImpl = Pick<typeof nodePath, "relative" | "resolve" | "isAbsolute" | "sep">;
 
 /**
- * 目标目录是否落在源目录内部(搬进自己的子目录会无限递归)。
- * Windows 上跨盘时 relative() 不产生 ".."——直接返回目标的绝对路径(如 E:\x),
- * 必须按 isAbsolute 判为「不在内部」,否则所有跨盘搬家都被误拦(issue #4)。
+ * Se a pasta de destino está dentro da de origem (mudar para uma subpasta de si mesma recursa para sempre).
+ * No Windows, entre discos diferentes, relative() não produz ".." — devolve o caminho absoluto do destino
+ * (E:\x, por exemplo), e é por isAbsolute que isso precisa ser julgado «fora», senão toda mudança entre
+ * discos seria barrada por engano (issue #4).
  */
 export function isInside(parent: string, child: string, p: PathImpl = nodePath): boolean {
   const rel = p.relative(p.resolve(parent), p.resolve(child));
@@ -113,45 +116,46 @@ export function isInside(parent: string, child: string, p: PathImpl = nodePath):
 }
 
 /**
- * 把模型目录整体搬到新位置,返回最终生效的路径。
+ * Move a pasta de modelos inteira para o lugar novo e devolve o caminho que ficou valendo.
  *
- * 同盘走 rename(瞬间);跨盘退回「先完整复制、校验通过再删原件」。
- * 复制中途失败会清掉半成品目标目录,原件保持不动——宁可白搬一次,不能搬丢。
+ * No mesmo disco usa rename (instantâneo); entre discos cai em «copiar tudo, conferir e só então apagar o
+ * original». Uma falha no meio da cópia limpa a pasta de destino pela metade e deixa o original intocado —
+ * melhor mudar de novo à toa que perder o que já estava lá.
  */
 export async function moveModelsDir(from: string, to: string): Promise<string> {
   const src = resolve(from);
   const dest = resolve(to);
   if (src === dest) return dest;
-  if (isInside(src, dest)) throw new Error("目标目录在当前模型目录内部,请换一个位置");
+  if (isInside(src, dest)) throw new Error("a pasta de destino está dentro da pasta de modelos atual; escolha outro lugar");
 
   const srcExists = await stat(src).then((s) => s.isDirectory()).catch(() => false);
   await mkdir(dest, { recursive: true });
-  if (!srcExists) return dest; // 还没下过任何模型:换个位置即可,没什么可搬
+  if (!srcExists) return dest; // nenhum modelo foi baixado ainda: basta trocar o lugar, não há o que mover
 
   const names = await readdir(src);
   if (names.length === 0) return dest;
 
-  // 目标非空时不冒险合并——让用户自己挑个干净目录,免得同名模型互相覆盖
-  if ((await readdir(dest)).length > 0) throw new Error("目标目录不是空的,请选一个空文件夹");
+  // Com o destino não vazio, nada de arriscar uma fusão — a pessoa escolhe uma pasta limpa, para modelos de mesmo nome não se sobrescreverem
+  if ((await readdir(dest)).length > 0) throw new Error("a pasta de destino não está vazia; escolha uma pasta vazia");
 
   try {
     await rename(src, dest);
     return dest;
   } catch {
-    /* 跨盘 rename 会失败(EXDEV),退回复制 */
+    /* entre discos o rename falha (EXDEV), e a cópia assume */
   }
 
   try {
     for (const name of names) {
       await cp(join(src, name), join(dest, name), { recursive: true, force: true });
     }
-    // 复制完整性粗校验:总字节对不上就当没搬成
+    // Conferência grosseira da integridade da cópia: se o total de bytes não bate, a mudança não valeu
     const [srcBytes, destBytes] = [await dirSize(src), await dirSize(dest)];
-    if (destBytes < srcBytes) throw new Error("复制不完整");
+    if (destBytes < srcBytes) throw new Error("a cópia ficou incompleta");
     await rm(src, { recursive: true, force: true });
     return dest;
   } catch (e) {
     await rm(dest, { recursive: true, force: true }).catch(() => {});
-    throw new Error(`模型搬家失败,原目录未改动:${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`a mudança dos modelos falhou, e a pasta original não foi alterada: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
