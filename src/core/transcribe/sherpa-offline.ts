@@ -40,6 +40,41 @@ export function loadSherpa(): any {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
+ * O marcador de início de palavra dos vocabulários de subpalavra: o SentencePiece usa U+2581 e
+ * alguns pacotes (o Parakeet, entre eles) usam espaço comum. Um token SEM o marcador é continuação
+ * da palavra anterior.
+ */
+const WORD_START = /^[ \u2581]/;
+
+/**
+ * Junta as subpalavras numa palavra só, quando o modelo é de vocabulário de subpalavra.
+ *
+ * Por que isto existe: um transducer BPE como o Parakeet devolve `[" B","om"," dia"," pesso","al","!"]`.
+ * Tratar cada pedaço como palavra e depois juntar com espaço produzia «B om dia pesso al!» — texto
+ * quebrado na legenda, na busca e no prompt. O tempo da palavra passa a ser o do primeiro pedaço, e o
+ * fim continua sendo o começo da palavra seguinte.
+ *
+ * Os modelos de escrita ideográfica (SenseVoice, Paraformer, FireRedASR2) emitem um token por
+ * caractere e nenhum deles carrega o marcador — por isso a junção só liga quando o marcador aparece,
+ * em vez de colar a frase inteira numa palavra só.
+ */
+export function mergeSubwordTokens(tokens: string[], stamps: number[]): { tokens: string[]; stamps: number[] } {
+  if (!tokens.some((x) => WORD_START.test(x ?? ""))) return { tokens, stamps };
+  const outTokens: string[] = [];
+  const outStamps: number[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const piece = tokens[i] ?? "";
+    if (outTokens.length > 0 && !WORD_START.test(piece)) {
+      outTokens[outTokens.length - 1] += piece;
+      continue;
+    }
+    outTokens.push(piece.replace(WORD_START, ""));
+    outStamps.push(stamps[i]);
+  }
+  return { tokens: outTokens, stamps: stamps.length === 0 ? [] : outStamps };
+}
+
+/**
  * Reparte os tokens por igual dentro da janela, quando o motor não deu marca de tempo alguma.
  * O peso de cada token é o tamanho do texto, de modo que uma palavra longa ocupe mais tempo que um
  * sinal de pontuação; o resultado é sempre marcado como estimado, nunca como nativo.
@@ -66,8 +101,7 @@ function spreadTokens(tokens: string[], offsetSec: number, windowEndSec: number)
  * start (last token gets +0.3s tail).
  */
 export function tokensToWords(result: SherpaResult, offsetSec: number, windowEndSec: number): TranscriptWord[] {
-  const tokens = result.tokens ?? [];
-  const stamps = result.timestamps ?? [];
+  const { tokens, stamps } = mergeSubwordTokens(result.tokens ?? [], result.timestamps ?? []);
   // Um modelo encoder-decoder (o Whisper) não devolve marca de tempo nenhuma. Sem isto, todos os tokens
   // cairiam no mesmo instante — o começo da janela —, e a legenda sairia empilhada. Espalhar por igual
   // dentro da janela é honesto (fica marcado como "estimated") e é a entrada de que o alinhamento precisa.

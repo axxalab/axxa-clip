@@ -30,8 +30,10 @@ export class ParakeetEngine extends SherpaOfflineEngine {
           // Sem isto o sherpa-onnx lê o pacote como transducer do estilo icefall e a decodificação sai vazia
           modelType: "nemo_transducer",
         }),
-        // O modelo escreve em minúsculas e sem pontuação; o CT-Transformer devolve a pontuação
-        punctuate: true,
+        // Sem recuperação de pontuação: o Parakeet já devolve o texto pontuado e com maiúsculas, e o
+        // CT-Transformer é um modelo de chinês/inglês — passar por ele injetava «，» e «。» no meio
+        // do português (visto numa transcrição de verdade, não em teoria).
+        punctuate: false,
         language: "pt",
         // Encoder grande pede mais linha de execução, deixando folga para o processo da interface
         numThreads: Math.min(6, Math.max(2, cpus().length - 2)),
