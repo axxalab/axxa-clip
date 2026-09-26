@@ -10,42 +10,42 @@ import {
 } from "../autozoom";
 
 describe("planZoomKeyframes", () => {
-  it("太短的切片不做运镜(推不到位只会显得晃)", () => {
+  it("trecho curto demais não recebe movimento de câmera (a imagem não chegaria onde ia e só pareceria tremida)", () => {
     expect(planZoomKeyframes(ZOOM_MIN_CLIP_SEC - 0.1)).toEqual([]);
     expect(planZoomKeyframes(0)).toEqual([]);
   });
 
-  it("呼吸节奏:从基准起步,在基准与推近之间来回,不会一路推到底", () => {
+  it("o ritmo da respiração: começa no padrão e vai e volta entre o padrão e a aproximação, sem empurrar num sentido só", () => {
     const kfs = planZoomKeyframes(30);
     expect(kfs[0]).toEqual({ t: 0, z: ZOOM_BASE });
     const zooms = kfs.map((k) => k.z);
     expect(Math.max(...zooms)).toBeCloseTo(ZOOM_BREATH, 5);
     expect(Math.min(...zooms)).toBeCloseTo(ZOOM_BASE, 5);
-    // 回落过:峰值之后一定还有一个基准值
+    // Voltou: depois do pico existe sempre um valor de referência
     const firstPeak = zooms.findIndex((z) => z > ZOOM_BASE);
     expect(zooms.slice(firstPeak).some((z) => z === ZOOM_BASE)).toBe(true);
   });
 
-  it("关键帧时间严格递增且不超片长", () => {
+  it("o tempo dos quadros-chave cresce sempre e não passa da duração do trecho", () => {
     const kfs = planZoomKeyframes(47, { emphasisAtSec: [5, 20, 33] });
     for (let i = 1; i < kfs.length; i++) expect(kfs[i].t).toBeGreaterThan(kfs[i - 1].t);
     expect(kfs[kfs.length - 1].t).toBeLessThanOrEqual(47);
     expect(kfs.every((k) => k.z >= ZOOM_BASE)).toBe(true);
   });
 
-  it("强调时刻推到最近,并且是先动镜头后到内容", () => {
+  it("no instante de ênfase a aproximação é máxima, e a câmera se move antes de o conteúdo chegar", () => {
     const kfs = planZoomKeyframes(40, { emphasisAtSec: [20] });
     const peak = kfs.find((k) => k.z === ZOOM_EMPHASIS);
     expect(peak).toBeDefined();
     expect(peak!.t).toBeLessThanOrEqual(20);
-    // 推近之前有一个基准帧(起推点),在强调点之前
+    // Antes da aproximação existe um quadro de referência (de onde ela parte), anterior ao ponto de ênfase
     const lead = kfs.filter((k) => k.t < peak!.t && k.z === ZOOM_BASE).pop();
     expect(lead).toBeDefined();
   });
 
-  it("挨得很近的多个强调并成一段长推近,不来回抽搐", () => {
+  it("várias ênfases bem próximas viram uma aproximação longa só, sem espasmo de ir e voltar", () => {
     const kfs = planZoomKeyframes(40, { emphasisAtSec: [20, 20.5, 21] });
-    // 只推近一次、只回落一次
+    // Aproxima uma vez e volta uma vez
     let rises = 0;
     let falls = 0;
     for (let i = 1; i < kfs.length; i++) {
@@ -56,9 +56,9 @@ describe("planZoomKeyframes", () => {
     expect(falls).toBe(1);
   });
 
-  it("任何两个关键帧之间的变焦速度都在人眼可接受范围(不出现瞬间跳变)", () => {
-    // 每秒变焦超过 0.3 倍就是抽搐——曾经的 bug:两个相邻强调合并时
-    // 前一段的回落点没清掉,导致 0.1 秒内从 1.0 猛推到 1.1
+  it("a velocidade da mudança de escala entre dois quadros-chave quaisquer fica no que o olho aceita (sem salto instantâneo)", () => {
+    // Mais de 0,3 de escala por segundo já é espasmo — houve um bug assim: ao unir duas ênfases
+    // vizinhas, o ponto de volta da primeira não era limpo, e a imagem saltava de 1,0 para 1,1 em 0,1s
     const cases = [
       [8, 8.5],
       [8, 8.5, 22],
@@ -75,22 +75,22 @@ describe("planZoomKeyframes", () => {
     }
   });
 
-  it("越界的强调时刻被忽略", () => {
+  it("instante de ênfase fora do intervalo é ignorado", () => {
     const kfs = planZoomKeyframes(20, { emphasisAtSec: [-5, 100, NaN] });
     expect(kfs.every((k) => k.z <= ZOOM_BREATH)).toBe(true);
   });
 });
 
 describe("renderZoomExpr", () => {
-  it("空关键帧 = 不缩放", () => {
+  it("sem quadros-chave = sem escala", () => {
     expect(renderZoomExpr([])).toBe("1");
   });
 
-  it("单关键帧 = 常量倍率", () => {
+  it("um único quadro-chave = fator constante", () => {
     expect(renderZoomExpr([{ t: 0, z: 1.05 }])).toBe("1.0500");
   });
 
-  it("分段线性插值,自变量是 in_time(不是输出帧号)", () => {
+  it("interpolação linear por pedaços, com in_time como variável (não o número do quadro de saída)", () => {
     const expr = renderZoomExpr([
       { t: 0, z: 1 },
       { t: 5, z: 1.1 },
@@ -100,14 +100,14 @@ describe("renderZoomExpr", () => {
     expect(expr).not.toContain("NaN");
   });
 
-  it("关键帧过多时降采样,嵌套深度受控", () => {
+  it("com quadros-chave demais há reamostragem, e a profundidade do aninhamento fica controlada", () => {
     const many = Array.from({ length: 200 }, (_, i) => ({ t: i, z: 1 + (i % 2) * 0.05 }));
     const expr = renderZoomExpr(many, 8);
     expect((expr.match(/if\(/g) ?? []).length).toBeLessThanOrEqual(8);
     expect(expr).not.toContain("NaN");
   });
 
-  it("同一时刻的重复关键帧不产生除零", () => {
+  it("quadros-chave repetidos no mesmo instante não geram divisão por zero", () => {
     const expr = renderZoomExpr([
       { t: 1, z: 1 },
       { t: 1, z: 1.1 },
@@ -120,21 +120,21 @@ describe("renderZoomExpr", () => {
 });
 
 describe("buildZoomFilter", () => {
-  it("生成 zoompan 串:居中缩放、输出目标尺寸、显式带上源帧率", () => {
+  it("monta a cadeia do zoompan: escala pelo centro, sai no tamanho de destino e leva a taxa de quadros da origem explícita", () => {
     const f = buildZoomFilter(30, 30, 1080, 1920)!;
     expect(f).toContain("zoompan=");
     expect(f).toContain("s=1080x1920");
-    expect(f).toContain("fps=30"); // 不显式给 fps 会被重采样到 25
+    expect(f).toContain("fps=30"); // sem passar o fps explícito, o material seria reamostrado para 25
     expect(f).toContain("d=1");
     expect(f).toContain("iw/2-(iw/zoom/2)");
   });
 
-  it("帧率未知时拒绝生成(宁可不运镜也不能改帧率)", () => {
+  it("com a taxa de quadros desconhecida, recusa gerar (melhor sem movimento de câmera que mudar a taxa de quadros)", () => {
     expect(buildZoomFilter(30, 0, 1080, 1920)).toBeNull();
     expect(buildZoomFilter(30, NaN, 1080, 1920)).toBeNull();
   });
 
-  it("太短的切片返回 null,调用方退回普通 scale", () => {
+  it("trecho curto demais devolve null, e quem chama volta para o scale comum", () => {
     expect(buildZoomFilter(2, 30, 1080, 1920)).toBeNull();
   });
 });

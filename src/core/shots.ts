@@ -1,9 +1,10 @@
 /**
- * 镜头边界检测(TransNetV2 ONNX)+ 切点吸附:让切片起止点落在真实的镜头
- * 切换上,成片不再从半个动作/半次转场开始。吸附只在不伤害语音的前提下
- * 进行(词边界守卫,向外优先);检测失败整体回退为不吸附——永远不会让
- * 输出更差。纯逻辑(解码/吸附)独立导出,可单测;ffmpeg 与 ONNX 执行隔离
- * 在 detectShotBoundaries 里。
+ * Detecção da borda entre cortes de câmera (TransNetV2 ONNX) + encaixe do ponto de corte: o início e
+ * o fim do trecho caem numa troca de câmera de verdade, e o vídeo pronto não começa mais no meio de
+ * um gesto ou de uma transição. O encaixe só acontece quando não machuca a fala (uma guarda na borda
+ * das palavras, preferindo esticar para fora); se a detecção falhar, tudo volta a não encaixar nada —
+ * a saída nunca fica pior. A lógica pura (decodificação / encaixe) é exportada à parte e testável, e
+ * a execução do ffmpeg e do ONNX fica isolada em detectShotBoundaries.
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -16,17 +17,17 @@ import type { TranscriptWord } from "../shared/api-types";
 
 const execFileAsync = promisify(execFile);
 
-/** TransNetV2 训练域帧率——按此固定抽帧,帧号→秒的换算才稳定。 */
+/** A taxa de quadros em que o TransNetV2 foi treinado — a amostragem é fixada nela, e só assim a conta de quadro → segundo se sustenta. */
 export const TRANSNET_FPS = 25;
-/** 模型固定输入分辨率(宽×高)。 */
+/** A resolução de entrada fixa do modelo (largura × altura). */
 const FRAME_W = 48;
 const FRAME_H = 27;
-/** 100 帧滑窗:两侧各 25 帧只作上下文,中间 50 帧输出有效预测。 */
+/** Janela deslizante de 100 quadros: 25 de cada lado servem só de contexto, e os 50 do meio dão a previsão válida. */
 const WINDOW = 100;
 const CONTEXT = 25;
 const STRIDE = WINDOW - CONTEXT * 2;
 const FRAME_BYTES = FRAME_W * FRAME_H * 3;
-/** 单帧切换概率阈值(官方推荐 0.5;实测硬切 ≈0.98、平稳画面 ≈0.001)。 */
+/** Limite de probabilidade de troca num quadro (a recomendação oficial é 0,5; na prática um corte seco dá ≈0,98 e uma imagem estável ≈0,001). */
 export const SHOT_THRESHOLD = 0.5;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -39,7 +40,7 @@ function loadOrt(): any {
   return ort;
 }
 
-// 31MB 模型进程内只加载一次;失败清空缓存,下次调用可重试
+// O modelo de 31MB é carregado uma única vez por processo; na falha o cache é limpo e a chamada seguinte pode tentar de novo
 let sessionPromise: Promise<any> | null = null;
 function getSession(modelsRoot: string): Promise<any> {
   if (!sessionPromise) {
@@ -57,9 +58,9 @@ function getSession(modelsRoot: string): Promise<any> {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
- * 逐帧切换概率 → 边界时刻(秒,相对帧序列起点)。连续超阈值的一段取峰值
- * 帧;峰值帧是旧镜头的最后一帧,边界落在它与下一帧之间 = (peak+1)/fps。
- * 纯函数。
+ * Probabilidade de troca quadro a quadro → o instante da borda (em segundos, contado do início da
+ * sequência de quadros). Um trecho contínuo acima do limite é reduzido ao quadro de pico; esse quadro
+ * é o último do corte antigo, e a borda fica entre ele e o seguinte = (pico+1)/fps. Função pura.
  */
 export function decodeBoundaries(
   probs: ArrayLike<number>,
@@ -79,42 +80,43 @@ export function decodeBoundaries(
   return out;
 }
 
-/** 吸附时允许的最大外扩(起点前移/终点后延)。 */
+/** O quanto o encaixe pode esticar para fora (o início vem antes / o fim vai depois). */
 export const SNAP_MAX_OUT_SEC = 0.8;
-/** 吸附时允许的最大内收——必须同时通过词边界守卫。 */
+/** O quanto o encaixe pode recolher para dentro — e ainda precisa passar pela guarda da borda das palavras. */
 export const SNAP_MAX_IN_SEC = 0.35;
-/** 切点与词之间保留的安全间隙。 */
+/** A folga de segurança mantida entre o ponto de corte e a palavra. */
 const WORD_GUARD_SEC = 0.06;
-/** 小于此值的位移不值得重切(本来就在边界上)。 */
+/** Deslocamento menor que este não vale um novo corte (já estava na borda). */
 const MIN_SNAP_DELTA_SEC = 0.05;
-/** 吸附后不允许把片压得比这更短。 */
+/** Depois do encaixe, o trecho não pode ficar mais curto que isto. */
 const MIN_CLIP_SEC = 1;
 
 export interface SnapContext {
-  /** 片内首词开始——内收起点不得越过它(缺省=不允许内收)。 */
+  /** O início da primeira palavra de dentro do trecho — recolher o início não pode passar dela (ausente = recolher não é permitido). */
   firstWordStartSec?: number;
-  /** 片内末词结束——内收终点不得越过它(缺省=不允许内收)。 */
+  /** O fim da última palavra de dentro do trecho — recolher o fim não pode passar dela (ausente = recolher não é permitido). */
   lastWordEndSec?: number;
   /**
-   * 片外紧邻的上一个词的结束时刻:外扩起点不得越过(null=片外确认无词,
-   * 任意外扩;undefined=未知,放行——最多把 0.8s 无字幕的尾音收进来)。
+   * O instante em que termina a palavra imediatamente anterior, fora do trecho: esticar o início não
+   * pode passar dela (null = está confirmado que não há palavra fora, e esticar é livre; undefined =
+   * desconhecido, e passa — no pior caso entram 0,8s de som final sem legenda).
    */
   prevWordEndSec?: number | null;
-  /** 片外紧邻的下一个词的开始时刻,语义同上。 */
+  /** O instante em que começa a palavra imediatamente seguinte, fora do trecho; mesma semântica. */
   nextWordStartSec?: number | null;
 }
 
 export interface SnapResult {
   startSec: number;
   endSec: number;
-  /** 实际位移(秒,负=提前/正=延后);未吸附的一侧为 0。 */
+  /** O deslocamento real (em segundos; negativo = antecipou, positivo = atrasou); o lado que não encaixou fica em 0. */
   startDeltaSec: number;
   endDeltaSec: number;
-  /** 至少一侧发生了有效吸附。 */
+  /** Pelo menos um dos lados encaixou de verdade. */
   snapped: boolean;
 }
 
-/** 在 [lo, hi] 里找离 target 最近且通过校验的边界;没有则 null。纯函数。 */
+/** Acha em [lo, hi] a borda mais próxima de target que passa na validação; se não houver, null. Função pura. */
 function nearestBoundary(
   boundaries: number[],
   target: number,
@@ -131,12 +133,13 @@ function nearestBoundary(
 }
 
 /**
- * 把切片起止点吸附到最近的镜头边界。规则:
- *  - 外扩(起点提前/终点延后)≤ SNAP_MAX_OUT_SEC,且不得越过片外紧邻的词;
- *  - 内收 ≤ SNAP_MAX_IN_SEC,且必须已知片内首/末词并留出安全间隙——
- *    绝不切掉说话;
- *  - 吸附后时长 < MIN_CLIP_SEC 时放弃该侧吸附。
- * 纯函数。
+ * Encaixa o início e o fim do trecho na borda de corte mais próxima. As regras:
+ *  - esticar para fora (início antes / fim depois) ≤ SNAP_MAX_OUT_SEC, e sem passar pela palavra
+ *    imediatamente vizinha de fora do trecho;
+ *  - recolher para dentro ≤ SNAP_MAX_IN_SEC, e só com a primeira/última palavra de dentro conhecida e
+ *    com a folga de segurança respeitada — nunca se corta fala;
+ *  - se a duração depois do encaixe ficar abaixo de MIN_CLIP_SEC, o encaixe daquele lado é abandonado.
+ * Função pura.
  */
 export function snapClipToShots(
   startSec: number,
@@ -149,10 +152,10 @@ export function snapClipToShots(
 
   const startAllowed = (b: number): boolean => {
     if (b <= startSec) {
-      // 外扩:不吞掉上一句的词
+      // Esticando para fora: sem engolir a palavra da frase anterior
       return ctx.prevWordEndSec == null || b >= ctx.prevWordEndSec + WORD_GUARD_SEC;
     }
-    // 内收:必须已知首词位置且不切到它
+    // Recolhendo para dentro: a posição da primeira palavra precisa ser conhecida, e ela não pode ser cortada
     return ctx.firstWordStartSec !== undefined && b <= ctx.firstWordStartSec - WORD_GUARD_SEC;
   };
   const endAllowed = (b: number): boolean => {
@@ -171,7 +174,7 @@ export function snapClipToShots(
   if (newStart !== null && Math.abs(newStart - startSec) < MIN_SNAP_DELTA_SEC) newStart = null;
   if (newEnd !== null && Math.abs(newEnd - endSec) < MIN_SNAP_DELTA_SEC) newEnd = null;
 
-  // 时长守卫:先放弃终点吸附,仍不够再放弃起点吸附
+  // Guarda de duração: primeiro o encaixe do fim é abandonado, e se ainda não bastar, o do início
   const dur = () => (newEnd ?? endSec) - (newStart ?? startSec);
   if (dur() < MIN_CLIP_SEC) newEnd = null;
   if (dur() < MIN_CLIP_SEC) newStart = null;
@@ -187,8 +190,9 @@ export function snapClipToShots(
 }
 
 /**
- * 从全量词序列(按时间排序)里取片外紧邻词的时刻,供外扩守卫用。
- * 找不到相邻词时给 null(=确认片外无词,可放心外扩)。纯函数。
+ * Tira, da sequência completa de palavras (ordenada no tempo), o instante da palavra imediatamente
+ * vizinha de fora do trecho, para a guarda do esticar. Sem palavra vizinha, devolve null (= está
+ * confirmado que não há palavra fora, e esticar é seguro). Função pura.
  */
 export function snapContextAround(
   words: Array<Pick<TranscriptWord, "startSec" | "endSec">>,
@@ -202,16 +206,17 @@ export function snapContextAround(
       if (prev === null || w.endSec > prev) prev = w.endSec;
     } else if (w.startSec >= endSec) {
       if (next === null || w.startSec < next) next = w.startSec;
-      break; // 词已排序,后面只会更远
+      break; // as palavras estão ordenadas, e daqui para frente só ficam mais longe
     }
   }
   return { prevWordEndSec: prev, nextWordStartSec: next };
 }
 
 /**
- * 检测 [startSec, endSec] 窗口内的镜头边界,返回绝对时刻(秒)。
- * 抽帧走 ffmpeg rawvideo 管道(25fps 48×27 RGB),推理按 100 帧滑窗、
- * 步长 50,只采纳每窗中间 50 帧的预测;首尾窗口用首/尾帧填充补齐上下文。
+ * Detecta as bordas de corte dentro da janela [startSec, endSec] e devolve o instante absoluto (em segundos).
+ * A amostragem passa por um cano rawvideo do ffmpeg (RGB 48×27 a 25fps), a inferência usa a janela
+ * deslizante de 100 quadros com passo de 50, e só a previsão dos 50 quadros do meio de cada janela é
+ * aproveitada; as janelas das pontas repetem o primeiro/último quadro para completar o contexto.
  */
 export async function detectShotBoundaries(
   inputPath: string,
@@ -235,7 +240,7 @@ export async function detectShotBoundaries(
       "-map", ffmpegVideoStreamSpecifier(analysis.videoStreamIndex),
       "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
     ],
-    // 512MB ≈ 2.3 小时帧数据上限——单片窗口远在其下,只是兜底
+    // 512MB ≈ o teto de quadros de umas 2,3 horas — a janela de um trecho fica muito abaixo disso, e isto é só uma rede de segurança
     { encoding: "buffer", maxBuffer: 512 * 1024 * 1024, signal }
   );
   const n = Math.floor(stdout.length / FRAME_BYTES);

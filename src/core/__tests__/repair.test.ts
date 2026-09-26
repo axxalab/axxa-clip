@@ -3,10 +3,10 @@ import { planRepair, buildRepairArgs, type RepairContext } from "../repair";
 import { planColorRender } from "../color";
 import type { ClipQaReport } from "../qa";
 
-/** 干净报告底座,各用例往上叠告警。 */
+/** A base de um relatório limpo, sobre a qual cada caso empilha os seus avisos. */
 const baseReport = (over: Partial<ClipQaReport> = {}): ClipQaReport => ({
   status: "warn",
-  issues: ["占位告警"],
+  issues: ["aviso de exemplo"],
   durationSec: 30,
   expectedDurationSec: 30,
   blackSpans: [],
@@ -25,38 +25,38 @@ const ctx = (over: Partial<RepairContext> = {}): RepairContext => ({
   ...over,
 });
 
-describe("planRepair (修复计划推导)", () => {
-  it("贴片尾的长静音 → 裁尾(留 0.25s 呼吸垫)", () => {
+describe("planRepair (dedução do plano de reparo)", () => {
+  it("silêncio longo encostado no fim → o fim é aparado (deixando 0,25s de respiro)", () => {
     const plan = planRepair(baseReport({ silenceSpans: [{ startSec: 27.5, endSec: 30 }] }), ctx());
     expect(plan).not.toBeNull();
     expect(plan!.trimEndSec).toBeCloseTo(27.75);
     expect(plan!.trimStartSec).toBe(0);
     expect(plan!.trimmedSec).toBeCloseTo(2.25);
-    expect(plan!.actions[0]).toContain("裁掉结尾");
+    expect(plan!.actions[0]).toContain("do fim");
   });
 
-  it("贴片头的长静音 → 裁头;高潮前置(headTrimmable=false)不动头", () => {
+  it("silêncio longo encostado no começo → o começo é aparado; com o clímax na frente (headTrimmable=false) o começo não é tocado", () => {
     const report = baseReport({ silenceSpans: [{ startSec: 0, endSec: 3 }] });
     const plan = planRepair(report, ctx());
     expect(plan!.trimStartSec).toBeCloseTo(2.75);
     expect(planRepair(report, ctx({ headTrimmable: false }))).toBeNull();
   });
 
-  it("片头黑屏整段裁掉(不留垫)", () => {
+  it("tela preta no começo é aparada inteira (sem respiro)", () => {
     const plan = planRepair(baseReport({ blackSpans: [{ startSec: 0, endSec: 1.2 }] }), ctx());
     expect(plan!.trimStartSec).toBeCloseTo(1.2);
   });
 
-  it("片中静音/黑屏是内容取舍,不裁", () => {
+  it("silêncio e tela preta no meio são escolha de conteúdo e não são aparados", () => {
     expect(planRepair(baseReport({ silenceSpans: [{ startSec: 10, endSec: 14 }] }), ctx())).toBeNull();
     expect(planRepair(baseReport({ blackSpans: [{ startSec: 12, endSec: 13 }] }), ctx())).toBeNull();
   });
 
-  it("裁量低于下限(0.4s)不值得重编码 → 不裁", () => {
+  it("aparar menos que o piso (0,4s) não vale a recodificação → não apara", () => {
     expect(planRepair(baseReport({ silenceSpans: [{ startSec: 0, endSec: 0.5 }] }), ctx())).toBeNull();
   });
 
-  it("裁过头守卫:修复后保留过半才裁,否则放弃裁剪", () => {
+  it("guarda contra aparar demais: só apara se sobrar mais da metade, e senão desiste", () => {
     const report = baseReport({
       durationSec: 10,
       silenceSpans: [
@@ -67,7 +67,7 @@ describe("planRepair (修复计划推导)", () => {
     expect(planRepair(report, ctx())).toBeNull();
   });
 
-  it("响度偏离/真峰值超限 → 二遍归一;没开响度标准化不修", () => {
+  it("volume desviado / pico real acima do limite → segunda normalização; sem a normalização ligada, não conserta", () => {
     const off = baseReport({ loudness: { integratedLufs: -18, truePeakDb: -2 } });
     expect(planRepair(off, ctx())!.loudness).toBe(true);
     expect(planRepair(off, ctx({ normalizeLoudness: false }))).toBeNull();
@@ -75,12 +75,12 @@ describe("planRepair (修复计划推导)", () => {
     expect(planRepair(peak, ctx())!.loudness).toBe(true);
   });
 
-  it("没有可自愈项(如只有半词告警)返回 null", () => {
+  it("sem nada auto-curável (por exemplo, só o aviso de meia palavra) devolve null", () => {
     expect(planRepair(baseReport({ midWordCuts: 2 }), ctx())).toBeNull();
   });
 });
 
-describe("buildRepairArgs (修复参数)", () => {
+describe("buildRepairArgs (parâmetros do reparo)", () => {
   const hdrColor = planColorRender({
     durationSec: 30,
     hasVideo: true,
@@ -99,7 +99,7 @@ describe("buildRepairArgs (修复参数)", () => {
     colorRange: "tv",
   });
 
-  it("仅响度:视频流复制 + loudnorm,秒级零画质损失", () => {
+  it("só o volume: o vídeo é copiado + loudnorm, em segundos e sem perda de qualidade", () => {
     const plan = { loudness: true, trimStartSec: 0, trimEndSec: null, trimmedSec: 0, actions: [] };
     const args = buildRepairArgs("in.mp4", "out.mp4", plan, 30);
     expect(args).toContain("copy");
@@ -111,7 +111,7 @@ describe("buildRepairArgs (修复参数)", () => {
     ]);
   });
 
-  it("显式修复选流沿用全局 stream index", () => {
+  it("o reparo explícito de trilha segue o índice global de stream", () => {
     const plan = { loudness: true, trimStartSec: 0, trimEndSec: null, trimmedSec: 0, actions: [] };
     const args = buildRepairArgs("in.mkv", "out.mp4", plan, 30, undefined, 3, 5);
     expect(args.slice(args.indexOf("-map"), args.indexOf("-map") + 4)).toEqual([
@@ -119,7 +119,7 @@ describe("buildRepairArgs (修复参数)", () => {
     ]);
   });
 
-  it("裁边:帧精确重编码 + 新边界 30ms 淡化", () => {
+  it("aparar a ponta: recodificação exata no quadro + 30ms de suavização na borda nova", () => {
     const plan = { loudness: false, trimStartSec: 2.75, trimEndSec: 27.75, trimmedSec: 5, actions: [] };
     const args = buildRepairArgs("in.mp4", "out.mp4", plan, 30);
     expect(args).toContain("libx264");
@@ -129,7 +129,7 @@ describe("buildRepairArgs (修复参数)", () => {
     expect(args.join(" ")).not.toContain("loudnorm");
   });
 
-  it("裁边 + 响度可以一遍完成,loudnorm 在淡化之前", () => {
+  it("aparar e consertar o volume cabem numa passada só, com o loudnorm antes da suavização", () => {
     const plan = { loudness: true, trimStartSec: 0, trimEndSec: 27, trimmedSec: 3, actions: [] };
     const args = buildRepairArgs("in.mp4", "out.mp4", plan, 30);
     const af = args[args.indexOf("-af") + 1];
@@ -137,7 +137,7 @@ describe("buildRepairArgs (修复参数)", () => {
     expect(af.indexOf("loudnorm")).toBeLessThan(af.indexOf("afade"));
   });
 
-  it("HDR 成片二次修复仍显式保留 BT.709 标签", () => {
+  it("no segundo reparo de um vídeo HDR a etiqueta BT.709 continua explícita", () => {
     const loudnessOnly = buildRepairArgs(
       "in.mp4",
       "out.mp4",

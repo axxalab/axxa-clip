@@ -1,15 +1,20 @@
 /**
- * qa 修复循环(借鉴 video-use 的「渲染后自检→自动修复→重检」闭环,一轮):
- * 把质检告警里「机器自己就能修好」的问题当场修掉——
- *  - 首/尾长静音、首/尾黑屏 → 在成片上裁头/裁尾(不必重跑整条渲染管线,
- *    字幕已烧进画面,裁边不会错位);
- *  - 响度偏离 -14 目标 / 真峰值超限 → 视频流复制,只对音频再跑一遍 loudnorm。
- * 修完重跑一遍质检:报告变好才采纳,否则保留原片——机器不能把片修得更糟。
- * 切点半词类告警保持仅提示(上游跳剪/吸附本就带词边界守卫,重剪整条收益
- * 低风险高);片中黑屏/静音同理,那是内容问题,机器不该替人删内容。
+ * Laço de reparo da verificação de qualidade (inspirado no ciclo do video-use de «conferir depois de
+ * renderizar → corrigir sozinho → conferir de novo», aqui em uma rodada só): o que, entre os avisos da
+ * verificação, «a máquina consegue consertar sozinha» é consertado ali mesmo —
+ *  - silêncio longo ou tela preta nas pontas → o começo/fim do vídeo pronto é aparado (sem precisar
+ *    rodar a esteira de renderização inteira de novo: a legenda já está queimada na imagem, e aparar a
+ *    ponta não desalinha nada);
+ *  - volume longe do alvo de -14 / pico real acima do limite → o vídeo é copiado e só o áudio passa
+ *    outra vez pelo loudnorm.
+ * Depois do conserto a verificação roda de novo: só é aceito se o relatório melhorar, senão o vídeo
+ * original fica — a máquina não pode deixar o vídeo pior. O aviso de corte no meio de uma palavra
+ * segue sendo só aviso (o corte seco e o encaixe, mais acima, já têm guarda na borda das palavras, e
+ * recortar tudo rende pouco e arrisca muito); tela preta ou silêncio no meio do vídeo é a mesma coisa:
+ * aquilo é conteúdo, e a máquina não deve apagar conteúdo no lugar de ninguém.
  *
- * planRepair/buildRepairArgs 是纯函数(可单测);applyRepair 才碰 ffmpeg 与
- * 文件系统。失败语义与质检一致:fail-open,绝不拖垮导出。
+ * planRepair/buildRepairArgs são funções puras (testáveis); só applyRepair toca no ffmpeg e no sistema
+ * de arquivos. A semântica de falha é a mesma da verificação: falha em aberto, nunca derrubando a exportação.
  */
 import { rename, rm } from "fs/promises";
 import { toFfmpegTime } from "./time";
@@ -18,51 +23,52 @@ import { colorOutputArgs, type ColorRenderPlan } from "./color";
 import { ffmpegAudioStreamSpecifier, ffmpegVideoStreamSpecifier } from "./probe";
 import type { ClipQaReport, QaRepairRecord } from "./qa";
 
-/** 静音/黑屏区间「贴着」片头/片尾的判定余量(秒)。 */
+/** A margem que decide se um trecho de silêncio ou de tela preta está «encostado» no começo ou no fim (segundos). */
 const EDGE_TOUCH_SEC = 0.25;
-/** 裁静音时给语音留的呼吸垫(秒)——贴脸裁会显得急促。 */
+/** O respiro deixado antes da fala ao aparar o silêncio (segundos) — aparar em cima da voz soa afobado. */
 const KEEP_PAD_SEC = 0.25;
-/** 裁量下限(秒):比这还短的裁剪不值得再编码一遍。 */
+/** Piso do quanto aparar (segundos): abaixo disso não vale codificar outra vez. */
 const MIN_TRIM_SEC = 0.4;
-/** 修复后成片时长下限(秒)与保留比例下限:裁过头宁可不裁。 */
+/** Piso da duração do vídeo depois do conserto (segundos) e piso da proporção preservada: aparar demais é pior que não aparar. */
 const MIN_CLIP_SEC = 3;
 const MIN_KEEP_FRAC = 0.5;
-/** 响度偏差与真峰值阈值(与 qa.ts 的判定一致)。 */
+/** Os limites de desvio de volume e de pico real (os mesmos do julgamento em qa.ts). */
 const LOUDNESS_TOLERANCE_LU = 2;
 const TRUE_PEAK_CEILING_DB = -1;
 
 export interface RepairContext {
-  /** 出片时开了响度标准化(响度修复只在此时有意义)。 */
+  /** A normalização de volume estava ligada na exportação (é só aí que consertar o volume faz sentido). */
   normalizeLoudness: boolean;
-  /** 头部可裁(高潮前置把钩子迷你片拼在开头时不能动头)。 */
+  /** O começo pode ser aparado (com o clímax na frente, o mini-trecho do gancho está colado no começo e ele não pode ser tocado). */
   headTrimmable: boolean;
 }
 
-/** 一轮修复计划(输出时间轴)。 */
+/** O plano de uma rodada de reparo (na linha de tempo de saída). */
 export interface RepairPlan {
-  /** 音频再跑一遍 loudnorm(响度偏离/真峰值超限)。 */
+  /** O áudio passa outra vez pelo loudnorm (volume desviado / pico real acima do limite). */
   loudness: boolean;
-  /** 新起点(>0 = 裁头)。 */
+  /** O novo início (>0 = o começo foi aparado). */
   trimStartSec: number;
-  /** 新终点(非 null = 裁尾)。 */
+  /** O novo fim (diferente de null = o fim foi aparado). */
   trimEndSec: number | null;
-  /** 共裁掉多少秒(重检时校正预期时长用)。 */
+  /** Quantos segundos foram aparados no total (usado para corrigir a duração prevista na reverificação). */
   trimmedSec: number;
-  /** 人类可读动作清单(进 clips.json 的 qa.repair.actions)。 */
+  /** A lista de ações em linguagem de gente (vai para qa.repair.actions no clips.json). */
   actions: string[];
 }
 
 const fmtSec = (v: number): string => v.toFixed(1);
 
 /**
- * 从质检报告推导修复计划;没有可自愈项返回 null。
- * 只认贴着首尾的静音/黑屏——片中区间是内容取舍,不归机器管。
+ * Deduz o plano de reparo a partir do relatório da verificação; sem nada auto-curável, devolve null.
+ * Só o silêncio e a tela preta encostados nas pontas contam — um trecho no meio é escolha de conteúdo,
+ * e isso não é da conta da máquina.
  */
 export function planRepair(report: ClipQaReport, ctx: RepairContext): RepairPlan | null {
   const dur = report.durationSec;
   const actions: string[] = [];
 
-  // 裁头:贴片头的静音(留呼吸垫)与黑屏(整段裁掉)取最大裁点
+  // Aparar o começo: entre o silêncio encostado no começo (deixando o respiro) e a tela preta (aparada inteira), vale o ponto mais tardio
   let trimStart = 0;
   if (ctx.headTrimmable) {
     for (const s of report.silenceSpans) {
@@ -75,7 +81,7 @@ export function planRepair(report: ClipQaReport, ctx: RepairContext): RepairPlan
     if (trimStart < MIN_TRIM_SEC) trimStart = 0;
   }
 
-  // 裁尾:贴片尾的静音/黑屏取最小新终点
+  // Aparar o fim: entre o silêncio e a tela preta encostados no fim, vale o novo fim mais cedo
   let trimEnd: number | null = null;
   for (const s of report.silenceSpans) {
     if (s.endSec >= dur - EDGE_TOUCH_SEC) {
@@ -90,23 +96,23 @@ export function planRepair(report: ClipQaReport, ctx: RepairContext): RepairPlan
   }
   if (trimEnd !== null && (dur - trimEnd < MIN_TRIM_SEC || trimEnd <= 0)) trimEnd = null;
 
-  // 裁过头守卫:修复后太短/裁掉太多 → 放弃裁剪(静音告警留给人判断)
+  // Guarda contra aparar demais: se o resultado ficar curto demais ou perder demais → aparar é abandonado (o aviso de silêncio fica para a pessoa julgar)
   const newDur = (trimEnd ?? dur) - trimStart;
   if (newDur < MIN_CLIP_SEC || newDur < dur * MIN_KEEP_FRAC) {
     trimStart = 0;
     trimEnd = null;
   }
 
-  if (trimStart > 0) actions.push(`裁掉开头 ${fmtSec(trimStart)}s 静音/黑屏`);
-  if (trimEnd !== null) actions.push(`裁掉结尾 ${fmtSec(dur - trimEnd)}s 静音/黑屏`);
+  if (trimStart > 0) actions.push(`aparados ${fmtSec(trimStart)}s de silêncio/tela preta do começo`);
+  if (trimEnd !== null) actions.push(`aparados ${fmtSec(dur - trimEnd)}s de silêncio/tela preta do fim`);
 
-  // 响度:只在出片开了标准化、且实测确实偏了/超峰时重归一
+  // Volume: só é renormalizado quando a normalização estava ligada na exportação E a medição mostra desvio ou pico acima do limite
   const loudness =
     ctx.normalizeLoudness &&
     report.loudness !== null &&
     (Math.abs(report.loudness.integratedLufs - -14) > LOUDNESS_TOLERANCE_LU ||
       report.loudness.truePeakDb > TRUE_PEAK_CEILING_DB);
-  if (loudness) actions.push("音频响度二遍归一(-14 LUFS)");
+  if (loudness) actions.push("segunda normalização do volume do áudio (-14 LUFS)");
 
   if (actions.length === 0) return null;
   const trimmedSec = trimStart + (trimEnd !== null ? dur - trimEnd : 0);
@@ -114,8 +120,8 @@ export function planRepair(report: ClipQaReport, ctx: RepairContext): RepairPlan
 }
 
 /**
- * 修复的 ffmpeg 参数(纯函数)。裁剪需要重编码(帧精确);只修响度时
- * 视频流复制,秒级完成零画质损失。
+ * Os parâmetros do ffmpeg do reparo (função pura). Aparar exige recodificar (para ser exato no quadro);
+ * quando só o volume é consertado, o vídeo é copiado, o que leva segundos e não perde qualidade nenhuma.
  */
 export function buildRepairArgs(
   inPath: string,
@@ -132,7 +138,7 @@ export function buildRepairArgs(
     "-map", ffmpegAudioStreamSpecifier(audioStreamIndex, 0, true),
   ];
   if (!trims) {
-    // 仅响度:-c:v copy,只重编音频
+    // Só o volume: -c:v copy, e apenas o áudio é recodificado
     return [
       "-hide_banner", "-y",
       "-i", inPath,
@@ -149,7 +155,7 @@ export function buildRepairArgs(
   }
   const start = Math.max(0, plan.trimStartSec);
   const newDur = Math.max(0.1, (plan.trimEndSec ?? durationSec) - start);
-  // 音频链与出片同规:loudnorm 在前,新边界的 30ms 淡化收尾防爆音
+  // A cadeia de áudio segue a regra da exportação: loudnorm primeiro, e 30ms de suavização nas bordas novas para não estalar
   const audioChain = [...(plan.loudness ? [LOUDNORM_FILTER] : []), ...edgeFadeFilters(newDur)];
   return [
     "-hide_banner", "-y",
@@ -172,16 +178,17 @@ export function buildRepairArgs(
 }
 
 export interface RepairOutcome {
-  /** 最终质检报告(带 repair 记录;未采纳时是原报告 + 记录)。 */
+  /** O relatório final da verificação (com o registro de repair; quando o conserto não é aceito, é o relatório original + o registro). */
   report: ClipQaReport;
-  /** true = 成片已被修复版替换。 */
+  /** true = o vídeo pronto foi substituído pela versão consertada. */
   applied: boolean;
 }
 
 /**
- * 执行一轮修复:渲染修复版 → 重跑质检 → 告警严格变少才替换原片,
- * 否则删修复版保留原片(机器不能把片修得更糟)。reQa 由调用方注入
- * (带正确的预期时长与切点上下文)。抛错由调用方兜底(fail-open)。
+ * Roda uma rodada de reparo: renderiza a versão consertada → roda a verificação de novo → só troca o
+ * vídeo original se os avisos diminuírem de verdade, e senão apaga a versão consertada e mantém o
+ * original (a máquina não pode deixar o vídeo pior). reQa é injetada por quem chama (com a duração
+ * prevista e o contexto dos pontos de corte certos). O erro lançado é tratado por quem chama (falha em aberto).
  */
 export async function applyRepair(
   path: string,
