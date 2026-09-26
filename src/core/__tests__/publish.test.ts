@@ -12,75 +12,77 @@ import {
 const LLM = { baseUrl: "http://x/v1", apiKey: "k", model: "m" };
 
 const SOURCES: PublishSource[] = [
-  { id: 1, title: "半杯水都不渗", hook: "你看这个吸水速度", text: "正文".repeat(400), keywords: ["吸水速度"] },
-  { id: 2, title: "差价10倍", hook: "有什么区别", text: "正文", keywords: [] },
+  { id: 1, title: "meio copo de água e não passa nada", hook: "olha a velocidade de absorção", text: "texto ".repeat(400), keywords: ["velocidade de absorção"] },
+  { id: 2, title: "10 vezes mais barato", hook: "qual é a diferença", text: "texto", keywords: [] },
 ];
 
 describe("publishUserPrompt", () => {
-  it("素材逐条成段,正文截断到 300 字", () => {
+  it("cada material vira um bloco, e o texto é truncado em 300 caracteres", () => {
     const p = publishUserPrompt(SOURCES);
-    expect(p).toContain("[1] 片名:半杯水都不渗 钩子:你看这个吸水速度 关键词:吸水速度");
+    expect(p).toContain("[1] Nome do clipe: meio copo de água e não passa nada · Gancho: olha a velocidade de absorção Palavras-chave: velocidade de absorção");
     expect(p).toContain("[2]");
-    const line1 = p.split("\n\n")[0];
-    expect(line1.length).toBeLessThan(400);
+    // O trecho do texto entra cortado exatamente no limite, independente do
+    // tamanho do rótulo que vem antes dele
+    const excerpt = p.split("\n\n")[0].split("Trecho do texto: ")[1];
+    expect(excerpt).toHaveLength(300);
   });
 });
 
 describe("parsePublishCopies", () => {
-  it("解析标准输出,# 前缀自动补齐,标签截到 6 个", () => {
+  it("lê a saída padrão, completa o prefixo # sozinho e corta as hashtags em 6", () => {
     const content = JSON.stringify({
       posts: [
-        { id: 1, title: "倒半杯水会怎样?", hashtags: ["#纸巾测评", "好物推荐", "#a", "#b", "#c", "#d", "#e"], description: "实测给你看。" },
+        { id: 1, title: "o que acontece com meio copo de água?", hashtags: ["#testedelenço", "recomendação", "#a", "#b", "#c", "#d", "#e"], description: "o teste real para você ver." },
       ],
     });
     const map = parsePublishCopies(content, new Set([1]));
     const c = map.get(1)!;
-    expect(c.title).toBe("倒半杯水会怎样?");
-    expect(c.hashtags[1]).toBe("#好物推荐"); // 自动补 #
+    expect(c.title).toBe("o que acontece com meio copo de água?");
+    expect(c.hashtags[1]).toBe("#recomendação"); // o # é completado sozinho
     expect(c.hashtags.length).toBe(6);
-    expect(c.description).toBe("实测给你看。");
+    expect(c.description).toBe("o teste real para você ver.");
   });
 
-  it("无效条目跳过:缺标题/未知 id/垃圾输出", () => {
+  it("os itens inválidos são pulados: sem título, com id desconhecido ou com saída inaproveitável", () => {
     expect(parsePublishCopies('{"posts":[{"id":1,"hashtags":[]}]}', new Set([1])).size).toBe(0);
     expect(parsePublishCopies('{"posts":[{"id":9,"title":"x"}]}', new Set([1])).size).toBe(0);
-    expect(parsePublishCopies("做不到", new Set([1])).size).toBe(0);
+    expect(parsePublishCopies("não consigo fazer isso", new Set([1])).size).toBe(0);
   });
 
-  it("剥 think 块后仍能解析", () => {
-    const map = parsePublishCopies('<think>嗯</think>{"posts":[{"id":1,"title":"钩子标题"}]}', new Set([1]));
-    expect(map.get(1)?.title).toBe("钩子标题");
+  it("continua sendo possível ler depois de remover o bloco de raciocínio", () => {
+    const map = parsePublishCopies('<think>hum</think>{"posts":[{"id":1,"title":"título com gancho"}]}', new Set([1]));
+    expect(map.get(1)?.title).toBe("título com gancho");
     expect(map.get(1)?.hashtags).toEqual([]);
   });
 
-  it("角度与 CTA:菜单内保留,菜单外丢弃成没标,ctaType 只在有 cta 时保留", () => {
+  it("ângulo e CTA: o que está no menu é mantido, o que está fora vira não marcado, e ctaType só fica quando existe cta", () => {
     const content = JSON.stringify({
       posts: [
-        { id: 1, title: "A", angle: "pain", cta: "评论区聊聊你的做法", ctaType: "comment" },
+        { id: 1, title: "A", angle: "pain", cta: "conta nos comentários como você faz", ctaType: "comment" },
         { id: 2, title: "B", angle: "clickbait", cta: "  ", ctaType: "comment" },
         { id: 3, title: "C", ctaType: "share" },
       ],
     });
     const map = parsePublishCopies(content, new Set([1, 2, 3]));
-    expect(map.get(1)).toMatchObject({ angle: "pain", cta: "评论区聊聊你的做法", ctaType: "comment" });
+    expect(map.get(1)).toMatchObject({ angle: "pain", cta: "conta nos comentários como você faz", ctaType: "comment" });
     expect(map.get(2)?.angle).toBeUndefined();
     expect(map.get(2)?.cta).toBeUndefined();
-    expect(map.get(3)?.ctaType).toBeUndefined(); // 没有 cta 正文,类型标签没意义
+    expect(map.get(3)?.ctaType).toBeUndefined(); // sem o texto do cta, a etiqueta de tipo não significa nada
   });
 });
 
 describe("generatePublishCopies", () => {
-  it("正常路径:中文提示词 + id 素材对", async () => {
+  it("caminho normal: prompt em português com os pares de id e material", async () => {
     const chat: PublishChatFn = async (_llm, system, user) => {
-      expect(system).toContain("短视频运营");
-      expect(user).toContain("[1] 片名:半杯水都不渗");
+      expect(system).toContain("redes de um canal de vídeo curto");
+      expect(user).toContain("[1] Nome do clipe: meio copo de água e não passa nada");
       return '{"posts":[{"id":1,"title":"A","hashtags":["#x"],"description":"d"},{"id":2,"title":"B"}]}';
     };
     const map = await generatePublishCopies(SOURCES, true, LLM, chat);
     expect(map?.size).toBe(2);
   });
 
-  it("英文素材走英文提示词", async () => {
+  it("material em inglês usa o prompt em inglês", async () => {
     const chat: PublishChatFn = async (_llm, system) => {
       expect(system).toContain("social manager");
       return '{"posts":[{"id":1,"title":"A"}]}';
@@ -88,9 +90,9 @@ describe("generatePublishCopies", () => {
     await generatePublishCopies(SOURCES, false, LLM, chat);
   });
 
-  it("端点失败/解析为空 → fail-open null;上游取消上抛", async () => {
+  it("endpoint que falha ou leitura vazia → fail-open devolvendo null; um cancelamento de cima é propagado", async () => {
     expect(await generatePublishCopies(SOURCES, true, LLM, async () => { throw new Error("down"); })).toBeNull();
-    expect(await generatePublishCopies(SOURCES, true, LLM, async () => "垃圾")).toBeNull();
+    expect(await generatePublishCopies(SOURCES, true, LLM, async () => "lixo")).toBeNull();
     expect(await generatePublishCopies([], true, LLM, async () => "{}")).toBeNull();
     const ac = new AbortController();
     ac.abort();
@@ -101,15 +103,15 @@ describe("generatePublishCopies", () => {
 });
 
 describe("postTextFile", () => {
-  it("标题+话题+简介三段,空段省略", () => {
+  it("três blocos: título, hashtags e descrição, com os blocos vazios omitidos", () => {
     expect(postTextFile({ title: "T", hashtags: ["#a", "#b"], description: "D" })).toBe("T\n\n#a #b\n\nD\n");
     expect(postTextFile({ title: "T", hashtags: [], description: "" })).toBe("T\n");
   });
 
-  it("CTA 缀在简介后一行;没简介时 CTA 独立成段", () => {
-    expect(postTextFile({ title: "T", hashtags: [], description: "D", cta: "关注我下期拆解", ctaType: "follow" })).toBe(
-      "T\n\nD\n关注我下期拆解\n"
+  it("o CTA fica na linha seguinte à descrição; sem descrição, ele forma um bloco próprio", () => {
+    expect(postTextFile({ title: "T", hashtags: [], description: "D", cta: "me segue que no próximo eu destrincho", ctaType: "follow" })).toBe(
+      "T\n\nD\nme segue que no próximo eu destrincho\n"
     );
-    expect(postTextFile({ title: "T", hashtags: [], description: "", cta: "收藏慢慢看" })).toBe("T\n\n收藏慢慢看\n");
+    expect(postTextFile({ title: "T", hashtags: [], description: "", cta: "salva para ver com calma" })).toBe("T\n\nsalva para ver com calma\n");
   });
 });

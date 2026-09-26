@@ -1,11 +1,16 @@
 /**
- * 一片多版:同一条切片生成 N 套差异化包装——不同钩子角度的贴片标题、
- * 开场悬念句、发布文案,封面另抓不同的响度峰帧。多账号分发同一内容时,
- * 靠「真差异」(角度/标题/封面/文案都不同)而不是像素级去重(抽帧/镜像
- * 已被平台明确判搬运)。
+ * Várias versões de um mesmo clipe: o mesmo corte ganha N embalagens diferentes —
+ * cartelas de título com ângulos de gancho diferentes, frases de suspense na
+ * abertura e textos de publicação distintos, com a capa tirada de outro pico de
+ * volume. Ao distribuir o mesmo conteúdo em várias contas, o que sustenta isso é a
+ * "diferença de verdade" (ângulo, título, capa e texto todos diferentes), e não a
+ * remoção de duplicidade no nível do pixel (perder quadros ou espelhar já é
+ * explicitamente julgado como reupload pelas plataformas).
  *
- * 一次 LLM 调用为整批切片出全部变体计划;fail-open——生成失败只是没有
- * 变体,绝不拖垮导出。展开逻辑(计划 → 追加的导出 spec)是纯函数可单测。
+ * Uma única chamada ao LLM produz o plano de todas as versões do lote inteiro; é
+ * fail-open — uma geração que falha significa apenas ficar sem versões, e nunca
+ * derruba a exportação. A lógica de expansão (plano → as especificações de
+ * exportação acrescentadas) é de funções puras e testável.
  */
 import type { LlmConfig } from "../shared/api-types";
 import { stripThinkBlocks } from "./highlight/prefilter";
@@ -13,37 +18,37 @@ import { hookAngleMenu, ctaMenu } from "./copy-templates";
 import { parsePostFields, publishUserPrompt, type PublishCopy, type PublishSource, type PublishChatFn } from "./publish";
 import type { ExportClipSpec } from "./export";
 
-/** 总版本数上限(含原版):3 版已覆盖「三个账号错峰发」的主流玩法。 */
+/** Teto do total de versões (incluindo a original): 3 versões já cobrem a prática mais comum, de "três contas publicando em horários diferentes". */
 export const VARIANT_TOTAL_MAX = 3;
-/** 单次生成超时(整批一次调用)。 */
+/** Tempo máximo de uma geração (o lote inteiro numa chamada). */
 export const VARIANTS_TIMEOUT_MS = 120_000;
-/** 解析失败重发次数(与 detect 的 JSON_ATTEMPTS 同口径:偶发杂质 token)。 */
+/** Quantas vezes reenviar quando a leitura falha (mesmo critério do JSON_ATTEMPTS de detect: o token sujo esporádico). */
 const ATTEMPTS = 2;
 
-/** 一套变体包装。 */
+/** Uma embalagem de versão. */
 export interface VariantPackaging {
-  /** 贴片标题(烧进画面,兼作文件名)。 */
+  /** Título da cartela (queimado na imagem e usado também como nome de arquivo). */
   title: string;
-  /** 开场悬念句(黄金3秒大字);模型想不出贴切的会省略。 */
+  /** Frase de suspense da abertura (em letras grandes nos 3 segundos de ouro); o modelo omite quando não consegue pensar numa que sirva. */
   teaser?: string;
-  /** 该版的发布文案(标题/话题/简介/CTA)。 */
+  /** O texto de publicação desta versão (título, hashtags, descrição e CTA). */
   post?: PublishCopy;
 }
 
-export function variantSystemPrompt(zh: boolean, extraCount: number): string {
-  if (zh) {
+export function variantSystemPrompt(pt: boolean, extraCount: number): string {
+  if (pt) {
     return [
-      "你是短视频运营。同一条切片要发多个账号,每个账号要一版差异化包装——不是同义改写,是换一个钩子角度重新包装同一段内容。",
-      `为每条切片在原版之外再给 ${extraCount} 套包装,每套输出:`,
-      "title=烧进画面的贴片标题(≤20字,必须换角度,不能只是原标题换词);",
-      "teaser=开场悬念句(≤18字,大字压在开头;想不出贴切的就省略这个字段);",
-      "post=发布文案对象:{title:发布标题≤30字, hashtags:3-6个带#话题, description:≤60字简介, cta:≤20字行动号召, angle/ctaType:从菜单选}。",
-      "钩子角度菜单:",
+      "Você é responsável pelas redes de um canal de vídeo curto. O mesmo corte vai ser publicado em várias contas, e cada conta precisa de uma embalagem diferente — não é reescrever com sinônimos, é reembalar o mesmo conteúdo a partir de outro ângulo de gancho.",
+      `Para cada clipe, além da versão original, entregue ${extraCount} embalagens, e em cada uma produza:`,
+      "title = o título da cartela queimado na imagem (até 40 caracteres, obrigatoriamente com outro ângulo, e não o título original com outras palavras);",
+      "teaser = a frase de suspense da abertura (até 36 caracteres, em letras grandes sobre o começo; se não conseguir pensar numa que sirva, omita este campo);",
+      "post = o objeto do texto de publicação: {title: título de publicação de até 60 caracteres, hashtags: de 3 a 6 com #, description: descrição de até 120 caracteres, cta: chamada final de até 40 caracteres, angle/ctaType: escolhidos nos menus}.",
+      "Menu de ângulos de gancho:",
       hookAngleMenu(true),
-      "CTA 菜单:",
+      "Menu de CTA:",
       ctaMenu(true),
-      "同一条切片的各版必须用不同 angle,与原版标题的角度也要错开。",
-      '严格只输出 JSON:{"clips":[{"id":1,"variants":[{"title":"…","teaser":"…","post":{"title":"…","hashtags":["#…"],"description":"…","angle":"question","cta":"…","ctaType":"comment"}}]}]}',
+      "As versões de um mesmo clipe precisam usar angle diferentes entre si, e diferentes também do ângulo do título original.",
+      'Responda com JSON estrito e nada mais: {"clips":[{"id":1,"variants":[{"title":"…","teaser":"…","post":{"title":"…","hashtags":["#…"],"description":"…","angle":"question","cta":"…","ctaType":"comment"}}]}]}'
     ].join("\n");
   }
   return [
@@ -62,8 +67,9 @@ export function variantSystemPrompt(zh: boolean, extraCount: number): string {
 }
 
 /**
- * 解析变体计划。整体不是 JSON 时抛错(上层借此重发一次);单条垃圾行
- * 静默丢弃。每条切片的变体数截到 perClipMax。
+ * Lê o plano de versões. Quando o conjunto não é JSON, lança erro (e a camada acima
+ * usa isso para reenviar uma vez); uma linha isolada com lixo é descartada em
+ * silêncio. A quantidade de versões de cada clipe é cortada em perClipMax.
  */
 export function parseVariantPlans(
   content: string,
@@ -95,13 +101,14 @@ export function parseVariantPlans(
 }
 
 /**
- * 生成变体计划(整批一次调用)。fail-open:失败/垃圾输出返回 null;
- * 上游取消原样上抛。totalCount 是含原版的总版本数(2 或 3)。
+ * Gera o plano de versões (o lote inteiro numa chamada). É fail-open: falha ou saída
+ * inaproveitável devolvem null; um cancelamento vindo de cima é propagado como está.
+ * totalCount é o total de versões incluindo a original (2 ou 3).
  */
 export async function generateVariantPlans(
   sources: PublishSource[],
   totalCount: number,
-  zh: boolean,
+  pt: boolean,
   llm: LlmConfig,
   chat: PublishChatFn,
   signal?: AbortSignal
@@ -109,7 +116,7 @@ export async function generateVariantPlans(
   const extra = Math.min(totalCount, VARIANT_TOTAL_MAX) - 1;
   if (sources.length === 0 || extra < 1) return null;
   const validIds = new Set(sources.map((s) => s.id));
-  const system = variantSystemPrompt(zh, extra);
+  const system = variantSystemPrompt(pt, extra);
   const user = publishUserPrompt(sources);
   try {
     const timeout = AbortSignal.timeout(VARIANTS_TIMEOUT_MS);
@@ -122,7 +129,7 @@ export async function generateVariantPlans(
         return parsed.size > 0 ? parsed : null;
       } catch (e) {
         if (combined.aborted) throw e;
-        lastErr = e; // 偶发杂质 token 让整份 JSON 非法——重发一次
+        lastErr = e; // um token sujo esporádico deixa o JSON inteiro inválido — reenvia uma vez
       }
     }
     throw lastErr;
@@ -133,13 +140,19 @@ export async function generateVariantPlans(
 }
 
 /**
- * 把变体计划展开成追加的导出 spec:每个变体克隆原 spec,换标题/悬念句/
- * 文案,封面改抓下一个响度峰(coverRank),id 从现有最大值续编保证唯一。
- * 与原标题一字不差的变体丢弃(没有差异化价值)。attachPost=false 时
- * (用户没开发布文案)变体也不带文案,与原版行为一致。
- * flashDim=true(全局爆点闪现没开)时,每条切片的最后一个变体再叠一层
- * 结构差异:强制开 flash-forward 开场——变体不只换包装,连开场结构都
- * 不同(v0.14 反量产指纹的「真差异」维度;闪不出来自动回退,fail-open)。
+ * Expande o plano de versões nas especificações de exportação acrescentadas: cada
+ * versão clona a especificação original trocando o título, a frase de suspense e o
+ * texto, e a capa passa a ser tirada do pico de volume seguinte (coverRank), com o
+ * id continuando a partir do maior existente para garantir que seja único.
+ * Uma versão idêntica letra por letra ao título original é descartada (não tem valor
+ * de diferenciação). Com attachPost=false (a pessoa não ligou o texto de publicação),
+ * as versões também não levam texto, igual à versão original.
+ * Com flashDim=true (a antecipação do pico não está ligada globalmente), a última
+ * versão de cada clipe recebe uma camada a mais de diferença estrutural: a
+ * antecipação do pico é forçada na abertura — assim a versão não troca só a
+ * embalagem, mas também a estrutura de abertura (é a dimensão de "diferença de
+ * verdade" contra a impressão digital de produção em massa, da v0.14; se o pico não
+ * puder ser mostrado, o recuo é automático, fail-open).
  */
 export function expandClipSpecs(
   specs: ExportClipSpec[],
@@ -151,7 +164,7 @@ export function expandClipSpecs(
   const out: ExportClipSpec[] = [];
   for (const spec of specs) {
     out.push(spec);
-    let seq = 1; // 原版是第 1 版
+    let seq = 1; // a original é a versão 1
     const usable = (plans.get(spec.id) ?? []).filter((v) => v.title !== spec.title.trim());
     for (const v of usable) {
       seq++;
@@ -161,8 +174,8 @@ export function expandClipSpecs(
         title: v.title,
         variantOf: spec.id,
         variant: seq,
-        coverRank: seq - 1, // 第 2 版抓第 2 峰,以此类推
-        // 最后一版换开场结构(爆点闪现),前面的版只换包装
+        coverRank: seq - 1, // a versão 2 pega o segundo pico, e assim por diante
+        // A última versão troca a estrutura de abertura (antecipação do pico), e as anteriores só trocam a embalagem
         flashForward: flashDim && seq === usable.length + 1 ? true : spec.flashForward,
         publish: attachPost ? (v.post ?? spec.publish) : undefined,
         meta: spec.meta ? { ...spec.meta, teaser: v.teaser ?? spec.meta.teaser } : undefined,

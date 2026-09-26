@@ -8,8 +8,8 @@ import {
   ctaTypeLabel,
 } from "../copy-templates";
 
-describe("校验器", () => {
-  it("菜单内 id 通过,菜单外/非字符串拒绝", () => {
+describe("validadores", () => {
+  it("id que está no menu passa; fora do menu ou não-string é recusado", () => {
     expect(isHookAngle("question")).toBe(true);
     expect(isHookAngle("urgency")).toBe(true);
     expect(isHookAngle("clickbait")).toBe(false);
@@ -20,32 +20,32 @@ describe("校验器", () => {
   });
 });
 
-describe("提示词菜单", () => {
-  it("中文菜单 8 角度 5 CTA,每行带 id 与用法", () => {
+describe("menus do prompt", () => {
+  it("o menu em português tem 8 ângulos e 5 CTA, com id e uso em cada linha", () => {
     const angles = hookAngleMenu(true).split("\n");
     expect(angles.length).toBe(8);
-    expect(angles[0]).toContain("question=提问式");
+    expect(angles[0]).toContain("question = pergunta");
     const ctas = ctaMenu(true).split("\n");
     expect(ctas.length).toBe(5);
-    expect(ctas.some((l) => l.startsWith("product=商品引导"))).toBe(true);
+    expect(ctas.some((l) => l.startsWith("product = produto"))).toBe(true);
   });
 
-  it("高危角度/CTA 的提示里带红线(与违禁词 lint 呼应)", () => {
-    expect(hookAngleMenu(true)).toContain("禁编造截止");
-    expect(ctaMenu(true)).toContain("禁站外导流");
+  it("as dicas dos ângulos e CTA de risco trazem a linha vermelha (conversando com a checagem de palavras proibidas)", () => {
+    expect(hookAngleMenu(true)).toContain("proibido inventar prazo");
+    expect(ctaMenu(true)).toContain("proibido levar o público para fora da plataforma");
   });
 
-  it("英文菜单同样成行", () => {
+  it("o menu em inglês também sai em linhas", () => {
     expect(hookAngleMenu(false).split("\n").length).toBe(8);
     expect(ctaMenu(false).split("\n").length).toBe(5);
   });
 });
 
-describe("标签", () => {
-  it("已知 id 出人类可读名,未知 id 原样返回", () => {
-    expect(hookAngleLabel("pain", true)).toBe("痛点共鸣");
+describe("rótulos", () => {
+  it("um id conhecido devolve o nome legível, e um id desconhecido volta como está", () => {
+    expect(hookAngleLabel("pain", true)).toBe("dor em comum");
     expect(hookAngleLabel("pain", false)).toBe("pain");
-    expect(ctaTypeLabel("save", true)).toBe("收藏回看");
+    expect(ctaTypeLabel("save", true)).toBe("salvar");
     expect(hookAngleLabel("mystery", true)).toBe("mystery");
   });
 });

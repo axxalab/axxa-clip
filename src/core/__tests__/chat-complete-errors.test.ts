@@ -1,6 +1,8 @@
 /**
- * LLM 连接失败的报错必须可执行(issue #6):选了本地 Ollama 但没装/没启动的
- * 用户,只看到 fetch failed 是不知道下一步的——本地/云端要给不同的指引。
+ * A mensagem de erro de falha ao conectar no LLM precisa ser executável (issue #6):
+ * quem escolheu o Ollama local sem ter instalado ou iniciado, vendo apenas "fetch
+ * failed", não descobre o próximo passo — o caso local e o de nuvem precisam dar
+ * orientações diferentes.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { chatComplete, MAX_TOKENS, RETRY_MAX_TOKENS, thinkingParams } from "../highlight/detect";
@@ -13,26 +15,26 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("chatComplete 连接失败指引", () => {
-  it("本地端点连不上 → 指引安装/启动 Ollama 或换云端", async () => {
+describe("orientação do chatComplete em falha de conexão", () => {
+  it("endpoint local inalcançável → orienta instalar ou iniciar o Ollama, ou trocar para a nuvem", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("fetch failed"); }));
     await expect(chatComplete(OLLAMA, "s", "u")).rejects.toThrow(/Ollama/);
     await expect(chatComplete(OLLAMA, "s", "u")).rejects.toThrow(/ollama\.com/);
   });
 
-  it("云端端点连不上 → 指引查网络与 Base URL,不提 Ollama", async () => {
+  it("endpoint de nuvem inalcançável → orienta conferir a conexão e a URL base, sem mencionar o Ollama", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("fetch failed"); }));
     const err = (await chatComplete(CLOUD, "s", "u").catch((e: unknown) => e)) as Error;
-    expect(err.message).toContain("检查网络");
+    expect(err.message).toContain("Confira sua conexão");
     expect(err.message).not.toContain("Ollama");
   });
 
-  it("本地 404(模型没拉) → 附 ollama pull 命令", async () => {
+  it("404 no local (o modelo não foi baixado) → acrescenta o comando ollama pull", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("model not found", { status: 404 })));
     await expect(chatComplete(OLLAMA, "s", "u")).rejects.toThrow(/ollama pull qwen3:8b/);
   });
 
-  it("云端 404 → 不附 ollama pull 提示", async () => {
+  it("404 na nuvem → não acrescenta a dica do ollama pull", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("no such model", { status: 404 })));
     const err = (await chatComplete(CLOUD, "s", "u").catch((e: unknown) => e)) as Error;
     expect(err.message).toContain("HTTP 404");
@@ -40,13 +42,13 @@ describe("chatComplete 连接失败指引", () => {
   });
 });
 
-/** 构造一条 OpenAI 兼容响应。 */
+/** Monta uma resposta compatível com OpenAI. */
 function chatResponse(message: Record<string, unknown>, finishReason = "stop"): Response {
   return new Response(JSON.stringify({ choices: [{ finish_reason: finishReason, message }] }), { status: 200 });
 }
 
-describe("chatComplete 请求恢复边界", () => {
-  it("限流恢复和 Qwen 参数回退共用一次重试额度", async () => {
+describe("limites de recuperação de requisição do chatComplete", () => {
+  it("a recuperação de limite de taxa e o recuo de parâmetro do Qwen compartilham a mesma cota de uma retentativa", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response("busy", { status: 429, headers: { "retry-after": "0" } }))
       .mockResolvedValueOnce(new Response("unsupported parameter: enable_thinking", { status: 400 }))
@@ -57,7 +59,7 @@ describe("chatComplete 请求恢复边界", () => {
     expect(fetchMock.mock.calls.map((c) => JSON.parse(c[1].body).enable_thinking)).toEqual([false, false, undefined]);
   });
 
-  it("参数回退只使用首次请求剩余的时间", async () => {
+  it("o recuo de parâmetro usa apenas o tempo que sobrou da primeira requisição", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn()
       .mockImplementationOnce(async () => {
@@ -76,18 +78,18 @@ describe("chatComplete 请求恢复边界", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("服务端要求长等待时保留等待提示并隐藏回显 Key", async () => {
+  it("quando o servidor pede uma espera longa, a dica de espera é preservada e a chave ecoada é escondida", async () => {
     const fetchMock = vi.fn(async () => new Response(`rate limited for ${CLOUD.apiKey}`, {
       status: 429, headers: { "retry-after": "120" },
     }));
     vi.stubGlobal("fetch", fetchMock);
     const error = await chatComplete(CLOUD, "s", "u").catch((e: Error) => e) as Error;
-    expect(error.message).toContain("120 秒");
+    expect(error.message).toContain("120 segundos");
     expect(error.message).not.toContain(CLOUD.apiKey);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("空白正文仍可取回正常结束的 reasoning", async () => {
+  it("com o conteúdo em branco, ainda é possível recuperar o reasoning de um encerramento normal", async () => {
     const fetchMock = vi.fn(async () => chatResponse({ content: " \n ", reasoning: '{"clips":[]}' }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(chatComplete(CLOUD, "s", "u")).resolves.toBe('{"clips":[]}');
@@ -95,8 +97,8 @@ describe("chatComplete 请求恢复边界", () => {
   });
 });
 
-describe("chatComplete 空响应处理(issue #8)", () => {
-  it("Qwen3 混合思考模型首请求关闭 thinking,避免正文预算被吃光", async () => {
+describe("tratamento de resposta vazia no chatComplete (issue #8)", () => {
+  it("no primeiro pedido, os modelos Qwen3 de raciocínio híbrido têm o thinking desligado, para o orçamento do conteúdo não ser consumido", async () => {
     const fetchMock = vi.fn(async () => chatResponse({ content: '{"clips":[]}' }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(chatComplete({ ...CLOUD, model: "qwen3.5-flash" }, "s", "u")).resolves.toBe('{"clips":[]}');
@@ -105,7 +107,7 @@ describe("chatComplete 空响应处理(issue #8)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("严格网关不认识 enable_thinking 时回退为标准请求", async () => {
+  it("quando um gateway estrito não conhece o enable_thinking, a requisição volta a ser a padrão", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response("unsupported parameter: enable_thinking", { status: 400 }))
@@ -118,7 +120,7 @@ describe("chatComplete 空响应处理(issue #8)", () => {
     expect(secondBody.enable_thinking).toBeUndefined();
   });
 
-  it("兼容 OpenAI 多模态 content 数组和旧式 choices.text", async () => {
+  it("aceita o array content multimodal da OpenAI e o antigo choices.text", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(chatResponse({ content: [{ type: "text", text: "{" }, { type: "text", text: '"clips":[]}' }] }));
@@ -129,16 +131,16 @@ describe("chatComplete 空响应处理(issue #8)", () => {
     await expect(chatComplete(CLOUD, "s", "u")).resolves.toBe("legacy");
   });
 
-  it("只给 Qwen/QwQ 注入关闭 thinking 参数", () => {
+  it("o parâmetro que desliga o thinking só é injetado no Qwen e no QwQ", () => {
     expect(thinkingParams("qwen3.5-flash")).toEqual({ enable_thinking: false });
     expect(thinkingParams("Qwen/QwQ-32B")).toEqual({ enable_thinking: false });
     expect(thinkingParams("deepseek-v4-flash")).toEqual({});
   });
 
-  it("思考模型烧完预算(finish=length) → 换大预算重试并成功", async () => {
+  it("modelo de raciocínio que queima o orçamento (finish=length) → retentativa com orçamento grande e sucesso", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(chatResponse({ content: "", reasoning_content: "先想想…" }, "length"))
+      .mockResolvedValueOnce(chatResponse({ content: "", reasoning_content: "deixa eu pensar…" }, "length"))
       .mockResolvedValueOnce(chatResponse({ content: '{"clips":[]}' }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(chatComplete(CLOUD, "s", "u")).resolves.toBe('{"clips":[]}');
@@ -149,47 +151,47 @@ describe("chatComplete 空响应处理(issue #8)", () => {
     expect(budgets).toEqual([MAX_TOKENS, RETRY_MAX_TOKENS]);
   });
 
-  it("两次都只有思考没有正文 → 指引换非思考模型", async () => {
+  it("nas duas vezes só há raciocínio e nenhum conteúdo → orienta trocar por um modelo sem raciocínio", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => chatResponse({ content: "", reasoning_content: "想了很久" }, "length"))
+      vi.fn(async () => chatResponse({ content: "", reasoning_content: "pensei bastante" }, "length"))
     );
     const err = (await chatComplete(CLOUD, "s", "u").catch((e: unknown) => e)) as Error;
-    expect(err.message).toContain("未返回内容");
-    expect(err.message).toContain("深度思考");
+    expect(err.message).toContain("não devolveu conteúdo");
+    expect(err.message).toContain("raciocínio profundo");
     expect(err.message).toContain("non-thinking");
   });
 
-  it("正文被网关错放进 reasoning(正常收尾) → 直接取 reasoning,不重试", async () => {
+  it("conteúdo que o gateway colocou no reasoning por engano (com encerramento normal) → o reasoning é usado direto, sem retentativa", async () => {
     const fetchMock = vi.fn(async () => chatResponse({ content: "", reasoning: '{"clips":[]}' }, "stop"));
     vi.stubGlobal("fetch", fetchMock);
     await expect(chatComplete(CLOUD, "s", "u")).resolves.toBe('{"clips":[]}');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("安全审查拦截(content_filter) → 提示换供应商或素材", async () => {
+  it("bloqueio da revisão de segurança (content_filter) → sugere trocar de provedor ou de material", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => chatResponse({ content: "" }, "content_filter")));
     const err = (await chatComplete(CLOUD, "s", "u").catch((e: unknown) => e)) as Error;
-    expect(err.message).toContain("安全审查");
+    expect(err.message).toContain("revisão de segurança");
   });
 
-  it("重试自身报 HTTP 错 → 不覆盖「空响应」诊断", async () => {
+  it("a própria retentativa devolvendo erro de HTTP → não substitui o diagnóstico de \"resposta vazia\"", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(chatResponse({ content: "", reasoning_content: "…" }, "length"))
       .mockResolvedValueOnce(new Response("max_tokens too large", { status: 400 }));
     vi.stubGlobal("fetch", fetchMock);
     const err = (await chatComplete(CLOUD, "s", "u").catch((e: unknown) => e)) as Error;
-    expect(err.message).toContain("未返回内容");
-    expect(err.message).toContain("深度思考");
+    expect(err.message).toContain("não devolveu conteúdo");
+    expect(err.message).toContain("raciocínio profundo");
   });
 
-  it("普通空响应(无思考轨迹) → 重试一次后给通用提示", async () => {
+  it("resposta vazia comum (sem rastro de raciocínio) → depois de uma retentativa, dá a orientação geral", async () => {
     const fetchMock = vi.fn(async () => chatResponse({ content: "" }));
     vi.stubGlobal("fetch", fetchMock);
     const err = (await chatComplete(CLOUD, "s", "u").catch((e: unknown) => e)) as Error;
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(err.message).toContain("空内容");
-    expect(err.message).not.toContain("深度思考");
+    expect(err.message).toContain("conteúdo vazio");
+    expect(err.message).not.toContain("raciocínio profundo");
   });
 });
