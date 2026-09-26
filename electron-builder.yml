@@ -23,7 +23,7 @@ extraResources:
 win:
   target:
     - nsis
-    - zip # 绿色版 portable zip for Chinese users
+    - zip # versão portátil em zip, que não precisa de instalação
   artifactName: HotClip-${version}-win-${arch}.${ext}
 nsis:
   oneClick: false

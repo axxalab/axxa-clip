@@ -8,7 +8,7 @@
 
 **A free, local Opus Clip alternative — no credits, no watermark, no uploads**
 
-[简体中文](README.md) | **English** | [Website](https://xixihhhh.github.io/hotclip/en.html) | [Download](https://github.com/xixihhhh/hotclip/releases/latest) | [FAQ](#faq) | [Issues](https://github.com/xixihhhh/hotclip/issues)
+[Português (BR)](README.md) | **English** | [Website](https://xixihhhh.github.io/hotclip/en.html) | [Download](https://github.com/xixihhhh/hotclip/releases/latest) | [FAQ](#faq) | [Issues](https://github.com/xixihhhh/hotclip/issues)
 
 <p>
   <a href="https://github.com/xixihhhh/hotclip/releases/latest"><img src="https://img.shields.io/github/v/release/xixihhhh/hotclip?label=release&color=ff5722" alt="Latest release"></a>
@@ -417,8 +417,8 @@ PQ/HLG is tone-mapped to tagged SDR BT.709 only when primaries, colour matrix an
 **Can live-chat data help pick highlights?**
 Yes — and it's the strongest evidence there is. HotClip auto-discovers the chat file sitting next to a recording (BililiveRecorder .xml and Douyin-recorder .jsonl both work); chat density plus superchats, memberships, gifts, follows and like bursts feed straight into highlight detection, with per-sender spam caps and surge bonuses. No chat file? Loudness, shot cuts, motion, facial emotion, vocal tone and laughter signals cover for it.
 
-**Does it work for Chinese video?**
-Yes, exceptionally well — dedicated Chinese ASR engines (SenseVoice / Paraformer / FireRedASR2) cover dialects, Cantonese and code-switching; UI, captions and prompts are language-routed.
+**Does it work for non-English video?**
+Yes. The UI, captions and prompts are language-routed: Portuguese transcripts get Portuguese prompts, everything else gets English ones, and titles, hooks and reasoning always follow the transcript's own language. Dedicated ASR engines (SenseVoice / Paraformer / FireRedASR2) also cover Mandarin, Cantonese, dialects and code-switching.
 
 **Do I need a GPU?**
 No. The local ASR models are int8-quantized and run fine on CPU; the highlight LLM runs in the cloud (or your local Ollama).

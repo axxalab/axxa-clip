@@ -25,7 +25,7 @@ jobs:
         include:
           - os: macos-latest # arm64 dmg
             args: --mac dmg
-          - os: windows-latest # nsis installer + portable zip (绿色版)
+          - os: windows-latest # instalador nsis + zip portátil (sem instalação)
             args: --win
           - os: ubuntu-latest # experimental AppImage (issue #7)
             args: --linux

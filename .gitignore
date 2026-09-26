@@ -22,7 +22,7 @@ models/
 dist/
 build/icon-b64.txt
 
-# Claude Code 本地辅助(预览验收配置等,不入库)
+# Apoio local do Claude Code (configuração de prévia e validação; não entra no repositório)
 .claude/
 
 # Optional isolated speech runtime

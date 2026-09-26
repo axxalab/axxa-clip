@@ -1,296 +1,296 @@
 <div align="center">
 
 <a href="https://github.com/xixihhhh/hotclip/releases/latest">
-  <img src="docs/readme-hero.png" alt="HotClip 爆款切片 — 本地 AI · 一键切片:长视频、直播回放一键切成爆款竖屏短视频" width="100%">
+  <img src="docs/readme-hero-en.png" alt="HotClip — transforme vídeos longos e gravações de live em cortes verticais virais, tudo na sua máquina" width="100%">
 </a>
 
-# HotClip 爆款切片 — 免费开源的 AI 直播切片 / 视频剪辑工具
+# HotClip — cortador de vídeo com IA, livre e de código aberto: vídeo longo vira corte vertical viral
 
-**长视频、直播回放一键切成爆款竖屏短视频**
+**Uma alternativa gratuita e local ao Opus Clip — sem créditos, sem marca d'água, sem envio para a nuvem**
 
-**简体中文** | [English](README.en.md) | [官网](https://xixihhhh.github.io/hotclip/) | [下载](https://github.com/xixihhhh/hotclip/releases/latest) | [FAQ](#常见问题) | [反馈](https://github.com/xixihhhh/hotclip/issues)
+**Português (BR)** | [English](README.en.md) | [Site](https://xixihhhh.github.io/hotclip/en.html) | [Download](https://github.com/xixihhhh/hotclip/releases/latest) | [Perguntas frequentes](#perguntas-frequentes) | [Problemas](https://github.com/xixihhhh/hotclip/issues)
 
 <p>
-  <a href="https://github.com/xixihhhh/hotclip/releases/latest"><img src="https://img.shields.io/github/v/release/xixihhhh/hotclip?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC&color=ff5722" alt="最新版本"></a>
-  <a href="https://github.com/xixihhhh/hotclip/releases"><img src="https://img.shields.io/github/downloads/xixihhhh/hotclip/total?label=%E4%B8%8B%E8%BD%BD%E9%87%8F&color=ff9800" alt="下载量"></a>
-  <img src="https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="平台">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/xixihhhh/hotclip?label=%E5%BC%80%E6%BA%90%E5%8D%8F%E8%AE%AE" alt="License"></a>
-  <a href="https://github.com/xixihhhh/hotclip/stargazers"><img src="https://img.shields.io/github/stars/xixihhhh/hotclip?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/xixihhhh/hotclip/releases/latest"><img src="https://img.shields.io/github/v/release/xixihhhh/hotclip?label=vers%C3%A3o&color=ff5722" alt="Versão mais recente"></a>
+  <a href="https://github.com/xixihhhh/hotclip/releases"><img src="https://img.shields.io/github/downloads/xixihhhh/hotclip/total?label=downloads&color=ff9800" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/plataformas-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Plataformas">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/xixihhhh/hotclip?label=licen%C3%A7a" alt="Licença"></a>
+  <a href="https://github.com/xixihhhh/hotclip/stargazers"><img src="https://img.shields.io/github/stars/xixihhhh/hotclip?style=social" alt="Estrelas no GitHub"></a>
 </p>
 
-**AI 自动找爆点(附理由) · 横屏转竖屏 9:16 · 自动加动态字幕 · 去气口剪口头禅**
+**Detecção de destaques por IA (com justificativa) · reenquadramento automático 9:16 que preserva o enquadramento · legendas dinâmicas palavra a palavra · remoção de vícios de linguagem e silêncios**
 
-无水印 · 无积分制 · 不限时长 · 素材不上传 · 连注册都不用
+100% local · sem marca d'água · sem créditos · sem limite de duração · sem cadastro
 
 </div>
 
-本地转写现支持分段保存、停止与续跑；逐句稿提供跨句全文搜索、长稿虚拟列表，以及可试听、确认和撤销的局部时间校准。开启全场画面扫描后，搜索还会命中已确认的画面描述和屏显文字，并可直接跳到对应时刻。导出自动改善不同语言的字幕阅读节奏。可选 Qwen3-ASR 本地服务与模型评估命令见 [语音与长稿使用指南](docs/local-speech.md)。
+A transcrição local agora salva as janelas já concluídas e retoma depois de uma interrupção. A edição da transcrição ganhou busca que atravessa frases, lista virtualizada para textos longos e calibração de tempo com ouvir, aplicar e desfazer. Depois de uma varredura visual completa, a mesma busca também encontra descrições de cena confirmadas e texto que aparece na tela, com um clique para saltar até cada momento. As exportações melhoram o ritmo de leitura das legendas conforme o idioma. O [guia de fala e transcrições longas](docs/local-speech.md) explica a configuração opcional do Qwen3-ASR local e a avaliação reproduzível dos modelos.
 
-搜索没有精确命中时，逐句稿可主动开启「相近台词」：查找仅差一个字的识别结果，并明确标为近似命中，试听确认后再选段。
+Quando a busca exata não encontra nada, a bancada de transcrição pode ativar a **fala parecida** para achar resultados de reconhecimento que diferem por um caractere. Os resultados vêm marcados como aproximados e podem ser ouvidos antes de virar um corte.
 
-**搜到就能选段**：台词和画面命中按时间统一浏览，可按来源筛选、定位命中字词、试听上下文，再带着完整句进入选段窗口。估算时间明确标注；长稿选段按需渲染，确认加入候选后支持撤销和重做。
+**Buscar já é escolher o trecho**: as ocorrências de fala e de imagem são percorridas juntas em ordem de tempo, dá para filtrar por origem, saltar até a palavra encontrada, ouvir o contexto e então revisar as frases inteiras já pré-selecionadas no seletor. O tempo estimado continua sinalizado; a escolha em transcrições longas é virtualizada, e os candidatos adicionados aceitam desfazer e refazer.
 
-多人对谈开启说话人识别后，逐句稿工作台可按 S1 / S2 等说话人筛选；搜索、相近台词和选段预览会同步收窄范围。
+Com a identificação de falantes ligada numa conversa, a bancada de transcrição filtra por S1 / S2, e a busca, as ocorrências de fala parecida e a prévia do corte acompanham o filtro.
 
-## 导出与取消
+## Progresso e cancelamento da exportação
 
-导出页会显示素材检查、字幕翻译、文案生成、多版准备、编码和文件整理阶段。准备阶段即可取消，停止清理结束后可以直接重试；重复启动不会覆盖正在运行的任务。进度在文件整理完成前最高显示 99%。关闭烧录字幕、只打开 SRT 导出时，也会保留逐字稿供字幕文件使用。
+A exportação identifica as etapas de preparação, tradução, texto de publicação, versões, codificação e finalização. Dá para cancelar durante a preparação, esperar a limpeza e tentar de novo sem perder a seleção de candidatos. Uma segunda exportação no desktop não substitui um trabalho em andamento. O progresso fica abaixo de 100% até a entrega terminar. A exportação só de SRT preserva o tempo por palavra mesmo com as legendas queimadas desligadas.
 
-常规剪切、跳剪、音频成片、合集与动态字幕编码先写目标目录内的独立临时文件，成功关闭编码器后才替换目标。失败或取消的这次编码不会把已有目标文件截断；同一批此前完成的切片保留。普通取消会清理临时目录；系统强制结束进程时可能留下隐藏的 `.hotclip-write-*` 目录，需在确认没有导出运行后再处理。这是逐次编码的文件保护，不是整批回滚。
+Cortes, cortes secos, vídeos de onda sonora, compilados e legendas renderizadas pelo navegador são escritos numa pasta reservada ao lado do destino e só substituem o arquivo final depois que a codificação termina bem. Uma codificação que falha ou é cancelada preserva o arquivo anterior, e os clipes já concluídos continuam disponíveis. O cancelamento normal limpa os arquivos temporários. Um encerramento forçado do processo pode deixar pastas ocultas `.hotclip-write-*`; remova-as só depois de confirmar que nenhuma exportação está rodando. A proteção vale para cada operação de codificação, e não como um desfazer de lote inteiro.
 
-## 为什么选 HotClip
+## Por que o HotClip
 
-- **真免费,不是试用**:开源 AGPL-3.0,无水印、无积分制、不限时长、无需注册——不存在「免费档阉割」,也没有月底清零的积分
-- **素材不出你的电脑**:转写、字幕、剪辑、导出全程本地;未发布素材、客户内容不用交给任何云
-- **AI 每一刀都有理由**:爆款分 + 开场钩子 + 推荐理由 + 四维分项,切点逐字对齐;字幕时间来源与需复核区间也明确可见——AI 不猜时间戳,也不用虚构置信度替你做决定
-- **自动切点也会先听人声**:不到 1MB 的本地语音检测给逐字时间再加一道独立证据;词间空隙仍有人声就不剪,开头结尾在严格上限内保护尾音,证据对不上时完全沿用原切点
-- **有底噪才开,而且能选档**:基础档继续用温和固定滤镜;智能档首次下载约 10MB 的 48kHz 本地人声增强模型,在完整剪辑组装后、音效/BGM 混入前只处理讲话原声,不可用时自动回退基础档并在成片回执里说清楚
-- **弹幕直接进爆点判断**:自动发现录播旁的弹幕文件(B 站录播姬 / 抖音录制都认),礼物 SC 点赞按互动计权、单人刷屏防伪——观众逐秒投的票,别家工具还没在看的证据
-- **切完就能发**:竖屏成片 + 动态字幕 + 封面 + 发布文案 + 平台发布包一次出齐,抖音 / 快手 / B站 / 小红书 / 视频号逐平台整理好
-- **任务断了也接得上**:重启自动恢复素材、逐字稿、候选与手调切点;录播监听和 webhook 共用持久任务队列,失败可重试、运行中可取消
-- **长期工程,不是一次性任务**:项目工作区集中管理多份工程,源素材离线/变更会明确提示并可重连;标题、切点、勾选和逐句稿都能撤销/重做,重开项目后编辑历史仍在
-- **分析和成片始终看同一画面**:多视频轨素材从运动/镜头、时间轴缩略图、表情与视觉复核到最终渲染都绑定同一条选中视频轨;PQ/HLG 的分析预览先安全转成 SDR,证据缓存也按画面与色彩决定隔离
-- **长视频越剪越快**:完全相同的基础成片直接复用本地渲染缓存;H.264 单段在关键帧对齐且不改画面时只复制视频流,音频处理照常,条件不满足自动回退精确编码
-- **HDR 手机素材不再盲转**:PQ/HLG 且色彩信息完整、受支持的 HDR 视频自动安全转成社媒通用 SDR BT.709;路径不完整/不支持就保持既有渲染并明确提示,普通 SDR 不变
-- **画面只在确有必要时校正**:可选的智能画面校正只测最终保留帧,明显偏暗、发灰或过饱和才克制修正;正常素材不乱动、黑白素材不强行增艳,不用上传也不新增模型
-- **发出去还会学习**:每条成片有稳定内容 ID,导入播放/互动 CSV 后自动对账;一片多版自动形成本地 A/B 实验,只在同平台、同发布窗口、样本充足时给方向判断
-- **睡觉也在出片**:录播监听 7×24 盯住录播姬 / OBS 目录,录完自动切;出片前一键健康检查,CLI / MCP 让 Agent 一句话交付
+- **Gratuito de verdade, não é teste**: código aberto sob AGPL-3.0 — sem marca d'água, sem créditos, sem limite de duração, sem cadastro. Não existe camada gratuita capada nem cota que zera no fim do mês
+- **Suas imagens nunca saem da sua máquina**: transcrição, legendas, corte e exportação rodam localmente — material ainda não publicado e conteúdo de cliente continuam seus
+- **Todo corte vem com comprovante**: nota de potencial viral + gancho de abertura + justificativa + avaliação em quatro dimensões, mais a origem visível da marcação de tempo das legendas e os trechos que precisam de revisão — a IA nunca chuta horário nem fabrica confiança
+- **O corte automático escuta a fala antes**: um detector local de menos de 1 MB confere a linha do tempo das palavras de forma independente; um intervalo entre palavras que ainda tem fala fica intacto, o movimento nas pontas tem teto rígido e, com evidência duvidosa, o corte original é mantido exatamente
+- **Redução de ruído só quando precisa, no nível que você escolhe**: o Básico mantém o filtro fixo e conservador; o Inteligente baixa sob demanda um modelo local de diálogo de ~10 MB em 48 kHz, processa a edição já montada antes dos efeitos e da trilha, e volta honestamente ao Básico quando não está disponível
+- **O chat ao vivo alimenta a busca de destaques**: o arquivo de chat ao lado da gravação é descoberto sozinho (funciona tanto com o .xml do BililiveRecorder quanto com o .jsonl do gravador do Douyin), presentes e mensagens pagas entram com peso próprio e há proteção contra spam — é o público votando segundo a segundo, uma evidência que a maioria das ferramentas nem olha
+- **Pronto para publicar, não só cortado**: clipes verticais + legendas dinâmicas + capas + texto de publicação + pacotes por plataforma, tudo de uma vez
+- **Trabalho interrompido volta em segurança**: origem, transcrição, candidatos, seleção e cortes ajustados à mão se recuperam depois de reiniciar; o monitoramento de pasta e os webhooks compartilham uma fila persistente com repetição e cancelamento
+- **Projetos de verdade, não tarefas descartáveis**: a área de projetos administra várias edições, com revinculação de origem offline ou alterada; seleção, textos, limites e correções de transcrição aceitam desfazer e refazer, inclusive depois de reabrir
+- **Análise e renderização sempre veem a mesma imagem**: movimento e planos, miniaturas da linha do tempo, emoção facial e a revisão visual opcional ficam todos presos à trilha de vídeo selecionada; caminhos PQ/HLG executáveis ganham uma prévia segura em SDR para análise, e o cache de evidências isola a imagem junto da decisão de cor
+- **Vídeo longo fica mais rápido a cada repetição**: uma renderização base idêntica vem direto de um cache local limitado; o vídeo H.264 só é copiado sem recodificar em cortes únicos alinhados a quadro-chave e sem mudança de pixel, o processamento de áudio continua igual, e qualquer caso duvidoso volta para a codificação precisa
+- **Correção de imagem apenas quando a evidência pede**: em origens que não foram detectadas como HDR, o acabamento adaptativo opcional mede os quadros que ficaram e faz uma correção contida só quando a imagem está claramente escura, sem contraste ou saturada demais; qualquer PQ/HLG detectado pula essa etapa no domínio SDR, imagem saudável fica intacta e material em preto e branco nunca é colorido à força
+- **HDR entra, SDR previsível sai**: a conversão automática exige uma curva PQ/HLG explícita mais primárias, matriz de cor e faixa completas e com suporte; o que se qualifica é mapeado em luz linear para SDR BT.709 devidamente marcado, enquanto SDR e curvas desconhecidas seguem pelo caminho de sempre
+- **Publicar ensina o próximo corte**: toda exportação recebe um identificador de conteúdo estável; exportações com várias versões formam grupos de teste A/B locais e só recebem uma indicação de direção quando plataforma, janela de publicação e amostra são comparáveis
+- **Corta enquanto você dorme**: uma pasta monitorada 24 horas por dia transforma gravações prontas em cortes; o diagnóstico de um clique pega ferramentas e modelos faltando antes de começar, e a CLI e o MCP transformam tudo isso numa entrega de uma frase para um agente
 
-<!-- TODO(P0): 在此处放 30-60 秒实操 demo mp4(README 网页编辑器直接拖入 mp4 生成 user-attachments 页内播放器):
-     内容:拖入直播回放 → 爆点候选卡片弹出 → 一键导出 → 竖屏成片带动态字幕播放 2 秒 -->
+<!-- TODO(P0): colocar aqui um mp4 de demonstração de 30 a 60 segundos (arrastar para o editor web do README gera o player de user-attachments):
+     soltar uma gravação de live → os cartões de candidatos aparecem → exportar com um clique → clipe vertical com legendas dinâmicas -->
 
-<!-- TODO(P0): 在此处放「成片效果」表格:<table> 并排 2-3 个竖屏成片 <video>(中文播客金句 / 带货直播高能 / 中英混说),每个配一行标题 -->
+<!-- TODO(P0): colocar aqui a tabela de "exemplos de saída": 2 ou 3 clipes verticais lado a lado numa <table> com <video> -->
 
-## 直播切片怎么做?三步出片
-
-<p align="center">
-  <img src="docs/readme-story.png" alt="一条长视频变成多个爆款短片:AI 智能识别高光时刻,一键生成竖版爆款短视频" width="100%">
-</p>
-
-1. **导入**:把播客、直播回放、课程、Vlog 丢进来(MP4 / MKV / MOV / FLV / TS,纯音频也行),或直接粘贴 B站 / YouTube 等公开视频地址;首次自动下载并校验官方解析工具,源视频落到本机后进入同一套处理流程
-2. **AI 找爆点**:本地逐字转写 → AI 通读全文挑出金句、冲突、高能片段,每条附**爆款分、开场钩子和推荐理由**,切点精确到词;看不顺眼的取消勾选即可
-3. **一键出片**:竖屏 9:16 成片直接导出——舒适构图、动态逐字字幕、标题贴片、响度归一,附封面图和发布文案,打开就能发**抖音 / 快手 / B站 / 视频号 / 小红书 / TikTok**
-
-## 界面预览
+## Como transformar um vídeo longo em cortes, em três passos
 
 <p align="center">
-  <img src="docs/screenshots/04-highlights.png" width="840" alt="专业工作台:预览 + 信号时间轴 + 候选列表 + 详情栏一屏工作">
+  <img src="docs/readme-story.png" alt="Um vídeo longo vira vários cortes virais: a IA encontra os melhores momentos e gera clipes verticais com um clique" width="100%">
 </p>
-<p align="center"><sub><b>专业工作台</b> —— 预览、时间轴、候选表、详情栏一屏工作:弹幕/响度热度曲线直接画在时间轴上,候选段就落在峰上,「为什么选这段」一眼可见;每条候选附爆款分、四维分项与逐字精确切点,弱片自动标「不建议发布」,勾选取舍全在你手。</sub></p>
+
+1. **Importar**: solte aqui um podcast, uma gravação de live, uma aula ou um vlog (MP4 / MKV / MOV / FLV / TS, e só áudio também vale), ou cole um link público de vídeo, do tipo Bilibili ou YouTube. A ferramenta oficial de download é baixada e verificada no primeiro uso; o arquivo vai para a sua máquina e entra no mesmo fluxo offline
+2. **Escolher os destaques**: transcrição local com marcação por palavra → a IA lê a transcrição inteira e indica as melhores frases, os embates e os momentos de pico, cada um com **nota de potencial viral, gancho de abertura e justificativa**, com pontos de corte precisos na palavra; é só desmarcar o que você não quiser
+3. **Exportar**: um clique produz clipes verticais 9:16 — reenquadramento que preserva o enquadramento, legendas dinâmicas sincronizadas por palavra, cartelas de título e volume normalizado em -14 LUFS. PQ/HLG vira SDR BT.709 marcado apenas quando primárias, matriz de cor e faixa estão completas e com suporte; fora disso o vídeo fica sem conversão e o resultado diz isso — mais a imagem de capa e o texto de publicação, prontos para **TikTok / Reels / Shorts / Douyin / Bilibili**
+
+## Telas do programa
+
+<p align="center">
+  <img src="docs/screenshots/04-highlights.png" width="840" alt="Bancada profissional: prévia, linha do tempo de sinais, lista de candidatos e painel de detalhes numa tela só">
+</p>
+<p align="center"><sub><b>Uma bancada de verdade</b> — prévia, linha do tempo, tabela de candidatos e painel de detalhes na mesma tela: as curvas de euforia do chat e de volume são desenhadas direto na linha do tempo, e os trechos candidatos ficam em cima dos picos, então "por que este trecho" se vê de relance. Todo candidato traz nota de potencial viral, as quatro dimensões detalhadas e pontos de corte precisos na palavra; as escolhas fracas são marcadas sozinhas, e a palavra final é sua.</sub></p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/01-import.png" alt="导入长视频"><br/><sub>① <b>导入</b> 播客 / 直播回放 / 课程 —— 全程本地处理,素材不上传</sub></td>
-    <td width="50%"><img src="docs/screenshots/02-engines.png" alt="选择转写引擎"><br/><sub>② <b>选转写引擎</b> —— 素材常驻工作台,三档本地(SenseVoice / Paraformer / FireRedASR2)+ 可选云端,隐私分级明标</sub></td>
+    <td width="50%"><img src="docs/screenshots/01-import.png" alt="Importar um vídeo longo"><br/><sub>① <b>Importe</b> um podcast, uma gravação de live ou uma aula — tudo é processado localmente e nada é enviado para a internet</sub></td>
+    <td width="50%"><img src="docs/screenshots/02-engines.png" alt="Escolher o motor de transcrição"><br/><sub>② <b>Escolha o motor de transcrição</b> — a origem fica ancorada na bancada; três níveis locais (SenseVoice / Paraformer / FireRedASR2) mais um nível opcional na nuvem</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/03-transcript.png" alt="逐字转写"><br/><sub>③ <b>逐句稿页签</b> —— 带时间戳、即点即改,点时间码画面直接跳过去;是找爆点和字幕的地基</sub></td>
-    <td width="50%"><img src="docs/screenshots/05-export.png" alt="一键出片"><br/><sub>④ <b>一键出片</b> —— 出片方案一键复用,竖屏成片直接发,附封面图与 clips.json 元数据</sub></td>
+    <td width="50%"><img src="docs/screenshots/03-transcript.png" alt="Transcrição com marcação por palavra"><br/><sub>③ <b>Aba de transcrição</b> — com marcação de tempo, corrigível no clique, e clicar num horário salta a prévia; é a base dos destaques e das legendas</sub></td>
+    <td width="50%"><img src="docs/screenshots/05-export.png" alt="Exportação em um clique"><br/><sub>④ <b>Exportação em um clique</b> — conjuntos de exportação reutilizáveis, clipes verticais prontos para publicar, com imagens de capa e metadados no clips.json</sub></td>
   </tr>
 </table>
 
-> 截图为真实界面(演示素材:一段带货直播回放)。**觉得切得准,就点个 ⭐——每颗星都是让更多人不用再给积分制付费的一票,Star + Watch 还能第一时间收到新版本通知。**
+> Interface real, operada sobre uma gravação de live de vendas usada como exemplo. **Se os cortes te parecerem certos, uma ⭐ ajuda mais criadores a escapar das ferramentas que cobram por crédito — e Star + Watch avisa você dos lançamentos.**
 
-## ⬇️ 下载安装
+## ⬇️ Download e instalação
 
-**[去 Releases 页下载最新版 »](https://github.com/xixihhhh/hotclip/releases/latest)**
+**[Baixar a versão mais recente »](https://github.com/xixihhhh/hotclip/releases/latest)**
 
-| 平台 | 文件 | 说明 |
+| Plataforma | Arquivo | Observações |
 |---|---|---|
-| Windows 安装版 | `HotClip-x.y.z-win-x64.exe` | 双击安装即用 |
-| Windows 绿色版 | `HotClip-x.y.z-win-x64.zip` | 免安装,解压即用 |
-| macOS(Apple 芯片) | `HotClip-x.y.z-mac-arm64.dmg` | 拖进「应用程序」 |
-| Linux(实验性) | `HotClip-x.y.z-linux-x64.AppImage` | `chmod +x` 后运行;启动报 sandbox 错误加 `--no-sandbox` |
+| Instalador Windows | `HotClip-x.y.z-win-x64.exe` | Clique duas vezes para instalar |
+| Windows portátil | `HotClip-x.y.z-win-x64.zip` | Descompacte e execute |
+| macOS (Apple Silicon) | `HotClip-x.y.z-mac-arm64.dmg` | Arraste para a pasta Aplicativos |
+| Linux (experimental) | `HotClip-x.y.z-linux-x64.AppImage` | Rode `chmod +x` e execute; acrescente `--no-sandbox` se não abrir por causa de um erro de sandbox |
 
-> ⚠️ 当前版本未做代码签名:Windows SmartScreen 提示时点「更多信息 → 仍要运行」;macOS 首次打开用右键 → 打开(或到「系统设置 → 隐私与安全性」允许)。代码签名已在规划中。
+> ⚠️ Por enquanto os pacotes não são assinados: no SmartScreen do Windows escolha "Mais informações → Executar assim mesmo"; no macOS, clique com o botão direito → Abrir na primeira vez (ou libere em Ajustes do Sistema → Privacidade e Segurança). A assinatura de código está no planejamento.
 >
-> 不用 Python、不用 Docker、不用命令行——下载安装包双击即开。
+> Sem Python, sem Docker, sem linha de comando e sem cadastro — é um aplicativo de desktop de verdade, que se abre com dois cliques.
 
-## 谁在用:直播切片 · 切片带货 · 播客剪辑 · 口播剪辑
+## Para quem é
 
-- **主播 / 切片手(直播切片、录播切片)**:下播后把几小时直播回放自动切成高光短视频;开「录播监听」后 7×24 无人值守,录完自动出片;弹幕热度直接进爆点判断,B 站录播姬 .xml 和抖音直播录制的弹幕 .jsonl 都认
-- **带货 / 矩阵团队(切片带货,已授权)**:商品讲解模式按转化逻辑选段,一键全托管批量出片,每条附发布文案、封面图与 clips.json 元数据,120+ 违禁词规则发布前点名;**一片多版**出差异化包装、**平台发布包**按各平台规格整理齐套素材,多账号多平台拿起来直接发
-- **播客主(播客剪辑、播客视频化)**:纯音频也能出片——自动合成波形动画画面 + 金句字幕,播客节目直接变竖屏视频
-- **知识区 UP 主 / 口播博主(口播剪辑)**:自动去气口、剪口头禅、删停顿,长口播变利落短视频,字幕逐字点亮
+- **Quem transmite ao vivo e quem faz cortes**: transforme suas próprias gravações em cortes logo depois da live; a **pasta monitorada** 24 horas por dia converte gravações prontas em cortes enquanto você dorme; a densidade do chat entra direto na busca de destaques (funciona tanto com o .xml de chat do Bilibili quanto com o .jsonl do gravador do Douyin)
+- **Quem faz podcast**: episódios só de áudio também viram vídeo — uma **onda sonora animada** mais legendas com as melhores frases transformam o podcast em cortes verticais
+- **Quem ensina e quem faz marketing**: aulas, webinários e demonstrações viram clipes fáceis de consumir, com capas, títulos e metadados — e com uma checagem de palavras proibidas antes de publicar
+- **Quem grava falando para a câmera**: silêncios, "é…" e gaguejos são removidos automaticamente; a transcrição corrigível no clique e o glossário de termos mantêm os nomes certos, episódio após episódio
 
-## 和 OpusClip、剪映智能切片的区别
+## Como se compara (alternativa gratuita ao Opus Clip)
 
-市面上的 AI 切片工具,要么**按分钟扣积分**(一期 2 小时播客烧光整月额度,积分月底还清零),要么**必须上传云端**(未发布素材/客户内容不敢传),要么切点稀烂、中文支持名不副实;开源侧则几乎全是命令行,小白装不起来。HotClip 把两边的坑同时填上:
+As ferramentas comerciais cobram **créditos por minuto de material** (um podcast de 2 horas queima a cota do mês, e os créditos expiram todo mês), exigem **envio para a nuvem**, entregam **pontuação de caixa-preta** ou cobram pelas legendas. As alternativas de código aberto são ferramentas de linha de comando ou Docker que a maioria dos criadores não consegue instalar. O HotClip resolve os dois lados:
 
-| | HotClip | OpusClip / Klap / Vizard 等 SaaS | 剪映/CapCut 智能切片 | FunClip / autoclip 等开源 |
+| | HotClip | OpusClip / Klap / Vizard (SaaS) | Corte inteligente do CapCut | FunClip / autoclip (código aberto) |
 |---|---|---|---|---|
-| 价格 | **免费开源** | $15-29+/月,按源视频分钟扣积分,积分月底清零 | 核心功能进会员/Pro | 免费 |
-| 素材去向 | **全程本地,不上传** | 必须上传云端 | 云端处理为主 | 本地 |
-| 水印/时长限制 | **无** | 免费档有水印、限时长、项目 3 天过期 | 部分模板有限制 | 无 |
-| 账号 | **无需注册** | 需注册,退订删项目 | 需登录 | 无 |
-| 小白可用 | **双击安装即用** | 网页版,易用 | 易用 | 命令行/Docker/自部署 |
-| 切点质量 | **逐字对齐精确到词,附理由可否决** | 黑盒打分,常被抱怨断章取义 | 黑盒 | 按句切,无爆点排序 |
-| 竖屏字幕 | **9:16 重构 + 逐字点亮字幕内置** | 有(付费档) | 自动字幕已进付费 | 多数无竖屏重构 |
+| Preço | **Gratuito e de código aberto** | US$ 15 a 29+/mês, créditos por minuto de material, expiram todo mês | Recursos principais são pagos | Gratuito |
+| Suas imagens | **Ficam na sua máquina** | Envio obrigatório para a nuvem | Quase tudo na nuvem | Local |
+| Marca d'água / limites | **Nenhum** | Camada gratuita: marca d'água, limites, projetos expiram em 3 dias | Alguns bloqueios | Nenhum |
+| Cadastro | **Não precisa** | Conta obrigatória, projetos apagados ao cancelar | Exige login | Nenhum |
+| Fácil para iniciante | **Instalador de dois cliques** | Aplicativo web, fácil | Fácil | Linha de comando / Docker / auto-hospedado |
+| Qualidade do corte | **Alinhado à palavra, com justificativa, e você veta o que quiser** | Pontuação de caixa-preta | Caixa-preta | No nível da frase, sem ordenação |
+| Legendas verticais | **Reenquadramento 9:16 + legendas dinâmicas já inclusos** | Sim (nos planos pagos) | Legenda automática é paga | Em geral não fazem reenquadramento vertical |
 
-<sub>竞品信息核对于 2026-07,具体以各家官网为准。详细英文对比:[HotClip vs OpusClip](https://xixihhhh.github.io/hotclip/alternatives/opus-clip.html)</sub>
+<sub>Informações dos concorrentes conferidas em julho de 2026. Comparação detalhada: [HotClip vs OpusClip](https://xixihhhh.github.io/hotclip/alternatives/opus-clip.html)</sub>
 
-## 功能一览
+## Recursos
 
-> 「导入 → AI 找爆点 → 竖屏+逐字字幕成片」三步全流程可下载可用。每组点开看细节——细节里全是真功能,不是形容词。
+> A esteira completa — importar → destaques com IA → clipes verticais com legendas — já está pronta hoje. Abra cada grupo para os detalhes; tudo ali é recurso de verdade, não adjetivo.
 
-### 🎙️ 本地转写:三档引擎,逐字时间戳
+### 🎙️ Transcrição local: três motores, marcação por palavra
 
-已有原文字幕时，在转写页点击 **导入字幕**，选择与当前素材对齐的 UTF-8 SRT / WebVTT，即可进入逐句稿、纠错和文字选段；需要 AI 分析时再点击检测。导入本身不运行 ASR，也不覆盖已有转写缓存。保留字幕原句时间，句内字词时间明确标记为估算，可通过「需复核」筛选检查；手动拼接严格遵守选段边界。
+Já tem uma transcrição? Escolha **Importar legendas** na tela de transcrição e selecione um SRT / WebVTT em UTF-8 alinhado com a origem atual. Dá para revisar, corrigir e escolher frases na hora, e disparar a detecção por IA quando quiser. A importação roda sem reconhecimento de fala e deixa o cache de transcrição intacto. Os limites originais das legendas são preservados; o tempo por palavra dentro de cada legenda é marcado como estimado e aparece no filtro de revisão de tempo. As costuras manuais respeitam estritamente os limites que você escolheu.
 
-CLI 的 `transcribe`、`highlights`、`clip` 均支持 `--subtitles "/path/original.srt"`，三个 MCP 工具均支持 `subtitlePath`。例如 `pnpm cli transcribe "/path/video.mp4" --subtitles "/path/original.vtt" --json` 可输出带时间来源的结构化逐句稿。支持单轨原文字幕，最大 5 MB、20,000 段、100,000 字词；重叠、乱序、超出素材时长或带流媒体时间映射的字幕会提示修正后再导入，不会静默丢句。
+Os comandos `transcribe`, `highlights` e `clip` da CLI aceitam `--subtitles "/caminho/original.srt"`, e as três ferramentas do MCP aceitam `subtitlePath`. Para uma saída estruturada com a origem da marcação de tempo, rode `pnpm cli transcribe "/caminho/video.mp4" --subtitles "/caminho/original.vtt" --json`. Use uma única trilha de transcrição no idioma original, de até 5 MB, 20.000 legendas e 100.000 palavras. Legendas sobrepostas, fora de ordem, fora do intervalo ou mapeadas a um relógio de streaming produzem um erro com o que fazer, em vez de descartar falas em silêncio.
 
-快速 SenseVoice(五语种,170MB)/ 均衡 Paraformer(中文更准)/ 最准 FireRedASR2(普通话/方言/中英混说)——全部本地运行、普通 CPU 就能跑,首次自动下载(国内镜像优先、断点续传);另有云端档 ElevenLabs(自带 Key,只上传音轨)。
+SenseVoice rápido (5 idiomas, 170 MB) / Paraformer equilibrado / FireRedASR2 mais preciso (mandarim, sotaques, alternância de idioma) — todos locais, leves para a CPU, baixados sozinhos e com retomada de download; mais um nível opcional na nuvem (ElevenLabs, com a sua chave, enviando só a trilha de áudio).
 
 <details>
-<summary><b>展开细节</b>:转写缓存 · 逐句稿即点即改 · 热词词表 · 说话人分离</summary>
+<summary><b>Detalhes</b>: cache de transcrição · correção no clique · glossário de termos · separação de falantes</summary>
 
-- **转写结果本地缓存**:同一个文件下次再开、换设置多切几条,跳过重转写秒进挑爆点;文件改动或换引擎自动失效
-- **逐句稿即点即改(转写纠错)**:每句 hover 出铅笔当场改,字幕、双语翻译、发布文案全用修正后文本;重建的逐词时间会明确标「估时」,可一键只看需复核句
-- **热词词表(专有名词一次纠错,期期自动修正)**:人名/品牌/术语改一处,一键应用到全片同错句并入词表;之后每次转写自动整词替换,词表更新后同素材直接用缓存重放、不重跑识别
-- **多人对谈「谁在说话」**:一键说话人分离(本地 pyannote + 3D-Speaker,零上传),逐句标注谁在说;AI 按说话人挑段不断章取义,气泡字幕按人上色
+- **Cache local de transcrição**: reabra o mesmo arquivo e vá direto para a escolha dos destaques; o cache é invalidado quando o arquivo ou o motor muda
+- **Correção na própria transcrição**: passe o mouse em qualquer frase e corrija ali mesmo; legendas, tradução e texto de publicação usam o texto corrigido, enquanto o tempo recalculado fica explicitamente marcado e filtrável para revisão
+- **Glossário de termos**: corrija um nome uma vez, aplique em todas as frases correspondentes e toda transcrição futura se corrige sozinha (combinação por palavra inteira, com o termo errado mais longo tendo prioridade); atualizar o glossário reaproveita o cache — sem reconhecer de novo
+- **Separação de falantes**: uma única opção (pyannote local + 3D-Speaker, sem envio nenhum) identifica quem está falando; a IA escolhe trechos por falante e nunca junta duas pessoas fora de contexto, e as legendas em balão podem receber uma cor por falante
 </details>
 
-### 🔥 AI 找爆点:九路证据链,每一刀都有理由
+### 🔥 Destaques por IA: nove caminhos de evidência, todo corte com comprovante
 
-LLM 只负责«挑哪段»并引用原文,时间戳由逐字转写**反向对齐**——不让 AI 猜时间。每条候选附爆款分、开场钩子、推荐理由与四维分项,弱片自动标「不建议发布」。
+O LLM só escolhe *qual trecho* e precisa citar a transcrição; os horários vêm da **busca reversa na transcrição com marcação por palavra** — a IA nunca chuta tempo. Todo candidato traz nota de potencial viral, gancho, justificativa e avaliação em quatro dimensões, e as escolhas fracas são marcadas como "não recomendado".
 
 <details>
-<summary><b>展开细节</b>:复评质量门 · 弹幕/表情/视觉信号 · 画面复核 · 参考爆款 · 省钱漏斗 · 商品模式</summary>
+<summary><b>Detalhes</b>: porta de qualidade · sinais de chat, emoção e imagem · clipes de referência · funil de custo · modo produto</summary>
 
-- **AI 复评质量门**:严格评审员二次盲评,钩子/结构/价值/热点四维分项打分,每维一句话理由,另给一条可烧上片头的悬念句
-- **爆款分=排名不是玄学**:四维加权后按候选间相对排名归一(推荐档 76-99),同批次可直接比大小,不受批间漂移影响
-- **画面声音证据**:响度峰值、镜头切换密度与轻量运动峰值本地采集注入判断;工作台时间轴直接显示运动曲线,不再纯文本盲选
-- **弹幕热度信号(B 站 / 抖音双格式)**:自动发现录播旁的弹幕文件——录播姬同名 .xml、抖音直播录制的弹幕 .jsonl 都认;滑窗密度+高能词加权圈出观众实时高能段,SC/舰长/礼物/关注/点赞按互动档另计权(花钱和动手的票比弹幕硬);同一人刷屏有贡献封顶(一个人刷一百条不算全场沸腾),突然爆发另有加成——观众逐秒投的票,证据力最强
-- **信号共振与算力聚焦**:多路信号同秒共振才可信——只有音量高可能是 BGM,只有弹幕高可能是刷屏,音量+弹幕+笑声一起亮才是真爆点;运动峰与均匀全场覆盖共同引导抽帧,避免前半段热闹画面挤掉后半段安静但重要的场景
-- **本地多模态证据索引**:响度/镜头/运动、TransNetV2 边界与可选视觉扫描结果按「源文件指纹 + 能力版本 + 模型」原子落盘;桌面、CLI、MCP、录播监听与 webhook 复用同一份结果。默认最多 64MB、最近使用淘汰,损坏或配置变化自动重算,视觉 API Key 从不写入索引
-- **表情峰值信号**:YuNet + FER+(几 MB 的 MIT 协议模型)找大笑/惊讶/激动峰值,零配置让 AI「看见」情绪爆点
-- **视觉爆点信号(可选)**:新用户默认预填本机 Ollama `qwen3.5:4b`,一个多模态模型同时处理文字与九宫格接触表,研判画面高能时刻,专治逐字稿里看不见的画面梗;端点不可用自动跳过,不会挡住纯文字找爆点
-- **AI 画面复核(可选)**:检测后对头部候选再抽九宫格让视觉模型过目——画面炸裂加分、信号候选画面死气降分、画面与标题货不对板标警告,看点写进推荐理由;本机 Ollama 免费,视觉设置填 API Key 即切云端模型
-- **参考视频驱动**:丢一条想对标的爆款切片,本地实测节奏生成风格画像,选段向对标靠拢(CLI `--reference`)
-- **审阅反馈回流**:你采用/否决的候选自动落进本地偏好档,下次「同类优先/同类少选」,越用越懂你;偏好数据不出本机
-- **真实数据反哺选段**:把平台导出的 CSV/JSON 播放与互动数据交给 `pnpm cli feedback`,HotClip 在本机归纳高/低表现内容的题材、钩子与时长共性;桌面端/CLI/MCP/录播监听下一轮找爆点都会参考真实观众结果,不照抄旧标题、不上传账号数据
-- **端侧两级漏斗**:本机小模型先初筛,云端只精读入围段；长稿最多同时预筛两段,失败或超时未处理的段落完整保留,减少本机模型排队压力
-- **模型请求有等待边界**:文字分析、画面研判和模型列表都能在无响应时结束等待；短暂限流或服务忙时最多自动重试一次,等待中可取消,错误提示隐藏回显密钥
-- **镜头切点吸附**:TransNetV2 本地检测真实镜头边界,切点自动吸附(词边界守卫绝不切掉说话)
-- **商品讲解模式(带货直播切片)**:填商品词,按「试用实测 > 卖点 > 价格机制」转化逻辑选段;纯憋单拉互动段(平台判违规)明确排除
-- **切片时长档**:短·10-30s / 标准·8-40s / 长·40-90s 一键切换重选段,目标时长作为硬约束进提示词
+- **Porta de qualidade com revisão por IA**: uma segunda passagem cega e rigorosa dá nota a gancho, estrutura, valor e tendência, com uma linha de justificativa em cada, mais uma frase de chamada pronta para imprimir
+- **Nota de potencial viral é ordenação, não horóscopo**: o total ponderado pelas dimensões é normalizado pela posição relativa dentro do lote (76 a 99), imune à variação de nota do LLM — e é honestamente chamado de ordenador, não de adivinho de visualizações
+- **Evidência de imagem e som**: picos de volume, densidade de troca de plano e picos leves de movimento são coletados localmente e entram no julgamento; a bancada desenha o movimento como uma curva visível na linha do tempo
+- **Sinal de densidade do chat ao vivo (Bilibili e Douyin)**: o arquivo de chat ao lado da gravação é descoberto sozinho — funciona com o .xml do BililiveRecorder e com o .jsonl do gravador do Douyin; a densidade em janela deslizante pesa as palavras de euforia, e os eventos de interação (mensagens pagas, assinaturas, presentes, novos seguidores, rajadas de curtida) têm peso próprio, porque voto com dinheiro e com ação vale mais que mensagem solta. Um teto por remetente impede que um único spammer finja um momento quente, e as subidas repentinas valem pontos extras — é o público votando segundo a segundo, a evidência mais forte que existe
+- **Ressonância entre sinais e esforço bem gasto**: um momento só é confiável quando vários sinais disparam juntos — volume sozinho pode ser a trilha, chat sozinho pode ser spam; volume + chat + riso acendendo ao mesmo tempo é a coisa de verdade. Os picos de movimento guiam a amostragem de quadros, mas uma reserva uniforme explícita ainda cobre o material inteiro, para que um espetáculo no começo não esconda uma cena silenciosa e importante lá na frente
+- **Evidência multimodal local reaproveitável**: os sinais de nível 0, os limites do TransNetV2 e o resultado opcional da varredura visual são indexados de forma atômica pela impressão digital da origem, pela versão de capacidade e pelo modelo. Desktop, CLI, MCP, pasta monitorada e webhooks reaproveitam o mesmo resultado; o índice LRU de 64 MB reconstrói sozinho as entradas corrompidas ou velhas e nunca guarda uma chave de API de visão
+- **Picos de expressão facial (sem configurar nada)**: YuNet + FER+ (licença MIT, poucos MB) encontram os picos de riso, surpresa e empolgação — evidência visual sem instalar nada
+- **Sinal de pico visual (opcional)**: uma instalação nova já vem com o Ollama local `qwen3.5:4b` preenchido, usando um único modelo multimodal para texto e para mosaicos de nove quadros, e encontrando momentos visuais que a transcrição não enxerga; um endpoint indisponível é pulado sem travar a detecção baseada só na transcrição
+- **Revisão visual por IA (opcional)**: depois da detecção, os melhores candidatos passam por uma olhada do modelo de visão nos mosaicos de quadros — imagem marcante sobe a nota, imagem sem vida rebaixa os candidatos vindos de sinal, incoerência entre título e imagem é sinalizada e a observação da cena entra na justificativa; sai de graça com o Ollama local, ou coloque uma chave de API nas configurações de visão para usar um modelo na nuvem
+- **Detecção guiada por clipe de referência**: entregue um corte viral para servir de espelho — o ritmo dele é medido localmente e conduz a escolha (`--reference` na CLI)
+- **Ciclo de retorno da revisão**: os candidatos aprovados e descartados vão para um arquivo local de preferências que conduz a próxima rodada — o sistema aprende o seu gosto, e esses dados nunca saem da sua máquina
+- **Ciclo de retorno do desempenho real**: importe as métricas em CSV/JSON exportadas das plataformas com `pnpm cli feedback`; o HotClip aprende localmente os padrões de tema, gancho e duração por trás do que foi bem e do que foi mal. Desktop, CLI, MCP e a detecção da pasta monitorada usam essa evidência do público sem copiar títulos antigos nem enviar dados de conta
+- **Funil de dois níveis na própria máquina**: um modelo pequeno local faz a lista curta primeiro, e só então o modelo de nuvem lê essa lista. Transcrições longas usam no máximo duas requisições de triagem ao mesmo tempo, e os blocos que falharam ou não foram processados são mantidos por inteiro quando o prazo da triagem termina
+- **Requisições de modelo com limite de tempo**: a análise de texto, a revisão visual e o carregamento da lista de modelos param de esperar quando o prazo expira. As chamadas de texto e de visão repetem no máximo uma vez um erro temporário de limite ou de ocupação, o cancelamento interrompe a espera, e as mensagens de erro escondem a chave de API que tenha vindo ecoada
+- **Pontos de corte encaixados na troca de plano**: o TransNetV2 (31 MB em ONNX, local) encontra as trocas de plano reais, e os limites se encaixam nelas com uma proteção de limite de palavra que nunca corta a fala
+- **Modo produto (venda ao vivo)**: informe os produtos e a escolha passa a seguir a lógica de conversão (demonstração > apresentação de diferenciais > mecânica de preço); os trechos de enrolação para gerar engajamento ficam de fora
+- **Faixas de duração do clipe**: curta de 10 a 30s / padrão de 8 a 40s / longa de 40 a 90s — a duração alvo é uma restrição rígida dentro do prompt de seleção
 </details>
 
-### 📝 字幕与文案:自动加字幕、发布文案一步到位
+### 📝 Legendas e textos: legenda automática e texto de publicação, cada um numa opção
 
-动态字幕多款样式一档切换——关键词高亮、大字弹出、气泡特效、动态极简——词级时间戳驱动、语义断行不拦腰截断,SRT 可导出、双语可选;AI 起的爆款标题自动烧进顶部贴片,发布文案带标签生成。
+Legendas dinâmicas em vários estilos — destaque de palavra-chave, palavra saltando, balão, minimalista — queimadas automaticamente, movidas pela marcação por palavra e com quebra de linha por sentido (nunca cortada no meio de uma expressão); **exportação de SRT** e legendas bilíngues inclusas; títulos da IA queimados como cartelas no topo; texto de publicação gerado para cada clipe.
 
 <details>
-<summary><b>展开细节</b>:气泡特效字幕 · 开场钩子 · 双语 · Hormozi 大字 · 违禁词 lint · AIGC 标识</summary>
+<summary><b>Detalhes</b>: legenda em balão · gancho de abertura · bilíngue · estilo Hormozi · checagem de palavras proibidas · selo de conteúdo por IA</summary>
 
-- **语义断行(免 Key)**:顺着标点在真实子句处换行,长句无标点时回看结构助词断行——等价于头部项目用 LLM 插 `[br]`,但零额外调用
-- **气泡特效字幕(Web 渲染引擎)**:内置 Chromium 离屏逐帧渲染 CSS 字幕层——自适应圆角气泡底、关键词渐变金字、弹性入场,libass 做不出的效果一档切换
-- **开场钩子(黄金3秒)**:AI 写的悬念句自动大字烧在开头 2 秒上三分之一,淡入淡出避开主体;没写出悬念句自动不加
-- **Hormozi 大字爆点字幕**:带货营销风,特大加粗、硬阴影、逐词点亮
-- **说话人标签字幕**:多人对谈时换人行首自动加彩色「A:」「B:」标签(与气泡字幕按人上色同一套色板),观众一眼分清谁在说
-- **双语字幕(出海一步到位)**:整句语境翻译烧成副轨,中文源自动译英;跳剪压缩时译文行同步重映射
-- **SRT 字幕文件导出**:时间轴已对齐跳剪/剪口头禅后的成片,断行与烧录字幕一致
-- **发布文案生成**:每条切片生成钩子风标题 + 3-6 个垂类标签 + 简介,落 `.post.txt` 与 clips.json;8 种钩子角度 × 5 类 CTA 可选
-- **平台违禁词 lint**:120+ 本地规则扫标题/文案/字幕,绝对化用语/医疗宣称/导流话术发布前点名,零上传
-- **AIGC 标识(合规内建)**:按《人工智能生成合成内容标识办法》一键打标——显式画面标识 + 隐式元数据标识
+- **Quebra de linha por sentido (sem chave de API)**: as linhas quebram nos limites reais das orações, a partir da pontuação do reconhecimento de fala — o resultado que as ferramentas comerciais obtêm com `[br]` via LLM, aqui a partir de sinais locais e sem nenhuma chamada extra
+- **Motor de legenda em balão**: o Chromium embutido renderiza legendas em CSS fora da tela, quadro a quadro — balões arredondados, palavras-chave em gradiente, entradas com elasticidade; é determinístico, então a mesma entrada dá a mesma saída
+- **Gancho de abertura (os 3 primeiros segundos de ouro)**: a chamada escrita pela IA é queimada em letras grandes sobre os ~2 segundos iniciais, desviando do assunto principal e da cartela de título; sem uma boa chamada, o recurso é pulado
+- **Abertura fria (o desfecho primeiro)**: a frase de gancho mais forte é emendada bem no começo e depois vem o clipe inteiro — o truque padrão de retenção, cobrado como recurso pago em outras ferramentas; é pulado quando o gancho não pode ser localizado (melhor não fazer do que fazer mal)
+- **Antecipação do pico na abertura**: mostra de 0,3 a 1 segundo do momento mais explosivo antes de a história começar e depois volta — só 0,04% dos clipes trazem algum gancho visual; se coordena sozinha com a abertura fria (uma ou outra) e é pulada quando não existe um pico seguro
+- **Legendas de impacto no estilo Hormozi**: blocos grandes e pesados, sombra dura, acendendo palavra por palavra
+- **Legendas com marca de falante**: em material com várias pessoas, cada troca de falante abre com um prefixo colorido "A:" / "B:" (a mesma paleta por falante das legendas em balão), para que quem assiste nunca perca quem está falando
+- **Legendas bilíngues**: a tradução da frase inteira é queimada como uma segunda faixa, remapeada pela compressão do corte seco; os concorrentes vendem isso como plano pago
+- **Exportação de SRT**: as marcações de tempo já refletem a saída com corte seco e vícios de linguagem removidos, e as quebras de linha batem exatamente com as legendas queimadas
+- **Geração de texto de publicação**: título com gancho + de 3 a 6 hashtags de nicho + descrição por clipe (8 ângulos de gancho × 5 tipos de chamada final), salvo como `.post.txt` e dentro do clips.json
+- **Checagem de palavras proibidas pelas plataformas**: mais de 120 regras locais sobre títulos, textos e legendas — afirmações absolutas, alegações médicas e desvio de público para fora da plataforma são sinalizados antes de publicar
+- **Selo de conteúdo gerado por IA (conformidade embutida)**: uma única opção acrescenta o selo visível na imagem mais os metadados implícitos no arquivo, conforme as regras de rotulagem de conteúdo gerado por IA
 </details>
 
-### 🎬 成片质量:像人剪的,不是机切的
+### 🎬 Acabamento: edição com cara de feita à mão
 
-舒适优先智能取景、气口跳剪、剪口头禅、响度归一 -14 LUFS、帧精确切割——制作链一步到位,每条切片出片后还有自我质检。
+Reenquadramento 9:16 que preserva o enquadramento, corte seco dos silêncios, remoção de vícios de linguagem, volume em -14 LUFS e corte preciso no quadro — com verificação de qualidade e autocorreção depois de cada exportação.
 
 <details>
-<summary><b>展开细节</b>:横屏转竖屏 · 去气口 · 降噪 · 音效 · BGM · 质检自修复 · 智能封面 · 高潮前置 · 爆点闪现 · 精准切点</summary>
+<summary><b>Detalhes</b>: reenquadramento · corte de silêncio · redução de ruído · efeitos · trilha · verificação e autocorreção · capas inteligentes</summary>
 
-- **舒适优先智能取景(横屏转竖屏 9:16)**:逐镜头汇总所有可见人脸;单人移动或多人同框只要能安全装进竖屏就锁住机位,避免追脸晃动。确实超出画幅才平滑跟随,短暂漏检先保持、持续丢失自动回正,无人脸回退居中裁剪
-- **构图回执**:`clips.json` 记录每条成片锁定/多人锁定/跟随/丢失回正/居中兜底的镜头数;镜头锁定会保持到下一次切镜,跳剪也不会让裁窗穿过被删区间
-- **HDR 安全转 SDR(自动)**:输入需同时具备 PQ(ST 2084)或 HLG 传递、BT.2020 原色、BT.2020 非恒定亮度矩阵与 TV/PC 范围,才会先在线性光域克制映射高光,再输出电视范围 SDR BT.709;有 MaxCLL / mastering 峰值时用于约束高光,缺失则交给 FFmpeg 安全估计。连续剪、跳剪、多片段、高潮前置、Web 字幕与质检修复走同一决定。检测到 HDR 但色彩路径不完整/不支持时不猜测、不套用 SDR 域智能校正,完成结果会提示未转换;若色彩信息检查本身失败,同样停用 SDR 域智能校正并明确提示检查失败;普通 SDR 沿用原路径。不新增模型、下载或上传,源色彩信息与决定写入 `clips.json`
-- **智能画面校正(可选,默认关)**:复用本地 Tier-0 分析,按每条最终保留片段测量亮度、反差与饱和度;只对证据充分且明显偏暗/发灰/过饱和的画面做有硬上限的轻校正,正常素材保持原样、接近黑白的素材不强行增艳。跳剪、多片段与高潮前置分别按真实保留窗口计算,具体测量和调整进入 `clips.json`
-- **去录屏UI**:手机直播录屏的状态栏/固定UI/黑边,时域方差自动检测裁除
-- **语音感知气口跳剪(自动去气口)**:剪掉停顿静音并拼接,字幕时间轴同步重映射;「无词 + 声学静默 + 本地语音检测无人声」三重判定,ASR 漏词、轻声尾音、笑声掌声都不会被当空白误删;可选保留 0.25 秒呼吸口——节奏紧凑但不窒息。手调/拼接外边界不改,模型或证据异常精确回退旧逻辑
-- **剪口头禅**:嗯/呃、结巴重复自动剪除(词表刻意保守),剪了什么逐条写进 clips.json
-- **响度标准化**:每条按 EBU R128 归一到 -14 LUFS 社媒标准,整批音量一致;跳剪后按拼接后音轨计算
-- **双档人声降噪(显式开启)**:基础档沿用双高通 + 温和谱减;智能 48k 档首次按需下载约 10MB、经 SHA-256 校验的 DPDFNet2 本地模型,按声道分块增强最长 180 秒成片,视频流直拷。模型、下载或推理异常自动回退基础档;完成页与 `clips.json` 区分“智能生效 / 已回退 / 未应用”,字幕和逐字稿不改
-- **音效打点**:whoosh 卡多段拼接/高潮前置的硬切缝、「叮」卡全片情绪最高点、开场钩子上屏轻响——规则打点每条最多 3 个宁缺毋滥;音效本地合成零素材零版权,想换真实音效包替换同名 wav 即可
-- **背景音乐(BGM 闪避)**:选个本地音频自动循环铺满全片,音量压在人声之下、说话时自动闪避、结尾淡出;混音是独立后处理趟,视频流直拷零画质损失
-- **出片自我质检 + 自我修复**:黑屏/长静音/冻结帧/主体出框/响度/时长/切点半词复核写进 clips.json;冻结和构图问题只提醒回放核对,可安全自愈的告警才当场修复,修完重检变好才采纳
-- **高潮前置(cold-open)**:最炸的钩子句自动剪到开头再接正片——完播率手法,商业工具锁在付费档;定位失败自动跳过,宁可不做不可做错
-- **爆点闪现(flash-forward)**:正片开始前先闪 0.3-1 秒全片最炸瞬间再切回——悬念开场手法(全网仅 0.04% 切片有 visual hook);与高潮前置自动二选一,定位失败自动跳过
-- **精准切点(Paraformer 二遍对齐)**:导出前对选中片段二遍解码,一体化词级时间戳修正字幕、跳剪与切点;对齐词/内插词、匹配覆盖率与不确定区间写进回执,低匹配或异常仍自动回退
-- **字幕时间质量门**:按最终跳剪/拼接后的真实时间轴检查重叠、无效时间、阅读速度、闪现短句、超宽词与估时区间;结果随每条成片写入 `clips.json`,问题可定位而不是只报一个“失败”
-- **质量排序智能封面**:响度峰先提名有内容的时刻,再在最终成片上本地比较清晰度、信息量、曝光、明暗跨度与转场稳定性;黑白场/模糊过渡帧先淘汰,一片多版按排名取不同封面,探测失败原样回退旧响度峰
-- **帧精确切割**:快速定位+重编码,爆点第一秒不糊不偏;数小时 FLV/TS 直接进
-- **硬件加速出片**:自动探测随包 ffmpeg 支持的 VideoToolbox / NVENC / QSV,H.264 重编码优先走 GPU;设备或驱动临时不可用会透明回退 x264,不拿速度换可靠性
-- **导出可取消 + 实时进度**:ffmpeg 进度流式回报,随时一键取消,已完成切片保留
+- **Reenquadramento inteligente que preserva o enquadramento**: cada plano considera todos os rostos visíveis; se uma pessoa em movimento ou um grupo couber com folga, a câmera virtual fica parada. Ela só acompanha quando a pessoa realmente sai do recorte, segura durante uma falha breve do detector, volta ao centro depois de uma perda prolongada e recua com segurança quando as detecções são esparsas
+- **Comprovante de enquadramento**: o `clips.json` registra quantos planos ficaram no total, travados, travados em grupo, acompanhados, em recuperação e com o centro como padrão; o enquadramento travado agora se mantém até o plano seguinte, e o corte seco nunca faz a câmera atravessar um trecho descartado
+- **Acabamento de imagem adaptativo (opcional, desligado por padrão)**: reaproveita a evidência local de nível 0 para medir luminância, contraste e saturação apenas nos intervalos que sobraram em cada clipe; a correção, com teto rígido, só é aplicada com amostra suficiente e um sinal claro de escuro, sem contraste, estourado ou saturado demais. Imagem saudável fica intacta e preto e branco nunca é colorido à força, enquanto cortes secos, trechos costurados e aberturas frias usam as janelas realmente preservadas e registram as medições e os ajustes exatos no `clips.json`
+- **Esteira de cor segura com HDR**: a conversão automática exige PQ (SMPTE ST 2084) ou HLG mais primárias, matriz de cor e faixa completas e com suporte do FFmpeg. Quando existe metadado de MaxCLL ou de pico do monitor de masterização, ele limita as altas luzes; fora isso, o FFmpeg mantém sua estimativa automática segura. O que se qualifica é convertido em luz linear, com um mapeamento de tons Mobius contido, e marcado como SDR BT.709 antes de qualquer recorte, reenquadramento, zoom ou legenda. Se há uma curva HDR mas as demais marcações estão incompletas ou sem suporte, o HotClip mantém o caminho de renderização existente, pula o acabamento adaptativo no domínio SDR e marca o resultado como não convertido. Se a própria inspeção de cor falhar, o acabamento também fica desligado e o resultado diz que a inspeção falhou; SDR e curvas desconhecidas seguem pelo caminho de sempre. Cortes secos, trechos costurados, sobreposição de legendas, aberturas frias e correções seguras da verificação de qualidade preservam a decisão — sem nenhum modelo, download ou envio
+- **Remoção da interface em gravação de tela**: barras de status e tarjas pretas são detectadas por variação ao longo do tempo e recortadas
+- **Corte seco de silêncio que respeita a fala**: as pausas só são removidas quando o trecho *não tem palavra, tem pico acústico baixo e não tem fala detectada localmente*; palavras baixinhas que o reconhecimento perdeu, caudas de fonema, riso e aplauso sobrevivem. Os 0,25 segundo opcionais de respiro mantêm o ritmo apertado sem sufocar; os limites externos de cortes manuais e costurados ficam fixos, e evidência duvidosa preserva o corte exatamente
+- **Remoção de vícios de linguagem**: hesitações do tipo "é…" e gaguejos são cortados (de forma deliberadamente conservadora) e listados item a item no clips.json
+- **Normalização de volume**: -14 LUFS (EBU R128) por clipe, medido no áudio já emendado depois dos cortes secos
+- **Dois níveis explícitos de limpeza de diálogo**: o Básico mantém a cadeia de duplo passa-alta mais subtração espectral conservadora. O Inteligente em 48k baixa sob demanda um modelo DPDFNet2 de ~10 MB verificado por SHA-256, realça os canais mono ou estéreo em blocos limitados para clipes de até 180 segundos e copia o vídeo sem recodificar. Falha de modelo, de download, de decodificação ou de inferência volta para o Básico; a tela de conclusão e o `clips.json` distinguem aprendido, retorno ao básico e pulado, sem alterar as legendas nem o texto da transcrição
+- **Acentos sonoros**: um "whoosh" nos cortes secos de costura e de abertura fria, um "ding" no pico emocional do clipe e um estalo suave quando o gancho de abertura entra — a colocação segue regras, com no máximo 3 por clipe; os efeitos são sintetizados localmente (sem arquivos e sem licenciamento), e basta colocar seus próprios .wav com o mesmo nome para substituí-los
+- **Música de fundo (com abaixamento automático)**: escolha qualquer arquivo de áudio local — ele entra em laço para caber no clipe, fica bem abaixo da voz, abaixa sozinho enquanto alguém fala e desaparece no final; a mixagem acontece numa passagem separada, com o vídeo copiado sem ser tocado
+- **Verificação de qualidade + autocorreção**: quadros pretos, silêncios longos, vídeo congelado, cobertura do recorte sobre o assunto, volume, duração e cortes no meio de palavra vão para o `clips.json`; os avisos de enquadramento pedem revisão humana, e só as falhas seguras de corrigir são reparadas e mantidas depois de uma nova checagem melhor
+- **Capa inteligente ordenada por qualidade**: os picos de áudio propõem os momentos relevantes, e então o clipe pronto é avaliado localmente em nitidez, informação, exposição, faixa tonal e estabilidade da transição; quadros pretos, brancos ou borrados de transição são recusados, as versões pegam a colocação seguinte, e qualquer falha de leitura devolve exatamente a escolha anterior vinda do pico de áudio
+- **Corte preciso no quadro**: busca rápida mais recodificação; gravações FLV/TS de horas entram direto
+- **Exportação com aceleração por hardware**: usa VideoToolbox, NVENC ou QSV automaticamente quando o ffmpeg embutido tem suporte; um dispositivo ou driver indisponível tenta de novo com x264 de forma transparente, sem perder confiabilidade
+- **Pontos de corte precisos (segunda passagem do Paraformer)**: os clipes selecionados são redecodificados antes de exportar para acertar legendas, cortes secos e limites; palavras casadas e interpoladas, cobertura e trechos incertos entram no comprovante, e um alinhamento fraco ou que falhou ainda assim recua com segurança
+- **Porta de qualidade da sincronia das legendas**: valida a linha do tempo final, já emendada, quanto a tempos inválidos ou sobrepostos, velocidade de leitura, piscadas, blocos grandes demais e trechos estimados; cada clipe registra um relatório legível por máquina no `clips.json`
+- **Exportação cancelável com progresso em tempo real**: o progresso do ffmpeg é transmitido ao vivo; o cancelamento encerra o codificador na hora e os clipes já prontos ficam
 </details>
 
-### 🧰 审阅与工作流:AI 粗剪,人终剪
+### 🧰 Revisão e fluxo de trabalho: corte bruto da IA, corte final humano
 
-导出前应用内看片微调:切片审阅台(波形时间轴拖手柄逐词调切点)、字幕安全区预览(九平台真实遮挡遮罩)、出片偏好记忆、品牌样式模板。
+Uma bancada de revisão de clipes (reproduz dentro do app e permite arrastar os pontos de corte palavra a palavra sobre a onda sonora), máscaras de zona segura de legenda fiéis a cada plataforma, predefinições de estilo de marca e memória das preferências de exportação.
 
 <details>
-<summary><b>展开细节</b>:项目工作区 · 可逆编辑 · 断点恢复 · 审阅台 · 安全区 · 发布包 · 主题系列 · 一片多版 · 品牌模板 · 双画幅 · 合集 · EDL · 设置页</summary>
+<summary><b>Detalhes</b>: área de projetos · edição reversível · recuperação ao reiniciar · bancada · zonas seguras · pacotes de publicação · séries por tema · versões · templates de marca · duas proporções · compilado · EDL · configurações</summary>
 
-- **项目工作区**:多份剪辑工程集中管理,切换/重命名/关闭/删除互不串档;源素材缺失或被改动时保留工程并明确标记,重新选择文件即可安全重连,删除工程绝不删除素材
-- **可逆编辑 + 专业快捷键**:选片、标题/切点、多片段调整、手动加片和逐句稿纠错都支持撤销/重做,历史随项目保存且有容量保护;`空格/K` 播放、`J/L` 前后 5 秒、`I/O` 设入出点、`[/]` 切换候选,输入框和弹窗中自动让出
-- **重启接着剪**:当前素材、逐字稿、候选、勾选结果与手调切点自动保存;重开应用校验源文件后恢复到最后稳定状态,检测中/导出中等临时状态不会被错误复活
-- **切片审阅台**:应用内直接播放候选,波形时间轴拖两端手柄逐词微调(自动吸附字词边界),一键还原 AI 切点;手调过的切点导出时机器不再改人的决定
-- **字幕安全区预览**:一键叠加平台 UI 遮挡遮罩(抖音/快手/B站竖屏/视频号/小红书/TikTok/Reels/Shorts + 通用并集九档,按实测数据画)
-- **平台发布包(切完就能发)**:导出后按平台整理齐套素材到「发布包/」——每平台一个文件夹:视频(硬链接不占双份磁盘)+ 按平台画幅重裁的封面(小红书 3:4、B站 16:10、视频号 6:7)+ 按平台上限适配的文案(小红书标题硬截 20 字、话题数各按平台建议),manifest 记录适配了什么;打开文件夹逐平台上传即可
-- **主题系列自动整理**:同场至少两条原版成片共享关键词时,按源片时间整理到「系列/主题/」并编号,附机器可读 manifest;变体不会被误当成剧集,视频仍优先硬链接不重复占空间
-- **一片多版(多账号真差异)**:同一切片一次出 2-3 版差异化包装——不同钩子角度的贴片标题、开场悬念句、发布文案,封面自动抓下一个响度峰;多账号分发靠增量价值,不做抽帧/镜像那类已被平台判搬运的像素级去重
-- **品牌样式模板**:主高亮色/字幕字号位置/logo 水印配一次存成预设,每条切片自动带上;用了什么写进回执
-- **一键双画幅**:同批切片竖屏之外再出一版横屏(自动去标题贴片、字幕换底部布局),竖版发抖音、横版发B站一次搞定
-- **精华合集一键成片**:整批切片流复制拼接成合集(秒级零损),附章节时间戳,B站/YouTube 周更形态现成
-- **时间线 EDL 导出**:`timeline.edl`(CMX3600)含跳剪的每一刀,导入 DaVinci / Premiere 重链源片继续精修
-- **Audiogram 音频成片**:纯音频源自动合成深色底+品牌色波形动画画面,播客也有「画面」
-- **出片偏好记忆 + 标题即点即改**:开关组合自动记住;候选标题点铅笔就改,文件名/贴片/文案全跟着走
-- **设置页**:模型存放位置可见可搬家(跨盘走「复制→校验→才删原件」)、导出画质三档(省空间档体积小 66%)、默认字幕样式与导出位置
-- **新版本提示**:启动静默检查,有新版页头亮小徽标;断网全静默
+- **Área de projetos**: administre várias edições sem que o estado de uma vaze para a outra; troque, renomeie, feche ou exclua documentos de projeto, mantenha intactos os projetos com origem offline ou alterada e revincule a mídia com segurança — excluir um projeto nunca apaga o arquivo de origem
+- **Edição reversível + atalhos profissionais**: seleção, textos e limites, mudanças em vários trechos, clipes manuais e correções de transcrição aceitam desfazer e refazer, com histórico limitado e guardado no projeto; `Espaço/K` reproduz, `J/L` andam ±5s, `I/O` definem entrada e saída e `[/]` navegam entre candidatos, cedendo o teclado automaticamente dentro de campos e janelas
+- **Recuperação segura ao reiniciar**: a origem atual, a transcrição, os candidatos, a seleção e os limites ajustados à mão são salvos em pontos de controle; ao reabrir, a origem é validada e o último estado estável é restaurado, nunca um estado transitório de detecção ou exportação
+- **Bancada de revisão de clipes**: reproduza os candidatos dentro do app, arraste as alças sobre a onda sonora para ajustar palavra a palavra (encaixando nos limites das palavras) e restaure os cortes da IA com um clique; clipes ajustados à mão pulam o encaixe na troca de plano — a máquina nunca passa por cima de uma decisão humana
+- **Prévia da zona segura das legendas**: sobreponha as áreas reais em que a interface de cada plataforma cobre a tela — nove predefinições a partir de medições (Douyin / Kuaishou / Bilibili / WeChat Channels / RedNote / TikTok / Reels / Shorts + a união genérica)
+- **Pacotes por plataforma (publique logo depois de cortar)**: pastas por plataforma com o vídeo em link físico, a capa recortada de novo na proporção daquela plataforma (RedNote 3:4, Bilibili 16:10, Channels 6:7) e o texto de publicação cortado nos limites de cada uma, mais um manifesto do que foi adaptado — abra a pasta e suba plataforma por plataforma
+- **Pacotes de série por tema (opcional)**: quando dois ou mais clipes originais compartilham uma palavra-chave relevante, eles são agrupados e numerados na ordem de tempo da origem, com manifesto geral e por tema; as versões nunca viram episódios falsos, e os links físicos evitam ocupar disco em dobro
+- **Várias versões (diferenciação real para publicar em várias contas)**: de 2 a 3 embalagens de cada clipe numa passagem só — cartelas de título com ângulos de gancho diferentes, chamadas de abertura, textos de publicação e capas tiradas de picos de volume diferentes; construídas sobre valor acrescentado, e não sobre os truques de derrubar quadros ou espelhar que as plataformas hoje marcam como repostagem
+- **Templates de estilo de marca**: uma cor de destaque, o tamanho e a posição da legenda e a marca d'água com logo — predefinições com nome, aplicadas a todos os clipes e registradas no comprovante
+- **Duas proporções num clique**: o vertical 9:16 mais um conjunto horizontal na mesma passagem (sem cartela de título, com as legendas trocando de layout) — os concorrentes exportam uma proporção por vez
+- **Compilado em um clique**: o lote emendado num vídeo de melhores momentos por cópia direta do fluxo (milissegundos, sem perda de qualidade), com um arquivo `.chapters.txt` de capítulos
+- **Exportação de linha do tempo EDL**: um `timeline.edl` (CMX3600) com todos os cortes, inclusive as emendas do corte seco — importe no DaVinci ou no Premiere e continue refinando
+- **Renderização de onda sonora**: origens só de áudio montam sozinhas um fundo escuro com onda sonora animada na cor da marca, e as legendas são queimadas normalmente
+- **Memória das preferências de exportação + edição de título ali mesmo**: as combinações de opções são lembradas entre vídeos, e os títulos podem ser editados no lugar, com os nomes de arquivo e os textos acompanhando
+- **Página de configurações**: o local de armazenamento dos modelos fica visível e pode ser movido (entre discos o processo é copiar → verificar → só então apagar), três níveis de qualidade de exportação (o Compacto mediu 66% a menos), estilo padrão de legenda e local de exportação
+- **Aviso de atualização**: uma verificação silenciosa ao abrir e um selo discreto quando existe uma versão nova; sem internet, a verificação falha em silêncio
 </details>
 
-### 🛡️ 发布合规:发得出去、活得下来
+### 🛡️ Publicar e sobreviver: conformidade pensada para 2026
 
-2026 年的分发环境:像素级搬运判定、AIGC 强制标识、收藏率权重——切得好只是一半,这组功能管另一半:发出去不被判搬运、被质疑时拿得出证据。
+Cortar bem é metade do jogo — a outra metade é sobreviver à distribuição: detecção de repostagem no nível do pixel, rotulagem obrigatória de conteúdo por IA, algoritmos que pesam a taxa de salvamento. Este grupo cuida dessa metade.
 
 <details>
-<summary><b>展开细节</b>:变形度评分 · AI 封面 · AI 配乐 · 剪映草稿 · 台账留证 · AIGC 标注 · 反指纹多版</summary>
+<summary><b>Detalhes</b>: nota de transformação · capas por IA · trilha por IA · rascunhos do JianYing · registro e evidências · selo de IA · versões contra impressão digital</summary>
 
-- **变形度评分**:本次导出实际做的变形(取景/跳剪/字幕/贴片/音效…)汇总成一个分,出片前实时预估,低于 40 黄牌提醒——像素级搬运是 2026 判搬运第一死因
-- **AI 封面双档(可选)**:按切片标题生成竖版大字封面,走量档约 ¥0.3/张、精品档约 ¥1/张(复用 Atlas Key);与抓帧封面并存,想用哪张用哪张
-- **AI 配乐(可选)**:按直播品类生成版权安全的纯音乐 BGM,自动挂进人声闪避混音链——商用曲库的版权风险归零
-- **剪映草稿导出**:每条切片落一个剪映草稿文件夹,AI 的每一刀都铺在时间轴上——粗剪交给 HotClip,精修进剪映接力,不从零开始
-- **发布反馈台账**:每条成片登记稳定内容 ID 与发布状态,一键生成待回填指标 CSV;导入真实播放/互动后按 ID 或唯一标题保守对账,未匹配/歧义行明确列出,表现规律回流下一轮选段
-- **本地 A/B 实验中心**:一片多版自动按原候选、导出批次和平台建对照组;只比较同平台、72 小时内发布、每版至少 500 播放且数据齐全的版本,区分等待/证据不足/差异不明显/方向性领先,明确不作单变量因果承诺
-- **分发留证包**:每条切片对应的源片区间落 CSV 台账,可选保存前后 3 分钟源片切段——授权切片被质疑搬运时,证据链拿得出手
-- **敏感词音频静音(可选)**:按逐字稿时间把自定义词表对应的音频静音,跳剪与多片段拼接后仍精确映射;字幕和逐字稿保留原文,便于审阅与追溯
-- **AIGC 标注助手**:按平台给标注文案与操作入口指引,一键复制;单场超 5 条提示限产(2026 算法偏好质量不偏好数量)
-- **多版反指纹**:一片多版的末版自动换爆点闪现开场 + 模板种子化微扰(字号/基线/边距各有细微差异)——多账号分发不撞视觉指纹,且全部是真差异不是像素伪原创
+- **Nota de transformação**: tudo o que uma exportação realmente mudou (reenquadramento, cortes secos, legendas, cartelas, efeitos…) vira uma única nota, mostrada ao vivo antes de exportar, com cartão amarelo abaixo de 40 — repostagem no nível do pixel é a causa número 1 de remoção em 2026
+- **Capas por IA em dois níveis (opcional)**: capas verticais de manchete grande geradas a partir dos títulos dos clipes — nível econômico a cerca de US$ 0,04 e premium a cerca de US$ 0,14 por capa (reaproveitando a sua chave Atlas); ficam salvas ao lado da capa tirada de um quadro, e você usa a que preferir
+- **Trilha por IA (opcional)**: instrumental livre de direitos gerado conforme o gênero da transmissão, já ligado à cadeia de mixagem com abaixamento sob a voz — risco zero de licenciamento de biblioteca comercial
+- **Exportação de rascunho do JianYing**: cada clipe vira uma pasta de rascunho do JianYing (CapCut CN) com todos os cortes da IA na linha do tempo — o corte bruto sai do HotClip e vai para o editor de acabamento sem recomeçar do zero
+- **Registro de retorno das publicações**: toda exportação registra um identificador de conteúdo estável e o status de publicação; um CSV de métricas já preenchido volta por correspondência conservadora de identificador ou de título único, enquanto as linhas sem correspondência ou ambíguas ficam visíveis e os padrões medidos alimentam a próxima rodada de seleção
+- **Central local de testes A/B**: exportações com várias versões se agrupam sozinhas por candidato de origem, lote de exportação e plataforma; as comparações exigem uma única plataforma, publicações dentro de 72 horas, métricas completas e pelo menos 500 visualizações por versão, e informam os estados aguardando, insuficiente, inconclusivo ou indicativo, sem afirmar causa a partir de uma variável só
+- **Pacote de evidências de distribuição**: o intervalo de origem de cada clipe é registrado em CSV, e opcionalmente com um arquivo de ±3 minutos da origem — quando um corte autorizado é questionado como repostagem, você tem o comprovante
+- **Silenciamento de áudio no tempo da transcrição (opcional)**: silencie uma lista local e editável de termos sensíveis preservando a transcrição e as legendas originais; a marcação continua correta mesmo com cortes de silêncio e clipes de vários trechos
+- **Assistente de rotulagem de conteúdo por IA**: o texto do selo e os caminhos de cada plataforma, com um clique para copiar; mais um aviso suave acima de 5 clipes por transmissão (os algoritmos de 2026 premiam qualidade, não volume)
+- **Versões contra impressão digital**: a última das suas versões troca a abertura por uma antecipação do pico mais uma variação determinística do template (pequenas diferenças de tamanho de fonte, linha de base e margem) — publicar em várias contas sem colidir na impressão digital visual, tudo por diferenciação real e não por truque de pixel
 </details>
 
-### 🤖 批量与生态:CLI / MCP / Agent Skill
+### 🤖 Lote e ecossistema: CLI / MCP / Agent Skill
 
-一键全托管(导入后点一个按钮全自动出片)+ 录播监听 7×24 无人值守 + Headless CLI + 本地 MCP Server——**唯一本地不上传的切片 Agent 工具链**。
+Modo automático de um clique + pasta monitorada 24 horas por dia + CLI sem interface + servidor MCP local — **a única cadeia de corte local e sem envio para a nuvem feita para agentes de programação**.
 
 <details>
-<summary><b>展开细节</b>:持久任务队列 · 录播监听 · 健康检查 · CLI · MCP · Claude Code 技能</summary>
+<summary><b>Detalhes</b>: fila de tarefas persistente · pasta monitorada · diagnóstico · CLI · MCP · skill do Claude Code</summary>
 
-- **持久任务中心**:录播监听与 webhook 共用单并发队列,任务阶段、历史与重试次数落盘;可取消、可手动重试,应用重启后运行中任务标记为「已中断」而不是偷偷续跑,凭据从不写进历史
-- **长视频性能层**:相同源文件、切点与基础效果重复导出时直接复用本地基础成片;H.264 连续片段仅在起点确认对齐关键帧且没有画面滤镜时直拷视频,音频仍执行淡化、降噪、响度和敏感词静音,失败透明回退精确编码。缓存按最近使用自动限制在 1GB,设置页可查看并单独清理
-- **录播监听(7×24 无人值守)**:盯住录播姬/OBS 输出目录,新录播落稳自动转写→找爆点→出片;「连续两轮大小不变」才算录完绝不切半截
-- **桌面健康检查**:设置页一键检查 FFmpeg/FFprobe、解析工具、11 类模型、LLM 连通/鉴权/路由、磁盘、转写缓存、渲染缓存与多模态证据索引;缺少核心模型时显式准备,支持取消与断点续传;1GB 渲染缓存与 64MB 证据索引可分别安全清理
-- **Headless CLI**(与桌面端产物完全一致):
+- **Central de tarefas persistente**: a pasta monitorada e os webhooks compartilham uma fila de execução única, com etapas, histórico e contagem de tentativas guardados; as tarefas podem ser canceladas ou repetidas explicitamente, o que estava em andamento vira "interrompido" depois de reiniciar, e credenciais nunca ficam no histórico
+- **Camada de desempenho para vídeo longo**: exportações repetidas com a mesma origem, os mesmos cortes e os mesmos efeitos base restauram exatamente a renderização base local; o vídeo H.264 só é copiado num corte contínuo cujo início se prova alinhado a quadro-chave e cujos pixels não mudaram. O áudio ainda recebe as transições, a redução de ruído, o volume e o silenciamento de termos sensíveis, e qualquer falha volta de forma transparente para a codificação precisa. O armazenamento LRU tem teto de 1 GB e pode ser inspecionado ou limpo separadamente
+- **Pasta monitorada de gravações (24 horas por dia)**: aponte para a pasta de saída do seu OBS ou gravador; as gravações são transcritas, garimpadas e exportadas no instante em que terminam de ser escritas ("duas rodadas de tamanho estável" — arquivo ainda sendo gravado nunca é cortado)
+- **Diagnóstico de ambiente no desktop**: um clique confere FFmpeg e FFprobe, a integridade do baixador, onze papéis de modelo, a conexão, a autenticação e o roteamento do LLM, o disco, o cache de transcrição, o cache de renderização e o índice multimodal de evidências; os modelos principais que faltam podem ser preparados com cancelamento e retomada, e o cache de renderização de 1 GB e o índice de evidências de 64 MB são limpos de forma independente
+- **CLI sem interface** (com as mesmas saídas do aplicativo de desktop):
 
   ```bash
-  pnpm cli transcribe 直播回放.mp4                 # 端侧逐字转写(带缓存)
-  pnpm cli highlights 直播回放.mp4 --json          # AI 爆点候选,先审后剪
-  pnpm cli clip 直播回放.mp4 --max-clips 10 --smart-denoise  # 全托管 + 48k 智能人声增强
-  pnpm cli feedback bilibili.csv                   # 导入真实播放/互动表现
-  pnpm cli feedback-report                         # 查看已学到的高/低表现模式
-  pnpm cli doctor --download                       # 环境自检 + 预下载模型
+  pnpm cli transcribe live.mp4                 # reconhecimento local com marcação por palavra (com cache)
+  pnpm cli highlights live.mp4 --json          # candidatos a destaque da IA, para revisar antes
+  pnpm cli clip live.mp4 --max-clips 10 --smart-denoise  # exportação completa + diálogo inteligente em 48k
+  pnpm cli feedback metricas.csv               # importa as visualizações e o engajamento reais
+  pnpm cli feedback-report                     # mostra os padrões de alto e baixo desempenho aprendidos
+  pnpm cli doctor --download                   # autodiagnóstico do ambiente + download prévio dos modelos
   ```
 
-- **本地 MCP Server**:Claude Code / Claude Desktop 注册后,一句「把这个 4 小时录播切 10 条爆点」就是完整交付;三个工具 `clip_video` / `detect_highlights` / `transcribe_video`
+- **Servidor MCP local** (para registrar no Claude Code ou no Claude Desktop) — três ferramentas: `clip_video`, `detect_highlights` e `transcribe_video`:
 
   ```json
   {
@@ -298,7 +298,7 @@ LLM 只负责«挑哪段»并引用原文,时间戳由逐字转写**反向对齐
       "hotclip": {
         "command": "npx",
         "args": ["-y", "tsx", "src/mcp/server.ts"],
-        "cwd": "/path/to/hotclip",
+        "cwd": "/caminho/para/hotclip",
         "env": {
           "HOTCLIP_LLM_BASE_URL": "http://localhost:11434/v1",
           "HOTCLIP_LLM_MODEL": "qwen3:8b"
@@ -308,174 +308,168 @@ LLM 只负责«挑哪段»并引用原文,时间戳由逐字转写**反向对齐
   }
   ```
 
-- **官方 Agent Skill**:把这段话直接粘给 Claude Code / Codex,Agent 会自己完成安装:
+- **Skill oficial para agentes** — cole isto no Claude Code ou no Codex e o agente instala tudo sozinho:
 
-  > 请安装 HotClip 作为我的本地切片技能:`git clone https://github.com/xixihhhh/hotclip.git && cd hotclip && pnpm install`,然后把 `skills/hotclip/` 复制到我的 Agent skills 目录(Claude Code 为 `~/.claude/skills/hotclip/`),并按 `skills/hotclip/SKILL.md` 里的说明配置 LLM 环境变量。装好后用一段测试视频跑 `pnpm cli highlights` 验证。
+  > Instale o HotClip como minha skill local de cortes: `git clone https://github.com/xixihhhh/hotclip.git && cd hotclip && pnpm install`, depois copie `skills/hotclip/` para o meu diretório de skills do agente (`~/.claude/skills/hotclip/` no Claude Code) e configure as variáveis de ambiente do LLM conforme `skills/hotclip/SKILL.md`. Verifique rodando `pnpm cli highlights` num vídeo de teste.
 
-- **clips.json 处理回执**:每条片 AI 动了什么(字幕样式/取景模式/跳剪比例/语音证据覆盖与保护剪口/对齐覆盖/字幕质检/封面选择模式与得分/剪了几个口头禅)一目了然,可审计,矩阵管线直接取用
-- **质量黄金集**:`pnpm quality:eval [fixture.json]` 本地输出 CER/WER、词边界中位/P95 误差与爆点 recall@3/@5;以后换模型、调阈值先跑同一套样本,质量变化有数可查
-- **本地视觉模型对比入口**:`HOTCLIP_VISION_MODELS=qwen3-vl:4b,qwen3.5:4b pnpm quality:eval:vision` 用同一批演示片、同一套九宫格与结构化解析比较成功率、耗时和画面证据;模型由你的 Ollama 管理,HotClip 不捆绑数 GB 权重
-- **模型自带干粮也行**:默认本地免费模型;更强的爆点判断可一键接 [Atlas Cloud](https://www.atlascloud.ai)、fal.ai 或任意 OpenAI 兼容接口,或本机 Ollama 完全离线
+- **Comprovante de processamento no clips.json**: o que a esteira fez com cada clipe (estilo de legenda, modo de reenquadramento, proporção de corte seco, cobertura da evidência de fala e intervalos protegidos, cobertura do alinhamento, checagem das legendas, modo e nota da escolha de capa, vícios de linguagem removidos e a decisão de cor da origem, incluindo a marca de HDR não convertido) — auditável de ponta a ponta e pronto para entrar num fluxo automatizado
+- **Avaliação de qualidade de referência**: `pnpm quality:eval [fixture.json]` informa CER/WER, o erro mediano e P95 no limite das palavras e o recall@3/@5 dos destaques, tudo localmente, para que mudanças de modelo e de limiar sejam comparadas sobre a mesma evidência
+- **Comparação local de modelos de visão**: `HOTCLIP_VISION_MODELS=qwen3-vl:4b,qwen3.5:4b pnpm quality:eval:vision` passa os mesmos clipes de demonstração pelos mosaicos de quadros e pelo leitor estruturado exatos do HotClip, informando taxa de sucesso, latência e evidência visual. Quem administra os modelos é o Ollama; o HotClip não embute pesos de vários gigabytes
+- **Traga a sua IA (ou nenhuma)**: modelos locais gratuitos por padrão; conecte o [Atlas Cloud](https://www.atlascloud.ai), o fal.ai ou qualquer endpoint compatível com OpenAI — ou o Ollama local para uma esteira totalmente offline
 </details>
 
-## 最近更新
+## Novidades
 
-**[v0.32.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.32.0)**：修复 Windows 审阅台多个视频共用媒体流导致的永久黑屏和拖动失败；预览失败显示真实错误码；模型清单拉取后提供明确可点击的下拉选择，同时保留手动输入。
+**[v0.32.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.32.0)**: corrige a tela preta permanente e a falha ao saltar na bancada de revisão no Windows quando vários vídeos compartilham o mesmo fluxo de mídia; os erros de prévia agora mostram o código real; a lista de modelos buscados ganhou uma seleção clicável explícita, e a digitação manual continua disponível.
 
-**[v0.31.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.31.0)**：多人对谈逐句稿工作台支持按说话人筛选，搜索、相近台词和选段预览同步收窄范围。
+**[v0.31.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.31.0)**: a bancada de transcrição pode filtrar conversas com várias pessoas por S1 / S2, com a busca, as ocorrências de fala parecida e a prévia do corte acompanhando o filtro.
 
-**[v0.30.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.30.0)**：精确搜索无结果时可主动查找仅差一个字的相近台词，近似命中明确标注并支持试听确认。
+**[v0.30.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.30.0)**: a busca opcional por fala parecida encontra resultados de reconhecimento que diferem por um caractere quando a busca exata não traz nada, com marcação explícita de correspondência aproximada e audição antes de escolher.
 
-**[v0.29.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.29.0)** (2026-09-16)：台词与画面统一搜索、字词定位、上下文试听与预选成片；长稿选段更流畅，模型请求支持完整超时、可取消的有限重试，本地预筛限制并发并保留失败段落。[完整发布说明](docs/releases/v0.29.0.md)。
+**[v0.29.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.29.0)** (16/09/2026): busca unificada de fala e imagem, salto até a palavra, reprodução do contexto e clipes pré-selecionados; seletor virtualizado para transcrições longas, requisições de modelo com limite de tempo e recuperação cancelável de erros temporários, e concorrência limitada na triagem local com preservação dos blocos que falharam. [Notas da versão](docs/releases/v0.29.0.md).
 
-**[v0.28.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.28.1)** (2026-09-12)：修复 Qwen3/QwQ 混合思考模型导致的空响应；动态字幕“小”字号降至 0.68；Windows 审阅台媒体加载失败后可直接重试播放。[完整发布说明](docs/releases/v0.28.1.md)。
+**[v0.28.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.28.1)** (12/09/2026): corrige as respostas vazias dos modelos de raciocínio híbrido Qwen3/QwQ, reduz o tamanho Pequeno da legenda dinâmica para 0,68 e permite que a reprodução de revisão no Windows tente de novo depois de uma falha ao carregar a mídia. [Notas da versão](docs/releases/v0.28.1.md).
 
-**[v0.28.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.28.0)** (2026-09-05)：**字幕导入与长稿编辑**（SRT / WebVTT、跨句搜索、局部校准预览与撤销）；**本地语音续跑**（分段保存、停止恢复、可选 Qwen3-ASR）；**字幕阅读节奏优化**与**更可靠的导出**（准备阶段取消、安全写入、直接重试、仅导出 SRT）。[完整发布说明](docs/releases/v0.28.0.md)。
+**[v0.28.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.28.0)** (05/09/2026): **importação de legendas e transcrições longas** (SRT / WebVTT, busca entre frases, prévia de alinhamento seletivo e desfazer); **fala local retomável** com Qwen3-ASR opcional; **ritmo de legenda conforme o idioma** e **exportações mais seguras**, com cancelamento na etapa de preparação, substituição segura da saída, repetição direta e saída só de SRT. [Notas da versão](docs/releases/v0.28.0.md).
 
-**[v0.27.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.27.0)**(2026-08-31)「先把人声听清,再谈包装」:**48kHz 智能人声增强**(显式智能档首次按需下载约 10MB、SHA-256 校验的 DPDFNet2,按声道分块处理完整剪辑,视频流直拷);**发布链路顺序正确**(在高潮前置/多片段组装之后、音效与 BGM 混入之前处理原声,响度在增强后统一,避免把包装层当噪声);**可用性优先**(模型、下载、解码或推理异常自动回退原有基础降噪,关闭/基础档行为不变,完成页与 `clips.json` 如实记录智能生效/回退/跳过);**端侧多模态预设升级**(新用户本地视觉端点默认 `qwen3.5:4b`,文字与接触表共用同一模型,并新增可复现的本地 VLM 对比命令);桌面、CLI 与 MCP 共用同一档位语义,真实官方模型 48k 冒烟与 FFmpeg 集成回归通过
+**[v0.27.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.27.0)** (31/08/2026) "Deixe a voz clara antes de dar o polimento": **realce inteligente de diálogo em 48 kHz** (um nível Inteligente explícito baixa sob demanda um modelo DPDFNet2 de ~10 MB verificado por SHA-256, processa os canais em blocos limitados e copia o vídeo pronto sem recodificar); **ordem correta do áudio de publicação** (roda depois da montagem de costuras e aberturas frias, mas antes dos efeitos e da trilha, com o volume medido depois do realce); **recuo pela disponibilidade** (falha de modelo, download, decodificação ou inferência reaproveita de forma transparente a cadeia Básica exata, o comportamento de Desligado e Básico não muda, e a tela de conclusão mais o `clips.json` informam com honestidade se foi aprendido, recuado ou pulado); **predefinição multimodal local atualizada** (instalações novas usam `qwen3.5:4b` como endpoint de visão opcional do Ollama, compartilhando um modelo entre texto e mosaicos de quadros, com um comando reproduzível de comparação de modelos de visão). Desktop, CLI e MCP compartilham a mesma semântica de níveis; o teste de fumaça oficial do modelo de 48k e as regressões de integração com o FFmpeg passam.
 
-**[v0.26.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.26.0)**(2026-08-31)「切得更紧,但一个尾音也不赌」:**本地语音活动证据**(复用现有 sherpa-onnx 原生运行时,新增经 SHA-256 校验的 629KB 模型,不装 Python、不上传音频);**安全外边界**(只在语音与逐字时间相互印证时,于 0.6 秒硬上限内保护开头/结尾尾音并约束后续镜头吸附,手调与拼接外边界不动);**三重跳剪门**(无词、低峰值且 VAD 无人声才删,ASR 漏掉的轻声/短词会保留);**多音轨一致**(语音与响度证据显式读取最终渲染选中的同一条音轨);**可审计回退**(`clips.json` 记录覆盖率、边界位移与保护剪口,长区间/低覆盖/模型或解码失败完全回退既有行为);真实带前后静音语音样片与多音轨 FFmpeg 回归通过
+**[v0.26.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.26.0)** (31/08/2026) "Cortes mais justos, sem apostar num fonema só": **evidência local de atividade de fala** (reaproveita o runtime nativo do sherpa-onnx já embutido com um único modelo de 629 KB verificado por SHA-256 — sem Python e sem enviar áudio); **bordas automáticas seguras** (só evidência corroborada de detecção de fala e de palavras pode proteger a fala externa, dentro de um teto rígido de 0,6s de movimento, e restringir o encaixe posterior na troca de plano; os limites externos manuais e costurados nunca se movem); **corte seco com três portas** (um trecho só é removido quando não tem palavra, está com pico baixo e a detecção de fala é negativa, preservando as palavras baixinhas que o reconhecimento perdeu); **paridade com o áudio selecionado** (a evidência de fala e de pico mapeia explicitamente a mesma trilha de áudio da renderização final); **recuo exato e auditável** (o `clips.json` registra cobertura, variação nas bordas e intervalos protegidos, enquanto janelas longas, cobertura baixa, falha de modelo ou de decodificação preservam o comportamento anterior). Verificado com um teste de fumaça de fala sintetizada real e uma regressão de FFmpeg com várias trilhas.
 
-**[v0.25.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.25.0)**(2026-08-30)「分析看对画面,封面挑对一帧」:**全分析链路同轨**(运动/镜头/画面统计、TransNetV2、表情抽帧、VLM 接触表、候选复核、时间轴胶片带、去录屏 UI 与人脸取景全部绑定最终渲染选中的全局视频轨);**HDR 分析预览**(仅对元数据完整且可执行的 PQ/HLG 路径先做同款 SDR 预览再缩放/取样,普通 SDR 与不完整 HDR 保持既有 fail-open 行为);**缓存不串画面**(Tier-0、镜头与视觉证据按选中轨和色彩计划版本隔离);**质量排序封面**(响度峰与均匀时刻共同提名,在最终 QA 后成片上用捆绑 FFmpeg 淘汰黑白场、低信息/模糊与不稳定过渡帧,变体取下一名,失败精确回退旧时刻);无新增模型、依赖、下载、上传或云端费用,真实双视频轨 PQ 样片与四场景封面黄金集进入回归
+**[v0.25.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.25.0)** (30/08/2026) "Analise a imagem certa, publique o quadro certo": **paridade da imagem selecionada em toda a análise** (estatísticas de movimento, plano e visual, TransNetV2, quadros de emoção facial, mosaicos para o modelo de visão, revisão dos candidatos, tiras de miniaturas da linha do tempo, detecção de faixas de interface e reenquadramento por rosto ficam todos presos à mesma trilha de vídeo global da renderização final); **prévia HDR para análise** (só caminhos PQ/HLG completos e executáveis recebem a prévia SDR verificada antes de redimensionar ou medir; SDR e HDR incompleto mantêm o comportamento de fail-open); **isolamento de cache** (a identidade das evidências de nível 0, de plano e de visão inclui a trilha selecionada e a versão do plano de cor); **capas ordenadas por qualidade** (picos de áudio mais uma reserva uniforme propõem os momentos, e então o FFmpeg embutido avalia o clipe final pós-verificação em nitidez, informação, exposição, faixa tonal e estabilidade da vizinhança curta; quadros inseguros são recusados, as versões usam a colocação seguinte e as falhas preservam o horário antigo exato). Sem novo modelo, dependência, download, envio ou custo de nuvem; um material real com dois vídeos PQ e um conjunto de referência de capas com quatro cenas ficam na regressão.
 
-**[v0.24.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.24.0)**(2026-08-30)「HDR 色彩不靠猜,能安全转才转」:**严格元数据门**(读取像素格式、位深、原色/传递/矩阵/范围与可用的 MaxCLL / mastering 峰值;PQ/HLG 还需完整且经捆绑运行时验证的 BT.2020 非恒定亮度色彩路径才转换,不凭 10-bit 或 BT.2020 单项猜测);**受控转成 SDR BT.709**(显式输入色彩→线性化→保色优先 Mobius tone map→10 到 8-bit 误差扩散抖动,最后写入 TV-range BT.709 标签);**异常也不藏**(HDR 路径不完整/不支持时提示未转换,色彩检查失败时单独提示检查失败,两者都禁用不适用的 SDR 域智能校正;桌面/CLI/MCP 与 `clips.json` 状态一致);**全渲染路径一致**(连续剪、跳剪、多片段、高潮前置、字幕叠加与质检修复共享决定);单视频轨 SDR 的像素处理与安全直拷判定不变,多轨则显式选中同一画面并按所选轨隔离缓存,全程本地且无新模型/下载
+**[v0.24.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.24.0)** (30/08/2026) "HDR entra, cor previsível sai": **porta rígida de metadados** (a conversão automática exige uma curva PQ/SMPTE ST 2084 ou HLG/ARIB STD-B67 explícita mais primárias, matriz de cor e faixa completas e com suporte; o metadado de MaxCLL ou de pico de masterização, quando existe, guia o limite das altas luzes, enquanto SDR e curvas desconhecidas mantêm o tratamento de pixel existente); **tratamento seguro de ambiguidade e de falha** (HDR incompleto ou sem suporte fica sem conversão, e uma falha de leitura é rotulada à parte; os dois mantêm o acabamento adaptativo no domínio SDR desligado, e desktop, CLI, MCP e `clips.json` concordam sobre o estado); **seleção determinística entre várias trilhas** (leitura, metadado de pico, renderização e cache ficam presos à mesma imagem selecionada; vídeo único em SDR mantém seu tratamento de pixel e a decisão de copiar o fluxo); **entrega SDR em luz linear** (a entrada que se qualifica é convertida com marcações de origem explícitas e um mapeamento de tons Mobius contido para BT.709/yuv420p marcado, antes de recorte, reenquadramento, zoom, legendas ou marca d'água); **paridade completa do caminho de renderização sem peso novo** (cortes contínuos, cortes secos de silêncio, costuras de vários trechos, aberturas frias, sobreposições de legenda do Chromium e correções mantidas da verificação de qualidade preservam a mesma decisão, sem novo modelo, download de arquivo, chamada de API ou envio de material).
 
-**[v0.23.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.23.0)**(2026-08-30)「画面里写着什么,也应该成为证据」:**屏显文字证据**(复用已经开启的全场视觉扫描与候选复核,不装新 OCR、不增加模型调用;只保留可逐字确认的产品名、价格、比分、标题与 PPT 要点,不确定就留空);**静态内容不漏**(为低画面能量但有清晰文字的价格牌/PPT 保留证据席位,让带货、课程、评测的关键事实进入选段提示);**结构化候选复核**(实拍场景、画面分、标题匹配与屏显文字进入候选数据、CLI/MCP 输出和 `clips.json`,审阅台中英双语直接可见);**封面更对题**(AI 封面优先使用视觉复核观察到的真实场景,不再只靠转写钩子猜画面);沿用原有可选视觉开关,未开启时零额外成本、失败自动回退
+**[v0.23.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.23.0)** (30/08/2026) "O que a imagem diz também deve valer como evidência": **evidência de texto na tela** (reaproveita a varredura completa e a revisão de candidatos já ativadas — sem instalar OCR e sem chamada extra de modelo; só o texto que pode ser transcrito com confiança é mantido, como nome de produto, preço, placar, títulos e dados de slide, deixando o resto em branco); **conteúdo estático deixou de ser invisível** (cartelas de preço de baixa energia e slides com texto claro ganham espaços reservados de evidência, melhorando clipes de produto, de curso e de análise); **revisão visual estruturada** (a cena observada, a nota visual, a correspondência com o título e o texto visível atravessam os candidatos, a saída da CLI e do MCP e o `clips.json`, com um comprovante bilíngue na bancada); **capas mais bem fundamentadas** (as capas por IA preferem a cena realmente observada na revisão dos candidatos a um chute feito só a partir da transcrição). A opção de visão continua sendo a fronteira: custo zero quando desligada e fail-open quando indisponível.
 
-**[v0.22.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.22.0)**(2026-08-30)「画面该救才救,正常素材一帧不乱动」:**智能画面校正**(桌面出片方案、CLI `--auto-enhance` 与 MCP 统一显式开启,默认关闭);**片段级实测**(复用已有 4fps Tier-0 解码采集亮度低位/均值/高位与饱和度,按跳剪或多片段最终保留的源时间单独统计,不新增模型和完整解码);**克制有上限**(只在证据充分且明显偏暗、发灰、过曝或过饱和时轻调亮度/反差/饱和度/gamma,正常素材不加滤镜,黑白素材不强行增艳);**全链路一致**(连续剪、跳剪和高潮前置使用对应窗口的校正,滤镜置于裁切缩放之后、字幕水印之前);**可审计可复用**(`clips.json` 记录测量、原因与精确调整,渲染缓存按派生方案区分,超长录播证据均匀有界)
+**[v0.22.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.22.0)** (30/08/2026) "Corrija a imagem só quando a evidência mandar": **acabamento de imagem adaptativo** (uma opção explícita e desligada por padrão, compartilhada pelos conjuntos do desktop, pelo `--auto-enhance` da CLI e pelo MCP); **medição local ao clipe** (a decodificação de nível 0 a 4 fps que já existia agora guarda luminância baixa, média e alta e a saturação, e então avalia apenas os intervalos realmente preservados depois dos cortes secos ou da costura — sem novo modelo e sem decodificação completa); **tetos rígidos e contidos** (mudanças sutis de brilho, contraste, saturação e gama só para material com amostra suficiente que esteja claramente escuro, sem contraste, estourado ou saturado demais; imagem saudável não recebe filtro nenhum e preto e branco nunca é colorido à força); **paridade do caminho de renderização** (cortes contínuos, cortes secos e janelas de abertura fria recebem o plano correspondente depois do recorte e da escala e antes das legendas e da marca d'água); **auditável e seguro para o cache** (o `clips.json` registra as medições, os motivos e os ajustes exatos, a identidade do cache de renderização inclui o plano derivado, e gravações extremas mantêm uma cobertura da origem uniformemente limitada)
 
-**[v0.21.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.21.0)**(2026-08-30)「成片不只导出来,还要证明画面没坏」:**冻结帧质检**(同一次 FFmpeg 扫描识别持续 3 秒以上的异常静止画面,片尾冻结也能闭合记录);**主体覆盖率**(复用已有 YuNet 人脸采样,按最终竖屏裁窗统计未完整保留与严重出框帧,不新增模型扫描);**镜头锁定修正**(锁定构图真正保持到下一镜,不再缓慢漂向后续镜头);**跳剪轨迹对齐**(裁窗在删掉的源片区间前后瞬时衔接,不会隔着被删内容错误插值);冻结与构图属于需人工回放的语义告警,不会冒险自动重剪
+**[v0.21.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.21.0)** (30/08/2026) "Não basta exportar — prove que a imagem sobreviveu": **verificação de quadro congelado** (a passagem de FFmpeg que já existia sinaliza trechos quase estáticos de 3 segundos ou mais, incluindo um congelamento que vai até o fim do arquivo); **comprovante de cobertura do assunto** (reaproveita as amostras do YuNet que já existiam para medir rostos parcial e gravemente cortados em relação à trajetória vertical final, sem nenhuma passagem extra de modelo); **travas de plano de verdade** (o enquadramento travado se mantém até o plano seguinte em vez de derivar na direção dele); **movimento de câmera seguro no corte seco** (as trajetórias de recorte trocam nas emendas preservadas em vez de interpolar por um tempo de origem descartado). Os achados de congelamento e de enquadramento são avisos semânticos, só para revisão, e nunca recortes automáticos arriscados.
 
-**[v0.20.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.20.0)**(2026-08-30)「主体留在画里,镜头别乱跑」:**舒适优先竖屏构图**(逐镜头汇总所有可见人脸的安全包络,单人移动/多人对谈能装下就锁住机位,只有确实需要时才平滑跟随);**居中吸附**(原片已接近中心时尊重摄影构图,不制造无意义偏移);**丢失回正**(短暂漏检保持当前主体,持续 1.25 秒后平滑回到中心,不再长期守着空画面;无可靠人脸的新镜头立即居中);**全链路回执**(`clips.json` 记录镜头总数、锁定、多人锁定、跟随、回正与居中兜底数量,拼接片逐段聚合);不新增模型、不增加安装包体积,检测不足仍安全回退居中裁剪
+**[v0.20.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.20.0)** (30/08/2026) "Mantenha o assunto em quadro e a câmera calma": **composição vertical que preserva o enquadramento** (todos os rostos visíveis são fundidos por plano; a câmera fica travada sempre que uma pessoa em movimento ou um grupo cabe com folga, e só acompanha quando o enquadramento realmente exige); **encaixe no centro** (uma composição de origem quase centralizada continua centralizada em vez de ganhar uma deriva artificial); **recuperação de assunto perdido** (segura durante uma falha breve do detector e volta suavemente ao centro depois de 1,25 segundo; um plano novo sem rostos confiáveis centraliza na hora); **comprovante de ponta a ponta** (o `clips.json` registra quantos planos ficaram no total, travados, travados em grupo, acompanhados, em recuperação e com o centro como padrão, somados entre os trechos costurados). Sem novo modelo nem peso extra no instalador; detecção esparsa continua recuando com segurança para o recorte central.
 
-**[v0.19.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.19.0)**(2026-08-28)「证据只算一次,下一刀更快更准」:**本地多模态证据索引**(源文件指纹、能力版本与模型共同定址,原子写入、损坏失效、最近使用淘汰,默认最多 64MB);**九路证据链**(新增无需模型的轻量运动峰值,与文本/响度/镜头/表情/视觉/弹幕/语气/笑声掌声共振);**看得见的运动依据**(工作台时间轴新增运动曲线,代表帧同时保留全场均匀覆盖);**昂贵分析跨入口复用**(Tier-0 信号、TransNetV2 镜头边界与可选 VLM 扫描在桌面、CLI、MCP、录播监听/webhook 间共享,模型或算法变化自动重算,API Key 不落盘);**独立诊断与清理**(证据索引与渲染/转写缓存互不误删,清理后二次生成即可恢复)
+**[v0.19.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.19.0)** (28/08/2026) "Analise uma vez, deixe todo corte seguinte mais rápido e mais afiado": **índice local de evidências multimodais** (impressão digital da origem + versão de capacidade + identidade do modelo, escrita atômica, invalidação de entrada corrompida e teto LRU de 64 MB); **cadeia de evidência em nove caminhos** (os picos de movimento, que não usam modelo, se juntam à transcrição, ao volume, aos planos, à emoção facial, à visão, ao chat ao vivo, ao tom de voz e ao riso/aplauso); **evidência de movimento visível** (uma curva na linha do tempo da bancada mais quadros representativos, com cobertura reservada da origem inteira); **reúso entre entradas** (os sinais de nível 0, os limites do TransNetV2 e as varreduras opcionais de visão são compartilhados por desktop, CLI, MCP, pasta monitorada e webhooks, com reconstrução automática depois de mudanças de modelo ou detector e sem guardar chave de API); **diagnóstico e limpeza independentes** (a evidência de análise nunca apaga o cache de renderização ou de transcrição, e pode sempre ser gerada de novo)
 
-**[v0.18.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.18.0)**(2026-08-28)「质量看得见,升级有尺子」:**逐词时间来源**(原生/二遍对齐/内插/手工改稿/缺失估时,旧工程兼容);**聚焦复核**(逐句稿估时徽标与一键筛选,候选详情显示字幕时间回执);**局部对齐报告**(匹配覆盖、对齐/内插词数与不确定区间进入 `clips.json`);**字幕质量门**(无效时间、重叠、阅读速度、闪现、超宽词与估时区间按最终成片时间轴检查);**可重复质量评测**(本地黄金集命令输出 CER/WER、词边界误差和爆点 recall@K,不下载新模型);新增独立 `dev:web` 浏览器预览,清掉 Electron 运行包也能做 UI 回归
+**[v0.18.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.18.0)** (28/08/2026) "Qualidade que dá para inspecionar, melhorias que dá para medir": **origem da marcação por palavra** (nativa, alinhada em segunda passagem, interpolada, editada ou estimada, sem quebrar projetos antigos); **revisão focada** (selo de tempo estimado e filtro na transcrição, mais o comprovante de tempo nos detalhes do candidato); **relatórios de alinhamento traduzidos** (cobertura, contagem de palavras alinhadas e interpoladas e trechos incertos no `clips.json`); **porta de qualidade das legendas** (tempo inválido, sobreposição, velocidade de leitura, piscadas, blocos grandes demais e trechos estimados conferidos na linha do tempo renderizada final); **avaliação de referência repetível** (CER/WER local, erro de limite e recall@K dos destaques, sem baixar novos modelos); mais uma prévia `dev:web` independente no navegador, para regressão de interface sem o runtime do Electron
 
-**[v0.17.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.17.0)**(2026-08-25)「长视频越剪越快」:**有界基础渲染缓存**(同源文件、切点、字幕/裁切/音频处理与品牌参数命中时直接复用,原子写入、损坏失效、最近使用淘汰,默认最多 1GB);**安全智能直拷**(仅 H.264 单连续片段、起点关键帧对齐且无画面滤镜时复制视频流,音频仍完整执行 AAC、边缘淡化、降噪、响度与敏感词静音,任何异常透明回退精确编码);**全入口共享**(桌面手动、录播监听/webhook、CLI 与 MCP 共用缓存);**缓存诊断与清理**(设置页双语显示占用,二次确认后只清可重复生成的基础成片,不碰项目、素材、模型和转写缓存)
+**[v0.17.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.17.0)** (25/08/2026) "Vídeo longo fica mais rápido a cada repetição": **cache limitado da renderização base** (reúso exato quando origem, cortes, legendas, reenquadramento, áudio e marca coincidem, com escrita atômica, invalidação de entrada corrompida e poda LRU com teto de 1 GB); **cópia inteligente e segura** (cópia do fluxo de vídeo H.264 apenas em cortes contínuos alinhados a quadro-chave e sem mudança de pixel; AAC, transições nas bordas, redução de ruído, volume e silenciamento de termos sensíveis continuam ativos, e qualquer incerteza ou falha volta para a codificação precisa); **compartilhado em todo lugar** (exportações do desktop, pasta monitorada, webhooks, CLI e MCP usam o mesmo cache); **diagnóstico e limpeza delimitada** (tamanho visível nos dois idiomas e limpeza em duas etapas que nunca toca em projetos, mídia de origem, modelos ou cache de transcrição)
 
-**[v0.16.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.16.0)**(2026-08-25)「工程留得住,每一步都能回头」:**项目工作区**(多工程列表、切换、重命名、关闭、删除与媒体重连,源素材离线/变化不丢工程,旧会话自动迁移);**可逆编辑历史**(选片、标题/切点、手动加片、逐句稿纠错统一 undo/redo,60 步/4MB 双上限,随项目恢复);**专业快捷键**(播放/跳播/入出点/候选切换,输入框与弹窗安全让出);**本地 A/B 实验中心**(一片多版自动按平台建组,稳定内容 ID 关联指标,同平台/72 小时/最低样本门槛,只给谨慎的方向性判断)
+**[v0.16.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.16.0)** (25/08/2026) "Projetos permanecem, toda edição pode voltar atrás": **área de projetos** (lista com vários projetos, troca, renomear, fechar, excluir e revincular mídia; origens offline ou alteradas mantêm o projeto, e sessões antigas migram sozinhas); **histórico de edição reversível** (seleção, textos e limites, clipes manuais e correções de transcrição compartilham o desfazer e refazer, com teto de 60 comandos ou 4 MB, restaurados junto com o projeto); **controles profissionais de teclado** (reprodução, salto, entrada e saída e navegação entre candidatos, com proteção segura dentro de campos e janelas); **central local de testes A/B** (exportações com várias versões se agrupam por plataforma, as métricas entram por identificadores de conteúdo estáveis, com portas de mesma plataforma, 72 horas e amostra mínima, e só evidência de direção)
 
-**[v0.15.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.15.1)**(2026-08-24)「任务接得住,发完学得会」:**硬件加速出片**(VideoToolbox / NVENC / QSV 自动探测,失败透明回退 x264);**真实表现中心**(导入平台指标,高低表现模式回流选段);**公开视频 URL 导入**(B站 / YouTube 等地址,官方解析工具自动校验、断点续传);**重启接着剪**(素材、逐字稿、候选、勾选与手调切点恢复);**持久自动化任务中心**(录播监听 / webhook 共用队列,历史、取消、重试与中断状态落盘,不存凭据);**敏感词音频静音**(按逐字时间映射跳剪与多片段,字幕保留原文);**发布反馈台账**(稳定内容 ID、预填指标 CSV、保守匹配与待回填状态);**桌面健康检查**(工具、9 类模型、LLM、磁盘/缓存,核心模型准备可取消续传);**主题系列整理**(重复有效关键词自动分集,变体排除,附 manifest)
+**[v0.15.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.15.1)** (24/08/2026) "O trabalho sobrevive e a publicação ensina": **exportação com aceleração por hardware** (VideoToolbox / NVENC / QSV com recuo transparente para x264); **central de desempenho das publicações** (importa as métricas das plataformas e devolve os padrões de acerto e de erro para a seleção); **importação verificada de link público de vídeo** (links do tipo Bilibili ou YouTube, com a ferramenta de download conferida e retomada de download); **edição segura a reinícios** (origem, transcrição, candidatos, seleção e cortes manuais se recuperam); **central de tarefas automáticas persistente** (uma fila de pasta monitorada e webhooks, com histórico, cancelamento, repetição e estado interrompido, sem guardar credenciais); **silenciamento de termos sensíveis no tempo da transcrição** (correto mesmo com cortes secos e clipes de vários trechos, preservando as legendas originais); **registro de retorno das publicações** (identificadores de conteúdo estáveis, CSV de métricas já preenchido, correspondência conservadora e status de aguardando); **diagnóstico de saúde no desktop** (ferramentas, nove papéis de modelo, LLM, disco e cache, e preparação dos modelos principais cancelável e retomável); **pacotes de série por tema** (palavras-chave repetidas e relevantes viram episódios ordenados, sem as versões e com manifesto)
 
-**[v0.15.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.15.0)**(2026-08-20)「向导退役、工作台上岗」:**三栏工作台**(三步向导退役——左栏素材与录播监听常驻,中央「源画面+竖屏 9:16 实时裁切+时间轴+候选密排表」,右栏候选详情与检测参数,全程一屏不跳页);**时间轴上桌**(全场响度曲线+弹幕热度曲线+胶片带缩略图,候选段直接画在曲线上,爆点落在哪一眼扫到);**候选不怕退**(候选与审阅状态进会话仓,切页返回不丢);**显式重新检测**(改检测参数不再静默重跑整轮,改完自己点「重新检测」);**出片方案预设**(33 个出片开关收进六组,默认出片/带货全家桶/极简省时三套方案一键切换);**设置中心**(散落七处的配置——AI 模型/转写引擎/导出与存储/品牌样式/热词词表/录播监听/语言——合并一页);**弹幕这票投得更准**——抖音直播录制弹幕 .jsonl 兼容(与 B 站录播姬 .xml 双格式自动发现,抖音主播的录播从此也有弹幕证据)、互动事件计权(SC/舰长/礼物/关注/点赞按档加权——花钱和动手的票比弹幕硬)、反刷屏(同一人单窗贡献封顶)、突发加成(相对前一窗跳升计分——爆点是「突然炸」)、信号融合升级(多路共振加成+内容自适应窗口)、弹幕引导采样(表情/语气这类贵模型的算力优先花在观众炸锅处);修复真机预览黑屏(多个 video 同载同一本地流 URL 在 Chromium 撞车)与胶片带缩略图被 CSP 拦截
+**[v0.15.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.15.0)** (20/08/2026) "O assistente se aposenta, a bancada bate o ponto": **bancada de três painéis** (o assistente de 3 passos se aposenta — origens e monitoramento de gravações à esquerda; visão da origem, recorte 9:16 ao vivo, linha do tempo e uma tabela densa de candidatos no centro; detalhes do candidato e ajuste da detecção à direita, tudo numa tela só); **a linha do tempo chegou** (curva de volume da transmissão inteira + curva de euforia do chat + tira de miniaturas, com os trechos candidatos desenhados em cima das curvas — onde estão os destaques se vê de relance); **candidatos sobrevivem à navegação** (um armazenamento de sessão mantém os candidatos e o estado da revisão entre as telas); **detectar de novo é explícito** (ajustar os parâmetros de detecção não refaz mais a passagem inteira em silêncio — você clica em "Detectar de novo" quando quiser); **conjuntos de exportação** (33 opções dobradas em seis grupos, com três conjuntos de um clique: Padrão, Kit de vendas e Mínimo e rápido); **central de configurações** (sete pontos de configuração espalhados — modelo de IA, motor de transcrição, exportação e armazenamento, estilo de marca, glossário, monitoramento de gravações e idioma — reunidos numa página); **os votos do chat, contados direito** — suporte ao registro de chat do gravador do Douyin (.jsonl descoberto ao lado do .xml do BililiveRecorder, para que as gravações de quem transmite no Douyin finalmente tenham a evidência do chat), peso por evento de interação (mensagens pagas, assinaturas, presentes, novos seguidores e curtidas em faixas próprias, porque voto com dinheiro e com ação vale mais que mensagem solta), teto contra spam (a contribuição de um mesmo remetente por janela é limitada), bônus de subida (um salto sobre a janela anterior vale pontos extras, porque destaque explode, não ferve devagar), melhorias na fusão (bônus de ressonância entre sinais + janelas adaptadas ao conteúdo) e amostragem guiada pelo chat (os modelos caros gastam o orçamento onde o chat explode); além disso, corrige a tela preta da prévia em máquina real (vários elementos de vídeo carregando uma mesma URL de fluxo local colidem no Chromium) e as miniaturas da tira bloqueadas pela política de segurança de conteúdo
 
 <details>
-<summary><b>历史版本</b>(v0.4.3 → v0.14.1)与里程碑一览</summary>
+<summary><b>Histórico de versões</b> (v0.4.3 → v0.14.1) e marcos</summary>
 
-- **[v0.14.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.14.1)**(2026-08-11)「想得再深、也得出片」:修复「找爆点失败:LLM 未返回内容」([#8](https://github.com/xixihhhh/hotclip/issues/8))——深度思考型模型把 4000 token 输出预算全烧在思考上、正文为空;检测到「只思考没正文」自动换 16000 大预算重试一次,正文错放 reasoning 字段的兜底取回,仍失败按证据分因报错(烧完预算/安全审查拦截/服务端空响应),每条写明下一步
-- **[v0.14.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.14.0)**(2026-08-09)「发得出去、活得下来」:**变形度评分**(本次导出实际做的变形汇总一个分,出片前实时预估、低于 40 黄牌——像素级搬运是 2026 判搬运第一死因);**AI 封面双档**(按标题生竖版大字封面:Seedream 走量约 ¥0.3/张、Nano Banana Pro 精品约 ¥1/张,复用 Atlas Key);**AI 配乐**(按品类生成版权安全纯音乐,自动挂进 BGM 混音链);**剪映草稿导出**(每条切片一个草稿夹,AI 切点全铺进时间轴);**说话人标签字幕**(彩色「A:」「B:」行首标签);**实用密度加分**(步骤/清单/数字密集的片标「可收藏」,吃 7 天慢推流);**分发台账与留证包**(源片区间 CSV 对账+前后 3 分钟源片存档);**AIGC 标注助手**(按平台给标注文案与入口;超 5 条提示限产);**多版反指纹**(末版换 flash-forward 开场+模板种子化微扰);**保留呼吸口**(跳剪可留 0.25 秒停顿);实验性 **Linux AppImage**([#7](https://github.com/xixihhhh/hotclip/issues/7))
-- **[v0.13.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.13.0)**(2026-08-09)「整场看完、敢扔」:**质量门三档**(零上下文终判建议发/需人审/弃+规则层抓硬伤;判弃折叠可捞回,无人值守只自动导「建议发」档);**全场画面扫描**(每 30 秒一帧看完整场,画面事件进选段证据;本机免费/云端整场几毛);**点题选段**(自然语言说要什么不要什么);**主播口令打点**(「这段剪下来」当最强证据);**带货三段式**(痛点→演示→价格散点自动拼);**文稿选段**(点句成片:搜台词/按说话人筛/跨段任选);**配置预检**(连不上 AI 当场拦下给下一步,[#6](https://github.com/xixihhhh/hotclip/issues/6))
-- **[v0.12.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.12.0)**(2026-08-05)「挑得准、开场炸」:**爆点闪现**(正片前先闪 0.3-1 秒最炸瞬间再切回,与高潮前置自动二选一);**AI 画面复核**(头部候选抽九宫格接触表让视觉模型过目:画面分回流排序、货不对板标警告;本机 Ollama 免费,填 Key 切云端);**精准切点**(Paraformer 二遍解码词级时间戳 ±50ms,修字幕/跳剪/切点,对不上自动回退);**钩子兑付校验**(钩子承诺的数字必须真出现在片中);**字幕现代化**(默认换关键词高亮,逐词弹色升级当前词点亮+阻尼弹入);修复 4 个从未生效的导出开关
-- **[v0.11.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.11.0)**(2026-08-05)「切完就能发」:**平台发布包**(导出后按平台整理齐套素材:硬链接视频+按平台画幅重裁封面+按平台上限适配文案,manifest 记录适配项);**一片多版**(同片 2-3 版差异化包装:换角度标题/悬念句/文案/封面峰,变体标 `variantOf`,合集与 EDL 只收原版);**音效打点与 BGM**(whoosh 卡切缝、「叮」卡情绪峰、钩子上屏轻响,每条最多 3 个;BGM 循环铺满+人声闪避+结尾淡出,独立后处理趟零画质损失);**动态极简**字幕样式
-- **[v0.10.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.10.1)**(2026-08-05)「换得了模型、扛得住抽风」:**AI 模型入口常驻**——此前配好一次之后就再也换不了供应商/模型(只有检测报错时才露出那个面板),v0.10.0 新加的 7 家供应商老用户根本点不到;现在工具条上常驻一个写着当前模型名的按钮,随时能换,换完确认会按新模型重跑一次;**LLM 吐坏 JSON 自动重试一次**(实测主流服务商偶发杂质 token,整轮检测直接失败);**信号通道收敛提名数**(12 个高能时刻会让模型交白卷,收敛到 8 个)
-- **[v0.10.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.10.0)**(2026-08-05)「挑得准一点」:切片**选段质量**重做——支持**多片段拼接**(把相隔十几分钟的两处摆一起,「前后打脸」这类爆点才成立;剪映的 AI 切片也只做连续区间);**直播品类判据**照 B站/抖音**真实分区**重排(补上虚拟主播、电台、萌宠、美食、赛事、手工、一起看等此前整块缺失的品类,一起看类明确禁止切影视画面本身);新增**信号驱动候选**——跳舞/萌宠/户外这类文字稿是空的、原本一条候选都出不来,现在按画面与声音信号定位高能时刻;笑声不再当爆点本身(它是滞后结果,包袱在它之前)。另有**语气与笑声掌声**两路新证据、**自动运镜**、**剪重录**、**录播姬/blrec webhook**、**LLM 多供应商预设**(DeepSeek 官方/百炼/GLM/Kimi/硅基流动/OpenRouter/OpenAI)与**模型清单一键拉取**(模型 id 会随厂商换代失效,直接问端点要真实清单)
-- **[v0.9.4](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.4)**(2026-07-31)「中文用户名不再背锅」:修复 Windows 中文用户名下转写必失败([#4](https://github.com/xixihhhh/hotclip/issues/4))——模型路径自动转 8.3 短路径、音频样本改应用侧读入;跨盘搬模型不再被误拦;模型加载失败给对症提示
-- **[v0.9.3](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.3)**(2026-07-28)「东西存哪儿、出多大,你说了算」:设置页上线([#3](https://github.com/xixihhhh/hotclip/issues/3))——模型存放位置可见可搬家、导出画质三档(省空间档小 66%)、默认字幕样式与导出位置收进设置
-- **[v0.9.2](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.2)**(2026-07-27)「报错说人话、界面不挤乱」:转写失败对症归因([#2](https://github.com/xixihhhh/hotclip/issues/2));出片选项条自动换行不再撑破界面;导出位置可自选([#3](https://github.com/xixihhhh/hotclip/issues/3))
-- **[v0.9.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.1)**(2026-07-24)「Windows 首启修复」:修复模型下载 100% 又从头开始的循环(Windows tar 不支持 bzip2,内置纯 JS 解压兜底);解压进度条;临时目录原子落位
-- **[v0.9.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.0)**(2026-07-24)「越用越懂你、装完就能跑」:审阅反馈回流(采用/否决自动进本地偏好档)+ `doctor` 环境自检 + 模型下载断点续传 + 发布文案角度模板(8 钩子角度×5 CTA)+ 参考爆款入口补全
-- **[v0.8.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.8.0)**(2026-07-20)「照着爆款切、坏片自己修」:参考视频驱动 + 出片自我修复 + 平台违禁词 lint(120+ 规则)+ Hormozi 大字字幕 + 抽帧接触表(VLM 调用 20→3)
-- **[v0.7.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.7.0)**(2026-07-16)「切完自检、随叫随剪」:出片自我质检 + Headless CLI 与官方 Agent Skill + 精华合集 + 高潮前置 + 一键双画幅 + 商品讲解模式
-- **[v0.6.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.6.0)**(2026-07-10)「看得见画面、接得上生态」:六路证据链(+视觉/表情/弹幕)+ 双语字幕 + 本地 MCP Server + 录播监听 + 发布三件套
-- **[v0.5.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.5.0)**(2026-07-09)「选得准、批量稳」:切片审阅台 + 镜头切点吸附 + 品牌样式模板 + 端侧两级漏斗
-- **[v0.4.3](https://github.com/xixihhhh/hotclip/releases/tag/v0.4.3)**(2026-07-06)工程底座:转写本地缓存 + clips.json 处理回执
+- **[v0.14.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.14.1)** (11/08/2026) "Pense fundo, mas entregue": corrige a "resposta vazia do LLM" ([#8](https://github.com/xixihhhh/hotclip/issues/8)) — modelos de raciocínio gastam o orçamento inteiro de 4.000 tokens de saída pensando e não devolvem conteúdo; respostas que são só raciocínio agora tentam de novo automaticamente com 16.000 tokens, o conteúdo que foi parar no campo `reasoning` é recuperado, e as falhas restantes são atribuídas com um próximo passo (orçamento gasto, filtro de conteúdo ou resposta vazia temporária)
+- **[v0.14.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.14.0)** (09/08/2026) "Publique e sobreviva": **nota de transformação** (tudo o que uma exportação realmente mudou vira uma nota, mostrada ao vivo, com cartão amarelo abaixo de 40 — repostagem no nível do pixel é a causa número 1 de remoção em 2026); **capas por IA em dois níveis** (capas verticais de manchete grande a partir dos títulos: Seedream econômico a ~US$ 0,04 e Nano Banana Pro premium a US$ 0,14, reaproveitando a chave Atlas); **trilha por IA** (instrumental livre de direitos por gênero de transmissão, já ligado à cadeia de mixagem); **exportação de rascunho do JianYing** (pastas de rascunho por clipe com todos os cortes da IA na linha do tempo); **legendas com marca de falante** (prefixos coloridos "A:" e "B:"); **impulso por densidade útil** (clipes cheios de passos, listas e números são marcados como "vale salvar" para pegar o impulso lento de 7 dias); **registro de distribuição e pacote de evidências** (CSV com o intervalo de origem + arquivo de ±3 min da origem); **assistente de rotulagem de conteúdo por IA** (texto do selo por plataforma e aviso de teto acima de 5 clipes por transmissão); **versões contra impressão digital** (antecipação do pico na abertura da última versão + variação determinística do template); **manter as respiradas** (pausas opcionais de 0,25s nos cortes secos); **AppImage de Linux** experimental ([#7](https://github.com/xixihhhh/hotclip/issues/7))
+- **[v0.13.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.13.0)** (09/08/2026) "Assista tudo e tenha coragem de descartar": **porta de qualidade em três níveis** (julgamento sem contexto entre publicar, revisar e descartar + camada de regras para os defeitos evidentes; os descartes ficam recolhidos mas resgatáveis, e o modo automático entrega só o nível publicar); **varredura visual da transmissão inteira** (1 quadro a cada 30s ao longo de tudo, levando os acontecimentos em tela para a evidência; sai de graça localmente e custa centavos por transmissão na nuvem); **briefing do usuário** (em linguagem simples, o que procurar e o que evitar); **pedido de corte de quem transmite** ("corta esse pedaço" é a evidência mais forte); **costura em três atos para venda** (dor → demonstração → preço, costurados sozinhos); **escolher na transcrição** (clicar frases para montar clipes: busca, filtro por falante, atravessando trechos); **verificação prévia do LLM** (configurações fadadas ao fracasso são bloqueadas com o próximo passo, [#6](https://github.com/xixihhhh/hotclip/issues/6))
+- **[v0.12.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.12.0)** (05/08/2026) "Escolha melhor, abra mais alto": **antecipação do pico na abertura fria** (mostra de 0,3 a 1s do momento mais explosivo e depois volta, coordenando-se sozinha com a abertura pelo desfecho); **revisão visual por IA** (uma olhada nos mosaicos de quadros dos melhores candidatos: a nota visual entra na ordenação e as incoerências são sinalizadas; de graça localmente, e uma chave de API troca para a nuvem); **pontos de corte precisos** (a marcação por palavra da segunda passagem do Paraformer, a ±50 ms, acerta legendas, cortes secos e limites, com recuo seguro); **checagem do desfecho do gancho** (os números prometidos precisam aparecer no clipe); **modernização das legendas** (destaque de palavra-chave como padrão e palavra saltando com aceso palavra a palavra e entrada amortecida); além da correção de quatro opções de exportação que nunca tinham sido ligadas
+- **[v0.11.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.11.0)** (05/08/2026) "Pronto para publicar": **pacotes por plataforma** (pastas por plataforma depois da exportação: vídeo em link físico + capas recortadas na proporção de cada uma + textos cortados nos limites de cada plataforma, com um manifesto de adaptação); **várias versões** (de 2 a 3 embalagens realmente diferentes por clipe: cartelas de título com ângulos de gancho diferentes, chamadas, textos e capas; marcadas com `variantOf`, e os compilados e o EDL incluem só os originais); **acentos sonoros e trilha** (whoosh nos cortes secos, ding no pico emocional e estalo suave sob o gancho, no máximo 3 por clipe; a trilha entra em laço com abaixamento sob a voz e desaparece no fim, mixada numa passagem separada sem perda de qualidade); além do estilo de legenda **minimalista dinâmico**
+- **[v0.10.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.10.1)** (05/08/2026) "Modelos trocáveis, tolerantes a soluços": **o seletor de modelo agora é sempre alcançável** — antes, uma vez configurado, não havia como trocar de provedor ou de modelo (o painel só reaparecia num erro de detecção), então os sete provedores novos da v0.10.0 eram inalcançáveis para quem já usava; agora um botão na barra mostra o modelo atual e reabre o painel, e confirmar depois de uma troca refaz a detecção; **JSON malformado do LLM é repetido uma vez** (endpoints conhecidos emitem tokens sujos no meio do JSON de vez em quando, matando a rodada inteira); **o caminho por sinal indica menos momentos** (12 candidatos faziam o modelo devolver um template não preenchido; o teto passou para 8)
+- **[v0.10.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.10.0)** (05/08/2026) "Escolha melhor": uma reformulação **do que é escolhido** — os clipes agora podem ser **costurados a partir de vários trechos** (colocar lado a lado dois momentos separados por dez minutos é o que faz um corte de "se contradisse" funcionar); os **critérios por gênero de transmissão** foram refeitos sobre as **categorias reais** do Bilibili e do Douyin (acrescentando VTuber, rádio, pets, comida, esports, artesanato e assistir junto, que estavam faltando por completo — e assistir junto agora proíbe explicitamente cortar o conteúdo protegido que está na tela); um novo **caminho de candidatos guiado por sinal**, para que transmissões de dança, de pets e de rua, cujas transcrições são vazias e que antes não rendiam nada, sejam localizadas por sinais de áudio e de imagem; o riso deixou de ser tratado como o destaque em si (ele vem depois da piada que o causou). Além disso: **tom de voz e riso/aplauso** como dois novos caminhos de evidência, **zoom automático**, **corte de repetições**, **webhooks de gravador** (BililiveRecorder/blrec), **predefinições de vários provedores de LLM** (DeepSeek, Model Studio, GLM, Kimi, SiliconFlow, OpenRouter, OpenAI) e **busca da lista de modelos em um clique** (os identificadores de modelo envelhecem conforme os fornecedores lançam gerações novas, então melhor perguntar ao endpoint)
+- **[v0.9.4](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.4)** (31/07/2026) "Nome de usuário com acento deixou de ser problema": corrige a falha garantida de transcrição em nomes de usuário do Windows fora do ASCII ([#4](https://github.com/xixihhhh/hotclip/issues/4)) — os caminhos de modelo são convertidos sozinhos para o formato curto 8.3 e as amostras de áudio são lidas pelo lado do app; a transferência de modelos entre discos foi desbloqueada, e as falhas ao carregar modelo agora dizem o que de fato fazer
+- **[v0.9.3](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.3)** (28/07/2026) "Você decide onde as coisas ficam": página de configurações ([#3](https://github.com/xixihhhh/hotclip/issues/3)) — armazenamento de modelos visível e movível, três níveis de qualidade de exportação (Compacto 66% menor), estilo padrão de legenda e local de exportação
+- **[v0.9.2](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.2)** (27/07/2026) "Erros honestos, interface sem amassar": as falhas de transcrição passam a ser atribuídas corretamente ([#2](https://github.com/xixihhhh/hotclip/issues/2)); a barra de opções de exportação quebra linha em vez de estourar o layout; pasta de saída configurável
+- **[v0.9.1](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.1)** (24/07/2026) "Correção do primeiro uso no Windows": o laço de download de modelo que chegava a 100% e recomeçava foi corrigido (descompactador em JavaScript puro como alternativa para bzip2); etapa de progresso da descompactação; gravação atômica
+- **[v0.9.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.9.0)** (24/07/2026) "Aprende o seu gosto": ciclo de retorno da revisão + autodiagnóstico `doctor` + download de modelo com retomada + modelos estruturados de texto de publicação (8 ângulos × 5 chamadas finais) + entrada de clipe de referência concluída
+- **[v0.8.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.8.0)** (20/07/2026) "Corte como o que viralizou": detecção guiada por clipe de referência + ciclo de verificação com autocorreção + checagem de palavras proibidas (mais de 120 regras) + legendas Hormozi + avaliação de quadros por mosaico
+- **[v0.7.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.7.0)** (16/07/2026) "Confira cada corte": verificação de qualidade da renderização + CLI sem interface e skill para agente + compilado + abertura fria + duas proporções + modo produto
+- **[v0.6.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.6.0)** (10/07/2026) "Veja a imagem": cadeia de evidência com seis sinais + legendas bilíngues + servidor MCP local + pasta monitorada + kit de publicação
+- **[v0.5.0](https://github.com/xixihhhh/hotclip/releases/tag/v0.5.0)** (09/07/2026) "Escolha certo, entregue firme": bancada de revisão + encaixe na troca de plano + templates de marca + funil de dois níveis
+- **[v0.4.3](https://github.com/xixihhhh/hotclip/releases/tag/v0.4.3)** (06/07/2026) Base de engenharia: cache de transcrição + comprovante no clips.json
 
-| 里程碑 | 状态 |
+| Marco | Situação |
 |---|---|
-| 桌面客户端 · 本地转写三档 · AI 找爆点 · 竖屏+字幕成片 · 舒适智能构图 | ✅ 已完成 |
-| 说话人分离 · 气泡字幕 · 气口跳剪 · 一键全托管 · 安装包发布 | ✅ 已完成 |
-| v0.5 ~ v0.9(审阅台 · MCP · 录播监听 · 质检修复 · 反馈回流 · 设置页) | ✅ 已发布 |
-| v0.10 ~ v0.14(多片段拼接 · 品类判据 · 质量门三档 · 平台发布包 · 一片多版 · 剪映草稿 · 变形度评分 · AI 封面/配乐) | ✅ 已发布 |
-| v0.15(三栏工作台 · 时间轴曲线 · 弹幕互动计权) | ✅ 已发布 |
-| v0.15.1(硬件加速 · URL 导入 · 断点恢复 · 持久队列 · 发布反馈 · 健康检查 · 主题系列) | ✅ 已发布 |
-| v0.16(项目工作区 · 可逆编辑 · 专业快捷键 · 本地 A/B 实验) | ✅ 已发布 |
-| v0.17(有界渲染缓存 · 关键帧安全直拷 · 全入口共享 · 缓存诊断清理) | ✅ 已发布 |
-| v0.18 ~ v0.27(质量评测 · 字幕质量门 · 多模态/屏显文字证据 · 舒适竖屏构图 · 成片质检 · 智能画面校正 · HDR 安全转 SDR · 同轨分析 · 质量封面 · 语音安全切点 · 48k 智能人声增强) | ✅ 已发布 |
-| 英文 ASR 升级(Parakeet)· 代码签名 · 无人值守增强 | 🗺️ [规划中](docs/PRODUCT-PLAN.md) |
+| Aplicativo de desktop · três níveis locais de transcrição · destaques por IA · clipes verticais com legendas · composição que preserva o enquadramento | ✅ Concluído |
+| Separação de falantes · legendas em balão · cortes secos · modo automático · instaladores | ✅ Concluído |
+| v0.5 – v0.9 (bancada · MCP · pasta monitorada · verificação e correção · ciclo de retorno · configurações) | ✅ Entregue |
+| v0.10 – v0.14 (costura de vários trechos · critérios por gênero · porta de qualidade · pacotes de publicação · versões · rascunhos do JianYing · nota de transformação · capas e trilha por IA) | ✅ Entregue |
+| v0.15 (bancada de três painéis · curvas na linha do tempo · peso das interações do chat) | ✅ Entregue |
+| v0.15.1 (exportação por hardware · importação por link · recuperação · fila persistente · retorno das publicações · diagnóstico · séries por tema) | ✅ Entregue |
+| v0.16 (área de projetos · edição reversível · atalhos profissionais · testes A/B locais) | ✅ Entregue |
+| v0.17 (cache limitado de renderização · cópia segura por quadro-chave · compartilhado entre entradas · limpeza delimitada) | ✅ Entregue |
+| v0.18 – v0.27 (avaliação de qualidade · porta de qualidade das legendas · reúso de evidência multimodal e de texto na tela · reenquadramento que preserva o enquadramento · verificação da renderização · acabamento de imagem adaptativo · exportação SDR segura com HDR · paridade da trilha selecionada · capas por qualidade · cortes que respeitam a fala · realce inteligente de diálogo em 48k) | ✅ Entregue |
+| Melhoria do reconhecimento em inglês (Parakeet) · assinatura de código · modo automático mais profundo | 🗺️ [Planejado](docs/PRODUCT-PLAN.md) |
 
 </details>
 
-完整更新历史见 [Releases](https://github.com/xixihhhh/hotclip/releases) · 想投票决定先做哪个?到 [Discussions](https://github.com/xixihhhh/hotclip/discussions) 留言。
+Histórico completo em [Releases](https://github.com/xixihhhh/hotclip/releases) · Quer opinar sobre o que vem primeiro? [Discussions](https://github.com/xixihhhh/hotclip/discussions)
 
-## 常见问题
+## Perguntas frequentes
 
-**有什么免费的 AI 切片 / AI 剪辑软件?**
-HotClip 就是——免费开源(AGPL-3.0)、本地运行的 AI 剪辑 / 视频切片工具,把长视频、直播回放一键切成竖屏短视频,无水印、无积分制、不限时长,Windows / macOS / Linux(实验)都有安装包。
+**Qual é a melhor alternativa gratuita ao Opus Clip, sem marca d'água?**
+O HotClip — gratuito, de código aberto (AGPL-3.0), roda localmente em Windows, macOS e Linux (experimental), sem marca d'água, sem créditos e sem limite de duração. Os LLMs opcionais na nuvem cobram na sua própria chave; com um modelo local no Ollama, fica totalmente gratuito e offline.
 
-**直播回放 / 播客怎么一键剪成抖音、B站短视频?**
-导入文件 → AI 转写并自动识别高光片段(可手动增删调边界)→ 一键导出竖屏 9:16 成片,自带字幕、标题贴片和封面图,直接上传抖音 / 快手 / B站 / 视频号 / 小红书。
+**Existe um cortador com IA que rode localmente, sem enviar meu vídeo?**
+Sim — transcrição, legendas, corte e exportação rodam todos na sua máquina. Só a etapa de busca de destaques chama um LLM na nuvem por padrão (com a sua chave e só o texto da transcrição); aponte para o Ollama local e a esteira fica 100% offline.
 
-**AI 剪辑会上传我的视频吗?需要联网吗?**
-不上传。转写、字幕、切片、导出全程在你自己的电脑上离线完成。只有「AI 找爆点」这一步默认调用云端大模型(只发文字稿,用你自己的 Key),接本机 Ollama 后 100% 离线。
+**Como transformo um podcast ou uma gravação de live em cortes?**
+Importe o arquivo → a IA transcreve e marca os destaques (tudo editável) → exporte clipes verticais 9:16 com legendas, capas e texto de publicação.
 
-**能自动加字幕吗?**
-能。逐词同步的动态字幕直接烧进画面,关键词高亮/大字弹出/气泡特效等多款样式一档切换,也可导出 SRT 给平台原生上传;开双语字幕还能整句翻译烧成第二行。
+**Como coloco legendas animadas, palavra a palavra, no vídeo?**
+Elas são automáticas — a marcação por palavra move as legendas dinâmicas queimadas em todo clipe (destaque de palavra-chave, palavra saltando, balão e outras, com uma opção para trocar); a exportação de SRT e as legendas bilíngues estão a uma opção de distância.
 
-**能自动剪掉口播里的停顿和口头禅吗?视频如何去气口?**
-能。「剪气口」自动删掉说话间的静音停顿,「剪口头禅」剪掉嗯/呃与结巴重复——剪了什么逐条写进 clips.json,你始终知道 AI 动了哪里。
+**Ele remove vícios de linguagem e silêncios?**
+Sim — corte seco dos silêncios mais uma passagem sobre "é…" e "ãh", com a sincronia das legendas remapeada e cada edição registrada no clips.json.
 
-**弹幕能参与选爆点吗?直播高光怎么找?**
-能,而且是最硬的证据。HotClip 自动发现录播旁的弹幕文件——B 站录播姬的同名 .xml、抖音直播录制工具的弹幕 .jsonl 都认;弹幕密度、SC / 舰长 / 礼物 / 关注 / 点赞互动直接进爆点判断(单人刷屏有封顶,突然爆发有加成)。没有弹幕文件也不要紧,响度 / 镜头 / 运动 / 表情 / 语气 / 笑声等信号照样兜底。
+**Como o HotClip lida com vídeo HDR?**
+PQ/HLG é mapeado para SDR BT.709 marcado apenas quando primárias, matriz de cor e faixa estão completas e com suporte. Marcações HDR incompletas ou sem suporte mantêm o caminho de renderização existente, pulam o acabamento adaptativo no domínio SDR e marcam o resultado como não convertido, em vez de adivinhar; SDR e curvas desconhecidas seguem pelo caminho de sempre. Nenhum modelo, download ou envio é acrescentado.
 
-**剪映可以自动切割片段吗?和 HotClip 怎么配合?**
-剪映的智能切片在会员档,且只能切连续区间。HotClip 免费开源、支持把相隔十几分钟的片段拼成一条,还能把每条切片导出成**剪映草稿**——AI 粗剪交给 HotClip,打开剪映接着精修,不冲突,是接力。
+**Os dados do chat ao vivo ajudam a escolher os destaques?**
+Sim — e é a evidência mais forte que existe. O HotClip descobre sozinho o arquivo de chat que está ao lado da gravação (funciona com o .xml do BililiveRecorder e com o .jsonl do gravador do Douyin); a densidade do chat mais mensagens pagas, assinaturas, presentes, novos seguidores e rajadas de curtida entram direto na busca de destaques, com teto contra spam por remetente e bônus de subida. Sem arquivo de chat, os sinais de volume, troca de plano, movimento, emoção facial, tom de voz e riso cobrem a falta.
 
-**HotClip 和剪映 / OpusClip / Klap 这类工具的区别?**
-最大区别是素材不出你的电脑:OpusClip 等 SaaS 必须上传云端、按源视频分钟扣积分(积分月底清零),免费档带水印;剪映的智能切片等核心能力在会员档。HotClip 开源免费、本地处理、无水印、不限时长,AI 切点附理由可审计。详见上方[对比表](#和-opusclip剪映智能切片的区别)。
+**Funciona para vídeo em português?**
+Sim. A interface, as legendas e os prompts são roteados por idioma, e as transcrições em português passam a receber prompts em português, com os títulos, ganchos e justificativas saindo no mesmo idioma do material. Para material em mandarim, cantonês ou com alternância de idioma, os motores dedicados (SenseVoice / Paraformer / FireRedASR2) continuam disponíveis.
 
-**支持中文视频吗?方言、粤语呢?**
-支持且是强项。中文识别走专用引擎(SenseVoice/Paraformer/FireRedASR2),准确率显著高于通用模型;方言、粤语、中英混说都覆盖,界面、字幕、prompt 都针对中文内容做了适配。
+**Preciso de GPU?**
+Não. Os modelos locais de reconhecimento são quantizados em int8 e rodam bem em CPU; o LLM dos destaques roda na nuvem (ou no seu Ollama local).
 
-**需要显卡吗?配置要求高吗?**
-不需要。本地转写用 int8 量化小模型,普通 CPU 就能跑;找爆点的大模型在云端(或你本机的 Ollama)。
+**No primeiro uso, o download do modelo de fala chega a 100%, recomeça do zero e fica baixando para sempre?**
+Atualize para a [v0.9.1](https://github.com/xixihhhh/hotclip/releases) ou mais nova — o problema de descompactação no Windows foi corrigido, e os bytes já baixados são retomados automaticamente.
 
-**可以切别人的直播吗?直播切片如何申请授权?**
-HotClip 面向你自己的内容或已获授权的切片。切别人的直播请先拿到授权(如各平台/公会的主播切片授权计划);未经授权的影视/直播搬运不受支持,也不欢迎。
-
-**首次使用,语音模型下载到 100% 又从头开始怎么办?**
-升级到 [v0.9.1](https://github.com/xixihhhh/hotclip/releases) 或更新版本即可,老版本的 Windows 解压 bug 已彻底修复;旧版已下载的字节还会自动续传。
-
-## 开发者
+## Para quem desenvolve
 
 ```bash
 git clone https://github.com/xixihhhh/hotclip.git
 cd hotclip
 pnpm install
-pnpm dev        # 启动桌面应用(开发模式)
-pnpm test       # 跑单元测试
+pnpm dev        # roda o aplicativo de desktop em modo de desenvolvimento
+pnpm test       # roda os testes unitários
 ```
 
-**技术栈**:Electron + React 19 + TypeScript + Tailwind 4 · ffmpeg(打包内置)· sherpa-onnx 本地转写 + 说话人分离 · libass 动态字幕 + 离屏 Chromium 气泡字幕引擎 · LLM 爆点检测(Atlas Cloud / Ollama / 任意 OpenAI 兼容接口,BYO Key)
+**Pilha técnica**: Electron + React 19 + TypeScript + Tailwind 4 · ffmpeg (embutido) · reconhecimento local e separação de falantes com sherpa-onnx · legendas dinâmicas com libass + motor de legenda em balão com Chromium fora da tela · detecção de destaques por LLM (Atlas Cloud, Ollama ou qualquer endpoint compatível com OpenAI, com a sua própria chave)
 
 <details>
-<summary><b>站在这些开源项目的肩膀上</b></summary>
+<summary><b>De pé sobre os ombros de</b></summary>
 
-| 项目 | 在 HotClip 中的角色 |
+| Projeto | Papel no HotClip |
 |---|---|
-| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | 本地语音识别运行时(纯 CPU 可跑) |
-| [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) / [FunASR](https://github.com/modelscope/FunASR) | 五语种快速转写 / Paraformer 中文转写与标点 |
-| [FireRedASR](https://github.com/FireRedTeam/FireRedASR) | 最高精度档:普通话/方言/中英混说 |
-| [pyannote-audio](https://github.com/pyannote/pyannote-audio) + [3D-Speaker](https://github.com/modelscope/3D-Speaker) | 说话人分离(本地零上传) |
-| [FFmpeg](https://ffmpeg.org/) + [libass](https://github.com/libass/libass) | 帧精确切割 / 字幕烧录 |
-| [onnxruntime](https://github.com/microsoft/onnxruntime) | 端侧模型推理 |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Runtime local de reconhecimento de fala (leve para CPU) |
+| [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) / [FunASR](https://github.com/modelscope/FunASR) | Reconhecimento rápido em 5 idiomas / reconhecimento e pontuação do Paraformer |
+| [FireRedASR](https://github.com/FireRedTeam/FireRedASR) | Nível de maior precisão: mandarim, sotaques e alternância de idioma |
+| [pyannote-audio](https://github.com/pyannote/pyannote-audio) + [3D-Speaker](https://github.com/modelscope/3D-Speaker) | Separação de falantes (local, sem envio nenhum) |
+| [FFmpeg](https://ffmpeg.org/) + [libass](https://github.com/libass/libass) | Corte preciso no quadro e queima das legendas |
+| [onnxruntime](https://github.com/microsoft/onnxruntime) | Inferência dos modelos na própria máquina |
 
 </details>
 
-## 授权与边界
+## Licença e limites de uso
 
-- 代码:**AGPL-3.0-only**
-- HotClip 面向**你自己的内容**或**已获授权的切片**(如主播切片授权计划)。请遵守各平台二创与授权规则——未经授权的影视/直播搬运不受支持,也不欢迎。
+- Código: **AGPL-3.0-only**
+- O HotClip é para **o seu próprio conteúdo** ou para **cortes que você tem autorização de fazer** (por exemplo, programas oficiais de cortes de quem transmite). Reenviar filmes ou transmissões sem autorização não tem suporte e não é bem-vindo.
 
-## 社区与同作者项目
+## Comunidade e projetos do mesmo autor
 
-- 🐛 [提 Bug / 安装求助](https://github.com/xixihhhh/hotclip/issues) · 💡 [功能建议与 Roadmap](https://github.com/xixihhhh/hotclip/discussions)
-- 🔨 **[ClipForge](https://github.com/xixihhhh/clipforge)** — 开源 AI 带货短视频神器:上传一张商品图,AI 提炼卖点、写脚本、配画面配音字幕,一键产出卖货视频。**HotClip 把长视频切成爆款,ClipForge 从一张图造出短视频**,做电商/带货的朋友可以配着用
+- 🐛 [Relatar um problema / ajuda na instalação](https://github.com/xixihhhh/hotclip/issues) · 💡 [Ideias de recursos e planejamento](https://github.com/xixihhhh/hotclip/discussions)
+- 🔨 **[ClipForge](https://github.com/xixihhhh/clipforge)** — gerador de vídeo curto para e-commerce com IA, de código aberto: entra uma foto do produto, sai um vídeo pronto para publicar e vender. **O HotClip tira os destaques de dentro de vídeos longos; o ClipForge monta vídeos curtos a partir de uma única imagem** — os dois se completam.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=xixihhhh/hotclip&type=Date)](https://star-history.com/#xixihhhh/hotclip&Date)
+[![Gráfico do histórico de estrelas](https://api.star-history.com/svg?repos=xixihhhh/hotclip&type=Date)](https://star-history.com/#xixihhhh/hotclip&Date)
 
 <div align="center">
 
-**⭐ 觉得有用就点个 Star——Star + Watch 第一时间收到新版本通知,每颗星都是让更多人不用再给积分制付费的一票。**
+**⭐ Star + Watch para saber dos lançamentos primeiro.**
 
 </div>
