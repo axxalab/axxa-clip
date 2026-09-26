@@ -1,41 +1,44 @@
 /**
- * Stream-genre presets: what counts as a highlight differs wildly per genre, so
- * "what is a highlight" is a selectable, editable configuration instead of being
- * hardcoded into the prompt.
+ * Presets de gênero de transmissão: o que conta como destaque muda radicalmente de
+ * um gênero para outro, então "o que é um destaque" é uma configuração selecionável
+ * e editável, em vez de ficar fixa dentro do prompt.
  *
- * **The genre list comes from the platforms' real categories, not from guesswork**:
- *  - Bilibili Live `api.live.bilibili.com/room/v1/Area/getList` (pulled 2026-08)
- *    has 11 top-level categories: online games / mobile games / single-player games /
- *    entertainment / radio / VTuber / chat room / lifestyle / knowledge / esports /
- *    interactive / shopping; the sub-categories include dance, singing, looks,
- *    group streams, stand-up, outdoor, pets, food, crafts & drawing, sports,
- *    study rooms, background-watching and ambient experiences
- *  - Douyin live categories (public sources): looks / fashion / parenting / food /
- *    home / music / dance / travel / pets / education / tech / cars / health /
- *    scripted drama / film & TV / games / sports / fitness / science / finance / farming…
- *  - Douyu: games / outdoor / looks / co-watching / tech
- * Merged into the presets below — which is why "VTuber", "radio", "pets", "food",
- * "esports" and "crafts" don't get dropped just because nobody thought of them.
+ * **A lista de gêneros vem das categorias reais das plataformas, e não de chute**:
+ *  - o `api.live.bilibili.com/room/v1/Area/getList` do Bilibili Live (consultado em
+ *    agosto de 2026) tem 11 categorias de primeiro nível: jogos online, jogos de
+ *    celular, jogos single-player, entretenimento, rádio, VTuber, sala de bate-papo,
+ *    estilo de vida, conhecimento, esports, interação e compras; entre as
+ *    subcategorias estão dança, canto, beleza, transmissão em grupo, stand-up, rua,
+ *    pets, comida, artesanato e desenho, esporte, sala de estudos, conteúdo de
+ *    companhia e experiências de ambiente
+ *  - categorias de live do Douyin (fontes públicas): beleza, moda, maternidade,
+ *    comida, casa, música, dança, viagem, pets, educação, tecnologia, carros, saúde,
+ *    dramaturgia, cinema e TV, jogos, esporte, treino, divulgação científica,
+ *    finanças, agricultura…
+ *  - Douyu: jogos, rua, beleza, assistir junto, tecnologia
+ * Tudo isso foi reunido nos presets abaixo — e é por isso que "VTuber", "rádio",
+ * "pets", "comida", "esports" e "artesanato" não ficam de fora só porque ninguém
+ * pensou neles.
  *
- * More importantly, **the evidence weighting is inverted between genres**: for
- * selling and knowledge the highlight is in the words, so reading the transcript
- * is enough; for gaming and outdoor it is in the tone and the audience reaction
- * (shouting, laughter, a flood of live chat), where the transcript is often just
- * "holy—"; for dance and pets it is more extreme still — the transcript is
- * essentially empty and everything rides on picture, music and chat. So besides
- * its criteria, every preset also declares which evidence it should trust
- * (`evidence`); the reaction/visual classes additionally run the signal channel
- * in highlight/moments.ts.
+ * Mais importante ainda, **os pesos de evidência se invertem entre os gêneros**: em
+ * venda e em conhecimento o destaque está nas palavras, e ler a transcrição já basta;
+ * em jogos e na rua ele está no tom de voz e na reação do público (grito, risada,
+ * enxurrada de chat), onde a transcrição costuma ser só um "caraca"; em dança e em
+ * pets é ainda mais extremo — a transcrição é praticamente vazia e tudo depende da
+ * imagem, da música e do chat. Por isso, além dos critérios, cada preset também
+ * declara em que evidência deve confiar (`evidence`), e as classes reaction e visual
+ * rodam, além do resto, o canal de sinais de highlight/moments.ts.
  *
- * Users can edit the criteria text directly (custom) — the built-in presets are a
- * starting point, not a ceiling. Pure functions, unit-testable.
+ * A pessoa pode editar o texto dos critérios diretamente (custom): os presets
+ * internos são um ponto de partida, não um teto. São funções puras, testáveis.
  */
 
 /**
- * Preset id. Merged from the platforms' top-level categories; still not
- * exhaustive (platforms add sub-categories every month). The real fallbacks are
- * the "work out what this content is first, then decide which evidence to trust"
- * paragraph in the generic prompt, the adaptive speech-ratio handling, and custom.
+ * Id do preset. Reunido a partir das categorias de primeiro nível das plataformas;
+ * ainda não é exaustivo (as plataformas acrescentam subcategorias todo mês). As
+ * reservas de verdade são o parágrafo do prompt genérico que diz "descubra primeiro
+ * que tipo de conteúdo é este e só então decida em que evidência confiar", o
+ * tratamento adaptativo da proporção de fala, e o custom.
  */
 export type GenreId =
   | "auto"
@@ -58,17 +61,17 @@ export type GenreId =
   | "custom";
 
 /**
- * Which evidence carries the highlights for this genre — it decides whether the
- * signal-driven candidate channel runs at all:
- *  - words: the substance is in the speech (selling / knowledge / interviews),
- *    the transcript is enough, so the original text channel is used
- *  - reaction: it rides on the live reaction (gaming / outdoor / chat / radio);
- *    the text at a peak moment is frequently just "no way"
- *  - visual: it rides on the picture (dance / singing / pets / food / crafts);
- *    the transcript is essentially empty
- * The reaction/visual classes MUST also run the signal channel in
- * highlight/moments.ts — otherwise "no quotable line exists" means not a single
- * candidate ever comes out.
+ * Qual evidência carrega os destaques deste gênero — é isso que decide se o canal
+ * de candidatos guiado por sinal roda ou não:
+ *  - words: a substância está na fala (venda, conhecimento, entrevista), a
+ *    transcrição já basta, então o canal de texto original é usado
+ *  - reaction: depende da reação ao vivo (jogos, rua, bate-papo, rádio); o texto de
+ *    um momento de pico é, com frequência, só um "não acredito"
+ *  - visual: depende da imagem (dança, canto, pets, comida, artesanato); a
+ *    transcrição é praticamente vazia
+ * As classes reaction e visual PRECISAM rodar também o canal de sinais de
+ * highlight/moments.ts — do contrário, "não existe fala para citar" significa que
+ * nenhum candidato sai, nunca.
  */
 export type EvidenceClass = "words" | "reaction" | "visual";
 
@@ -76,14 +79,14 @@ export interface GenrePreset {
   id: GenreId;
   labelPt: string;
   labelEn: string;
-  /** Criteria block injected into the system prompt; empty for auto (generic criteria apply). */
+  /** Bloco de critérios injetado no system prompt; vazio no auto (valem os critérios genéricos). */
   criteriaPt: string;
   criteriaEn: string;
-  /** Primary evidence path; auto/custom adapt to the footage (see moments.shouldRunMoments). */
+  /** O caminho de evidência principal; auto e custom se adaptam ao material (veja moments.shouldRunMoments). */
   evidence: EvidenceClass;
 }
 
-/** Built-in presets. The criteria for custom are written by the user; this is only a placeholder. */
+/** Presets internos. Os critérios do custom são escritos pela pessoa, e aqui só existe um espaço reservado. */
 export const GENRE_PRESETS: GenrePreset[] = [
   {
     id: "auto",
@@ -394,15 +397,16 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
 ];
 
-/** Look a preset up by id; an unknown id falls back to auto. Pure function. */
+/** Busca um preset pelo id; um id desconhecido volta para auto. Função pura. */
 export function genrePreset(id: string | undefined): GenrePreset {
   return GENRE_PRESETS.find((g) => g.id === id) ?? GENRE_PRESETS[0];
 }
 
 /**
- * Old id → new id. The genre table was reordered to follow the platforms' real
- * categories, and a preference already stored on this machine must not break
- * because of that. Anything that doesn't match is left to genrePreset's auto fallback.
+ * Id antigo → id novo. A tabela de gêneros foi reordenada para acompanhar as
+ * categorias reais das plataformas, e uma preferência já guardada nesta máquina não
+ * pode quebrar por causa disso. O que não casa fica para a reserva auto do
+ * genrePreset.
  */
 const LEGACY_GENRE_IDS: Record<string, GenreId> = {
   "live-sell": "shopping",
@@ -410,52 +414,54 @@ const LEGACY_GENRE_IDS: Record<string, GenreId> = {
   lecture: "knowledge",
 };
 
-/** Keeps genreId values stored by older preferences working (pre-v0.9.4 spelling). */
+/** Mantém funcionando os valores de genreId guardados por preferências mais antigas (a grafia anterior à v0.9.4). */
 export function normalizeGenreId(id: string | undefined): string | undefined {
   if (!id) return id;
   return LEGACY_GENRE_IDS[id] ?? id;
 }
 
 /**
- * Per-genre silence threshold for jump cuts (seconds): only gaps between words
- * longer than this get cut.
- * Research baseline for 2026 (RESEARCH-2026-08-CLIP-QUALITY.md, section 3):
- * fast commentary ~0.3s, solo presenting 0.5-0.7s, two-person conversation
- * 0.8-1.2s — strip a conversation of its breathing room and it sounds like a machine gun.
- * Genres not listed here use the 0.6 default (matching the historical
- * GAP_THRESHOLD_SEC, so upgrading changes nothing in existing output).
+ * Limite de silêncio do corte seco por gênero (em segundos): só os intervalos entre
+ * palavras maiores que isso são cortados.
+ * Base de pesquisa para 2026 (RESEARCH-2026-08-CLIP-QUALITY.md, seção 3): narração
+ * acelerada em torno de 0,3s, locução de uma pessoa de 0,5 a 0,7s, conversa entre
+ * duas pessoas de 0,8 a 1,2s — tirar de uma conversa todo o respiro faz ela soar
+ * como metralhadora.
+ * Os gêneros que não estão listados aqui usam o padrão de 0,6 (igual ao histórico
+ * GAP_THRESHOLD_SEC, então atualizar não muda nada no que já era produzido).
  */
 const GENRE_PAUSE_GAP_SEC: Partial<Record<GenreId, number>> = {
-  esports: 0.4, // commentary is the fastest speech there is; a gap is dead air
+  esports: 0.4, // narração é a fala mais rápida que existe; um intervalo ali é tempo morto
   game: 0.45,
   sports: 0.5,
-  shopping: 0.55, // selling patter is dense, and pauses are usually stalling
-  looks: 0.7, // back-and-forth with guests needs a beat to pick up the thread
+  shopping: 0.55, // o discurso de venda é denso, e as pausas geralmente são enrolação
+  looks: 0.7, // a troca com convidados precisa de um tempo para retomar o fio
   vtuber: 0.7,
-  talk: 0.8, // chat/stand-up: the pause is often the joke
+  talk: 0.8, // bate-papo e stand-up: a pausa muitas vezes é a piada
   radio: 0.8,
-  outdoor: 0.7, // reactions lag outdoors, and the audio is poor
-  knowledge: 0.7, // a teaching pause is there for the audience to digest
-  interview: 0.9, // conversation: the silence between question and answer carries meaning
+  outdoor: 0.7, // na rua a reação vem atrasada e o áudio é ruim
+  knowledge: 0.7, // numa aula a pausa existe para o público digerir
+  interview: 0.9, // em conversa, o silêncio entre a pergunta e a resposta carrega sentido
 };
 
-/** Default tier for the jump-cut silence threshold (matches the historical default in gaps.ts). */
+/** Nível padrão do limite de silêncio do corte seco (igual ao padrão histórico de gaps.ts). */
 export const DEFAULT_PAUSE_GAP_SEC = 0.6;
 
-/** Jump-cut silence threshold for a genre; unknown/unconfigured falls back to the default. Pure function. */
+/** Limite de silêncio do corte seco de um gênero; desconhecido ou não configurado volta para o padrão. Função pura. */
 export function genrePauseGapSec(id: string | undefined): number {
   const norm = normalizeGenreId(id) as GenreId | undefined;
   return (norm && GENRE_PAUSE_GAP_SEC[norm]) || DEFAULT_PAUSE_GAP_SEC;
 }
 
-/** Length cap for user-written criteria (keeps the prompt from being blown out). */
+/** Teto de tamanho dos critérios escritos pela pessoa (evita estourar o prompt). */
 export const GENRE_CUSTOM_MAX_CHARS = 1200;
 
 /**
- * Build the genre block injected into the system prompt.
- * A non-empty `customCriteria` always wins — what the user wrote always overrides
- * the built-in preset, which makes "pick the closest preset and tweak a line or
- * two" the natural way to use it. Returns "" for no injection. Pure function.
+ * Monta o bloco de gênero que é injetado no system prompt.
+ * Um `customCriteria` não vazio sempre vence — o que a pessoa escreveu passa sempre
+ * por cima do preset interno, e é isso que torna natural o uso de "escolher o preset
+ * mais próximo e mudar uma ou duas frases". Devolver "" significa não injetar nada.
+ * Função pura.
  */
 export function genreSection(
   id: string | undefined,

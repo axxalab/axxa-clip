@@ -1,10 +1,13 @@
 /**
- * Highlight-detection prompts: the LLM reads a timestamped transcript and
- * nominates clip-worthy selections BY QUOTING TEXT — it never invents
+ * Prompts da detecção de destaques: o LLM lê uma transcrição com marcação de tempo
+ * e indica os trechos que valem um corte CITANDO O TEXTO — ele nunca inventa
+ * marcações de tempo (elas são encontradas depois, por busca reversa).
+ *
+ * É bilíngue por desenho: transcrições em português recebem o prompt pt, todo o
+ * resto recebe o prompt en, e o título, o gancho e a justificativa seguem sempre o
+ * idioma da própria transcrição. Construtores puros, testáveis.
  * timestamps (they are reverse-matched later).
  *
- * Bilingual by design: Portuguese transcripts get the pt prompt, everything
- * else gets the en prompt, and titles/hooks/reasons always follow the
  * transcript's own language. Pure builders, testable.
  */
 import type { Transcript } from "../transcribe/types";
@@ -118,9 +121,10 @@ How to write parts:
 7. Write title/hook/reason in the SAME language as the transcript`;
 
 /**
- * Portuguese when the engine says so, or when the text itself reads Portuguese.
- * A language tag wins outright; only "auto"/empty falls back to sniffing the
- * text for the function words that Portuguese cannot do without.
+ * Português quando o motor diz que é, ou quando o próprio texto se lê como
+ * português.
+ * Uma etiqueta de idioma decide na hora; só "auto" ou vazio recorre a farejar no
+ * texto as palavras funcionais das quais o português não consegue passar.
  */
 export function isPortugueseTranscript(transcript: Transcript): boolean {
   const lang = transcript.language.toLowerCase();
@@ -172,38 +176,42 @@ export function highlightSystemPrompt(
   const pt = isPortugueseTranscript(transcript);
   let base = pt ? HIGHLIGHT_SYSTEM_PROMPT_PT : HIGHLIGHT_SYSTEM_PROMPT_EN;
   if (length !== "standard") {
-    // Rewrite the length line per tier (a hard constraint inside the system
-    // prompt, so selection already targets the intended pace)
+    // Reescreve a linha de duração conforme a faixa (é uma restrição rígida dentro
+    // do system prompt, então a seleção já mira o ritmo pretendido)
     const { minSec, maxSec } = CLIP_LENGTH_RANGES[length];
     base = base
       .replace("Duração de 8 a 40 segundos", `Duração de ${minSec} a ${maxSec} segundos (exigência rígida, melhor ficar abaixo do que passar)`)
       .replace("Length 8–40 seconds", `Length ${minSec}–${maxSec} seconds (hard requirement)`);
   }
-  // Genre criteria: genres differ even on "which evidence to trust", so this
-  // goes after the generic criteria and overrides them
+  // Critérios do gênero: os gêneros diferem até em "qual evidência confiar", então
+  // isto vem depois dos critérios genéricos e passa por cima deles
   if (genre) base += genreSection(genre.id, pt, genre.custom);
   if (products.length > 0) base += productSection(products, pt);
   // User brief: explicit human intent, outranking the generic criteria
   // (mirrors OpusClip's contextual prompting)
   base += briefSection(brief, pt);
-  // Reference-clip profile: the pacing-preference block (only present when the
-  // user handed in a clip to model after)
+  // Perfil do corte de referência: o bloco de preferência de ritmo (só existe quando
+  // a pessoa entregou um corte para servir de espelho)
   if (reference) base += referencePromptSection(reference, pt);
   // Review-preference feedback: this machine's own accepted/rejected examples
   // (an empty memory returns "")
   if (reviewMemory && reviewMemory.length > 0) base += reviewMemorySection(reviewMemory, pt);
-  // Real publishing performance: audience outcomes beat the model guessing at
-  // what is hot, but they still only count as trend evidence
+  // Desempenho real das publicações: o resultado do público vale mais do que o
+  // modelo adivinhando o que está em alta, mas ainda assim conta apenas como
+  // evidência de tendência
   if (performanceMemory && performanceMemory.length > 0) base += performanceMemorySection(performanceMemory, pt);
   return base;
 }
 
 /**
- * Selection preferences for product-pitch mode (criteria drawn from hands-on
+ * Preferências de seleção do modo de apresentação de produto (os critérios vêm de
+ * pesquisa prática sobre cortes de venda): na conversão, a ordem é demonstração e
+ * prova real > explicação dos diferenciais > mecânica de preço > chamada para compra
+ * > perguntas e respostas. Enrolação e chamada de alta pressão carregam risco de
+ * infração na plataforma e ficam de fora por completo.
+ * As frases que marcam o script ajudam o LLM a achar onde uma apresentação começa e
+ * onde termina.
  * research into selling clips): conversion ranks demo/live test > selling
- * points > price mechanics > call-to-action > Q&A. Stalling and high-pressure
- * CTA stretches carry platform-violation risk and are excluded outright.
- * Script marker phrases help the LLM find where a pitch starts and ends.
  */
 export function productSection(products: string[], pt: boolean): string {
   const list = products.join(", ");
@@ -231,15 +239,15 @@ export function productSection(products: string[], pt: boolean): string {
   );
 }
 
-/** Length cap for the brief text (an oversized injection only dilutes the criteria). */
+/** Teto de tamanho do texto do briefing (uma injeção grande demais só dilui os critérios). */
 export const BRIEF_MAX_CHARS = 300;
 
 /**
- * The user-brief block (v0.13): the user states in plain language what to hunt
- * for and what to leave out. This is the only genuinely human intent in the
- * prompt, so it outranks every automatic criterion — but excluding something is
- * not the same as conjuring something up: when the requested content genuinely
- * isn't in the footage, return less rather than padding.
+ * O bloco de briefing do usuário (v0.13): a pessoa diz em linguagem simples o que
+ * procurar e o que deixar de fora. É a única intenção genuinamente humana dentro do
+ * prompt, então ela passa por cima de todo critério automático — mas excluir algo não
+ * é o mesmo que fazer aparecer: quando o conteúdo pedido realmente não está no
+ * material, é melhor devolver menos do que encher a lista.
  */
 export function briefSection(brief: { focus?: string; exclude?: string } | undefined, pt: boolean): string {
   const focus = brief?.focus?.trim().slice(0, BRIEF_MAX_CHARS) ?? "";
@@ -263,7 +271,7 @@ export function briefSection(brief: { focus?: string; exclude?: string } | undef
   return lines.join("\n");
 }
 
-/** True when the transcript carries diarization with more than one speaker. */
+/** Verdadeiro quando a transcrição traz separação de falantes com mais de uma pessoa. */
 export function isMultiSpeaker(transcript: Transcript): boolean {
   const ids = new Set<number>();
   for (const s of transcript.segments) if (s.speaker !== undefined) ids.add(s.speaker);
@@ -271,9 +279,11 @@ export function isMultiSpeaker(transcript: Transcript): boolean {
 }
 
 /**
- * Render transcript segments as "[id] MM:SS text" lines the LLM can cite.
- * When diarized, each line is prefixed with the speaker ("S1:") so the LLM can
- * attribute quotes and avoid stitching two speakers into one "highlight".
+ * Transforma os trechos da transcrição em linhas "[id] MM:SS texto" que o LLM pode
+ * citar.
+ * Com a separação de falantes feita, cada linha ganha o falante como prefixo ("S1:"),
+ * para o LLM poder atribuir as citações e evitar costurar duas pessoas num mesmo
+ * "destaque".
  */
 export function renderTranscriptLines(transcript: Transcript): string {
   const multi = isMultiSpeaker(transcript);
@@ -305,9 +315,9 @@ const OUTPUT_SHAPE = `{
 }`;
 
 /**
- * Description of the optional multi-part stitching field. Kept out of
- * OUTPUT_SHAPE on purpose: showing "parts" in the example makes the model think
- * every clip should be stitched, when stitching is meant to be the exception.
+ * Descrição do campo opcional de costura de vários trechos. Ele fica de fora do
+ * OUTPUT_SHAPE de propósito: mostrar "parts" no exemplo faz o modelo achar que todo
+ * clipe deve ser costurado, quando a costura é para ser a exceção.
  */
 const PARTS_SHAPE_PT = `Quando um clipe realmente precisar de costura (apenas aquele que depende do contraste entre o antes e o depois), acrescente o campo parts NAQUELE clipe; se não precisar de costura, o campo não deve aparecer de jeito nenhum:
 "parts": [
@@ -327,7 +337,7 @@ function fmtClock(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
-/** Render Tier-0 audiovisual evidence for prompt injection ("" when empty). */
+/** Monta a evidência de imagem e som de nível 0 para injetar no prompt ("" quando não há nada). */
 export function renderSignals(signals: MediaSignals | undefined, pt: boolean): string {
   if (!signals) return "";
   const fmt = (rs: Array<{ startSec: number; endSec: number }>): string =>
@@ -352,8 +362,9 @@ export function renderSignals(signals: MediaSignals | undefined, pt: boolean): s
     lines.push(pt ? `- Trechos em que o tom de voz se exalta (falando e rindo / gritando / assustado — a emoção que o texto da frase não mostra): ${fmt(signals.voiceEmotionPeaks)}` : `- Vocal-emotion peaks (said while laughing / shouted / startled — tone the text cannot show): ${fmt(signals.voiceEmotionPeaks)}`);
   }
   if (signals.audioEventPeaks && signals.audioEventPeaks.length > 0) {
-    // Laughter is a lagging result: the punchline lands before it. Spelling out
-    // how to use it is mandatory, otherwise the LLM clips the laughing stretch
+    // O riso é um resultado atrasado: a piada cai antes dele. Explicar como usar
+    // isso é obrigatório, senão o LLM corta justamente o trecho da gargalhada
+    // (onde ninguém está falando)
     // (where nobody is actually speaking)
     lines.push(
       pt
@@ -366,8 +377,8 @@ export function renderSignals(signals: MediaSignals | undefined, pt: boolean): s
   }
   if (signals.clipCommandMarks && signals.clipCommandMarks.length > 0) {
     const marks = signals.clipCommandMarks.map(fmtClock).join(", ");
-    // Like laughter, the command is a lagging marker: what it certifies happened
-    // before it. How to use it has to be written into the prompt.
+    // Como o riso, o pedido de corte é uma marca atrasada: o que ele certifica
+    // aconteceu antes dele. Como usar isso precisa estar escrito no prompt.
     lines.push(
       pt
         ? `- Momentos em que quem transmite pediu o corte (a pessoa disse com todas as letras "corta esse pedaço" — um destaque certificado por ela mesma em tempo real, a evidência de maior valor): ${marks}\n  ⚠ O pedido se refere ao que **acabou de acontecer antes dele**: volte a partir da marca até o trecho completo a que ela se referia; nunca corte a própria frase do pedido (no máximo mantenha-a como encerramento)`
@@ -395,7 +406,7 @@ export function renderSignals(signals: MediaSignals | undefined, pt: boolean): s
     : `\n[Audiovisual signals] (supporting evidence — content overlapping these windows likely has real emotional/visual peaks; text quality still rules)\n${lines.join("\n")}\n`;
 }
 
-/** Multi-speaker attribution guidance, injected only when diarized ≥2 speakers. */
+/** Orientação de atribuição em conversa com várias pessoas, injetada só quando a separação identificou 2 ou mais falantes. */
 function speakerNote(transcript: Transcript, pt: boolean): string {
   if (!isMultiSpeaker(transcript)) return "";
   return pt
@@ -432,7 +443,7 @@ Fields: title = a post-ready short title (≤ 12 words); hook = the verbatim ope
 Sort by score descending; clips must not overlap.`;
 }
 
-// ---------- Signal-driven channel: pick by "moment" when the transcript has nothing ----------
+// ---------- Canal guiado por sinal: escolher por "momento" quando a transcrição não tem nada ----------
 
 export const MOMENT_SYSTEM_PROMPT_PT = `Você é um estrategista de primeira linha em cortes para vídeo curto e está diante de uma transmissão cuja **transcrição praticamente não tem informação** — dança, talento, canto, rua, jogos, esse tipo de conteúdo em que o público assiste pela imagem e pela reação, não pelas falas.
 
@@ -480,7 +491,7 @@ const MOMENT_SHAPE = `{
   ]
 }`;
 
-/** Signal type → human-readable label (the evidence chain is shown to the LLM and to the user alike). */
+/** Tipo de sinal → rótulo legível (a cadeia de evidências é mostrada tanto ao LLM quanto à pessoa). */
 export const EVIDENCE_LABELS: Record<string, { pt: string; en: string }> = {
   loud: { pt: "pico de volume", en: "loudness peak" },
   cut: { pt: "troca densa de planos", en: "dense scene cuts" },
@@ -493,11 +504,12 @@ export const EVIDENCE_LABELS: Record<string, { pt: string; en: string }> = {
 };
 
 /**
- * How far the reference transcript attached to each moment is truncated. The
- * prompt already says it is reference only, and for this kind of footage the
+ * Até onde a transcrição de referência anexada a cada momento é truncada. O prompt
+ * já diz que ela é só referência, e para esse tipo de material a transcrição é
+ * geralmente ruído (captação ruim na rua, palavras esparsas durante uma música ou
+ * uma dança): colar tudo só afoga as linhas de evidência — na prática, empurra o
+ * modelo de volta para respostas de template.
  * transcription is usually noise (poor outdoor audio, scattered words during a
- * song or dance): pasting the whole thing in only drowns the evidence lines —
- * in practice it pushes the model back into template answers.
  */
 export const MOMENT_TEXT_MAX_CHARS = 120;
 
@@ -506,7 +518,7 @@ export interface PromptMoment {
   startSec: number;
   endSec: number;
   evidence: string[];
-  /** What was said in that window (may be empty or meaningless — the prompt already says not to rely on it). */
+  /** O que foi dito naquela janela (pode vir vazio ou sem sentido — o prompt já diz para não se apoiar nisso). */
   text: string;
 }
 
@@ -545,7 +557,7 @@ Fields: momentId = a real number from the list; title = post-ready short title (
 Sort by score descending; returning fewer, stronger picks beats padding the list.`;
 }
 
-/** Extract the first JSON object/array from LLM output (handles \`\`\`json fences). */
+/** Extrai o primeiro objeto ou array JSON da saída do LLM (lidando com as cercas \`\`\`json). */
 export function extractJson(text: string): string {
   const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (fenced) return fenced[1].trim();
@@ -604,11 +616,11 @@ interface ReviewableClip {
   startSec: number;
   endSec: number;
   text: string;
-  /** The parts of a multi-part stitch; when present, report duration as their sum, not the span. */
+  /** Os trechos de uma costura de vários trechos; quando existem, a duração informada é a soma deles, e não o intervalo. */
   pieces?: ClipPiece[];
 }
 
-/** One sentence of context on each side, so the reviewer can spot quote-mining. */
+/** Uma frase de contexto de cada lado, para quem revisa conseguir notar uma distorção de sentido. */
 function contextAround(transcript: Transcript, startSec: number, endSec: number): { before: string; after: string } {
   const segs = transcript.segments;
   const firstIdx = segs.findIndex((s) => s.endSec > startSec);

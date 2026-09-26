@@ -1,18 +1,19 @@
 /**
- * Reverse text matching: locate LLM-selected verbatim quotes in the timed
- * token stream to derive frame-accurate clip boundaries.
+ * Busca reversa no texto: localiza as citações literais que o LLM escolheu dentro
+ * do fluxo de tokens com tempo, para derivar limites de clipe precisos no quadro.
  *
- * Why: LLMs are unreliable at emitting timestamps but excellent at quoting
- * text. So the LLM returns quotes + segment-id ranges, and THIS module maps
- * them back onto token timings. Match ladder (best → worst):
- *   1. "exact"    — the full normalized quote found in the token stream
- *   2. "anchored" — start-quote and end-quote anchors both found
- *   3. "segment"  — fall back to the LLM's segment-id range boundaries
+ * Por quê: os LLMs são pouco confiáveis para emitir marcações de tempo, mas
+ * excelentes para citar texto. Então o LLM devolve as citações mais os intervalos
+ * de id de frase, e É ESTE módulo que mapeia isso de volta para o tempo dos tokens.
+ * A escada de correspondência (da melhor para a pior):
+ *   1. "exact"    — a citação normalizada inteira foi encontrada no fluxo de tokens
+ *   2. "anchored" — as âncoras de citação inicial e final foram as duas encontradas
+ *   3. "segment"  — recorre aos limites do intervalo de id de frase dado pelo LLM
  */
 import type { Transcript, TranscriptWord } from "../transcribe/types";
 import { normalizePieces, PIECE_JOINER, type ClipPiece } from "../../shared/pieces";
 
-/** Normalization: strip everything except letters/digits/CJK; lowercase latin. */
+/** Normalização: remove tudo o que não é letra, dígito ou caractere ideográfico, e passa o alfabeto latino para minúsculas. */
 export function normalizeText(text: string): string {
   return text
     .toLowerCase()
@@ -23,12 +24,12 @@ interface TokenIndexEntry {
   tokenIdx: number;
 }
 
-/** Flattened, normalized view of the transcript's token stream. */
+/** Visão achatada e normalizada do fluxo de tokens da transcrição. */
 export interface TokenIndex {
   words: TranscriptWord[];
-  /** Concatenated normalized text of all tokens. */
+  /** O texto normalizado de todos os tokens, concatenado. */
   normalized: string;
-  /** For each char of `normalized`, which token it came from. */
+  /** Para cada caractere de `normalized`, de qual token ele veio. */
   charToToken: TokenIndexEntry[];
 }
 
@@ -49,16 +50,17 @@ export interface MatchedRange {
   boundary: "exact" | "anchored";
 }
 
-/** Find a normalized needle in the index starting at/after fromChar; -1 if absent. */
+/** Procura uma agulha normalizada no índice a partir de fromChar (inclusive); devolve -1 se não existir. */
 function findFrom(index: TokenIndex, needle: string, fromChar: number): number {
   if (!needle) return -1;
   return index.normalized.indexOf(needle, fromChar);
 }
 
 /**
- * Extend an end-token index through trailing punctuation-only tokens.
- * Normalization erases punctuation, so a quote ending at "…这件事" would
- * otherwise cut BEFORE the "。" token and clip the sentence's last beat.
+ * Estende o índice do token final através dos tokens finais que são só pontuação.
+ * A normalização apaga a pontuação, então uma citação que termina numa palavra
+ * seria cortada ANTES do token de ponto final, cortando fora o último tempo da
+ * frase.
  */
 function absorbTrailingPunct(words: TranscriptWord[], endTok: number): number {
   let i = endTok;
@@ -67,9 +69,10 @@ function absorbTrailingPunct(words: TranscriptWord[], endTok: number): number {
 }
 
 /**
- * Locate a full quote (verbatim selection) in the token stream.
- * Falls back to anchoring on the quote's head and tail when the middle
- * diverges (LLMs occasionally elide filler words when quoting long spans).
+ * Localiza uma citação inteira (a seleção literal) no fluxo de tokens.
+ * Recorre a ancorar pelo começo e pelo fim da citação quando o meio divergir (de
+ * vez em quando os LLMs suprimem palavras de preenchimento ao citar trechos
+ * longos).
  */
 export function matchQuote(
   index: TokenIndex,
@@ -80,7 +83,7 @@ export function matchQuote(
   const { words, charToToken } = index;
   if (words.length === 0) return null;
 
-  // restrict search to tokens at/after searchFromSec (supports duplicate phrases)
+  // restringe a busca aos tokens a partir de searchFromSec (inclusive), o que permite frases repetidas
   let fromChar = 0;
   if (searchFromSec > 0) {
     const firstTokenIdx = words.findIndex((w) => w.endSec > searchFromSec);
@@ -94,7 +97,7 @@ export function matchQuote(
   const tail = normalizeText(quoteEnd);
   if (!head && !tail) return null;
 
-  // 1) exact: head+tail form one contiguous quote (common for short clips)
+  // 1) exact: começo e fim formam uma citação contínua (comum em clipes curtos)
   if (head && tail) {
     const joined = head === tail ? head : head + tail;
     const at = findFrom(index, joined, fromChar);
@@ -105,7 +108,7 @@ export function matchQuote(
     }
   }
 
-  // 2) anchored: find head, then tail after it
+  // 2) anchored: encontra o começo e depois o fim, a partir dele
   const headAt = findFrom(index, head, fromChar);
   if (headAt < 0) return null;
   const startTok = charToToken[headAt].tokenIdx;
@@ -119,7 +122,7 @@ export function matchQuote(
   return { startSec: words[startTok].startSec, endSec: words[endTok].endSec, boundary: "anchored" };
 }
 
-/** 多片段拼接里的一段:定位方式与单段完全一样,只是没有标题/评分。 */
+/** Um trecho dentro de uma costura de vários trechos: a forma de localizar é exatamente a de um trecho único, só sem título e sem nota. */
 export interface RawPart {
   startSegmentId: number;
   endSegmentId: number;
@@ -136,11 +139,15 @@ export interface RawSelection {
   endSegmentId: number;
   quoteStart: string;
   quoteEnd: string;
-  /** Verbatim in-clip keywords for caption emphasis (may be empty). */
+  /** Palavras-chave literais de dentro do clipe, para a ênfase na legenda (pode vir vazio). */
   keywords: string[];
   /**
-   * 多片段拼接:相隔很远的两三处内容拼成一条(「前后打脸」这类爆点的前提)。
-   * 缺省即普通连续切片;解析不出至少两段时自动退回顶层 quote 的单段定位。
+   * Costura de vários trechos: dois ou três pontos bem distantes entre si são
+   * juntados num clipe só (é o que torna possível um destaque do tipo
+   * "contradição").
+   * Ausente significa um clipe contínuo comum; quando não dá para ler pelo menos
+   * dois trechos, o sistema volta sozinho para a localização de trecho único pela
+   * citação de topo.
    */
   parts?: RawPart[];
 }
@@ -150,19 +157,21 @@ export interface ResolvedRange {
   endSec: number;
   text: string;
   boundary: "exact" | "anchored" | "segment";
-  /** 多片段拼接的段清单(≥2 段才有);startSec/endSec 是它的跨度首尾。 */
+  /** A lista de trechos da costura (só existe com 2 ou mais); startSec e endSec são as pontas do intervalo dela. */
   pieces?: ClipPiece[];
 }
 
-/** 匹配质量排序:多段拼接取其中最差的那一段作为整条的质量标注。 */
+/** Ordem de qualidade da correspondência: numa costura de vários trechos, o pior trecho define a qualidade anotada no candidato inteiro. */
 const BOUNDARY_RANK: Record<ResolvedRange["boundary"], number> = { exact: 2, anchored: 1, segment: 0 };
 
 /**
- * Resolve one LLM selection to timed boundaries.
+ * Resolve uma seleção do LLM em limites com tempo.
  *
- * 先试多片段(sel.parts):逐段各自反查,规整后至少剩两段才算拼接成立;
- * 否则退回单段——顶层 quoteStart/quoteEnd 始终填着第一段开头/最后一段结尾,
- * 所以退化路径不会拿到空定位。
+ * Primeiro tenta os vários trechos (sel.parts): cada trecho é buscado por conta
+ * própria, e a costura só se sustenta se sobrarem pelo menos dois depois da
+ * organização; do contrário, volta para trecho único — o quoteStart e o quoteEnd de
+ * topo sempre carregam o começo do primeiro trecho e o fim do último, então o
+ * caminho de recuo nunca fica sem localização.
  */
 export function resolveSelection(transcript: Transcript, sel: RawSelection): ResolvedRange | null {
   if (sel.parts && sel.parts.length >= 2) {
@@ -172,7 +181,7 @@ export function resolveSelection(transcript: Transcript, sel: RawSelection): Res
   return resolveSingle(transcript, sel);
 }
 
-/** 逐段反查 + 规整;不足两段返回 null(调用方退回单段)。 */
+/** Busca reversa trecho por trecho mais a organização; com menos de dois trechos devolve null (e quem chamou volta para trecho único). */
 function resolveParts(transcript: Transcript, parts: RawPart[]): ResolvedRange | null {
   const resolved = parts
     .map((p) => resolveSingle(transcript, p))
@@ -188,13 +197,13 @@ function resolveParts(transcript: Transcript, parts: RawPart[]): ResolvedRange |
     startSec: pieces[0].startSec,
     endSec: pieces[pieces.length - 1].endSec,
     pieces,
-    // 省略标记让评审和用户一眼看出「这里跳了」——拼接最大的风险就是断章取义
+    // A marca de omissão faz quem revisa e quem usa perceberem de relance que "houve um salto aqui" — o maior risco de uma costura é justamente distorcer o sentido
     text: pieces.map((p) => textBetween(transcript, p.startSec, p.endSec)).join(PIECE_JOINER),
     boundary,
   };
 }
 
-/** 单段定位(历史行为):引文优先,失败回退句 id 区间。 */
+/** Localização de trecho único (o comportamento histórico): a citação vem primeiro, e em caso de falha recorre ao intervalo de id de frase. */
 function resolveSingle(
   transcript: Transcript,
   sel: Pick<RawSelection, "startSegmentId" | "endSegmentId" | "quoteStart" | "quoteEnd">
@@ -205,7 +214,7 @@ function resolveSingle(
   const startSeg = segments.find((s) => s.id === sel.startSegmentId) ?? null;
   const endSeg = segments.find((s) => s.id === sel.endSegmentId) ?? null;
 
-  // words within the segment window (±1 segment slack), for scoped quote search
+  // as palavras dentro da janela do trecho (com folga de 1 trecho para cada lado), para a busca da citação delimitada
   const loIdx = startSeg ? Math.max(0, segments.indexOf(startSeg) - 1) : 0;
   const hiIdx = endSeg ? Math.min(segments.length - 1, segments.indexOf(endSeg) + 1) : segments.length - 1;
   const scopedWords = segments.slice(loIdx, hiIdx + 1).flatMap((s) => s.words);
@@ -217,7 +226,7 @@ function resolveSingle(
     return { ...matched, text };
   }
 
-  // 3) segment fallback: trust the declared segment ids
+  // 3) recuo para o trecho: confia nos ids de frase declarados
   if (startSeg && endSeg && endSeg.endSec > startSeg.startSec) {
     return {
       startSec: startSeg.startSec,
@@ -232,7 +241,7 @@ function resolveSingle(
   return null;
 }
 
-/** Collect segment texts overlapping [startSec, endSec] for display. */
+/** Reúne os textos dos trechos que se sobrepõem a [startSec, endSec], para exibição. */
 function textBetween(transcript: Transcript, startSec: number, endSec: number): string {
   return transcript.segments
     .filter((s) => s.endSec > startSec && s.startSec < endSec)

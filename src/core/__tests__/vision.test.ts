@@ -13,7 +13,7 @@ import {
 import type { MediaSignals } from "../signals";
 
 describe("planFrameTimes", () => {
-  it("无信号时均匀铺满全片且不超上限", () => {
+  it("sem nenhum sinal, espalha uniformemente pelo material inteiro e não passa do teto", () => {
     const times = planFrameTimes(600, undefined);
     expect(times.length).toBe(VISION_MAX_FRAMES);
     for (let i = 1; i < times.length; i++) {
@@ -23,27 +23,27 @@ describe("planFrameTimes", () => {
     expect(times[times.length - 1]).toBeLessThanOrEqual(599.5);
   });
 
-  it("信号窗口中点优先入选", () => {
+  it("o meio das janelas de sinal entra primeiro", () => {
     const signals: MediaSignals = {
       loudPeaks: [{ startSec: 100, endSec: 110 }],
       cutDense: [{ startSec: 300, endSec: 320 }],
     };
     const times = planFrameTimes(600, signals);
-    expect(times).toContain(105); // loudPeaks 中点
-    expect(times).toContain(310); // cutDense 中点
+    expect(times).toContain(105); // meio de loudPeaks
+    expect(times).toContain(310); // meio de cutDense
   });
 
-  it("信号中点彼此太近时只保留一个(最小间隔)", () => {
+  it("quando os meios das janelas ficam perto demais, só um é mantido (o intervalo mínimo)", () => {
     const signals: MediaSignals = {
       loudPeaks: [{ startSec: 100, endSec: 104 }],
-      cutDense: [{ startSec: 101, endSec: 105 }], // 中点 103,与 102 相距 1s
+      cutDense: [{ startSec: 101, endSec: 105 }], // meio em 103, a 1s do 102
     };
     const times = planFrameTimes(600, signals);
     const near = times.filter((t) => t >= 100 && t <= 105);
     expect(near.length).toBe(1);
   });
 
-  it("大量运动代表时刻最多占三分之二额度,仍保留全片均匀覆盖", () => {
+  it("os instantes que representam muito movimento ocupam no máximo dois terços da cota, e a cobertura uniforme do material inteiro é preservada", () => {
     const signals: MediaSignals = {
       loudPeaks: [],
       cutDense: [],
@@ -54,7 +54,7 @@ describe("planFrameTimes", () => {
     expect(times.some((time) => time > 500)).toBe(true);
   });
 
-  it("短片额度自动缩水,时刻夹在片内", () => {
+  it("num material curto a cota diminui sozinha, e os instantes ficam dentro dele", () => {
     const times = planFrameTimes(20, undefined);
     expect(times.length).toBeGreaterThan(0);
     expect(times.length).toBeLessThan(VISION_MAX_FRAMES);
@@ -64,36 +64,36 @@ describe("planFrameTimes", () => {
     }
   });
 
-  it("时长无效时返回空", () => {
+  it("com duração inválida, devolve vazio", () => {
     expect(planFrameTimes(0, undefined)).toEqual([]);
     expect(planFrameTimes(-5, undefined)).toEqual([]);
   });
 });
 
 describe("parseSheetVerdicts", () => {
-  it("保留短而去重的高置信屏显文字,忽略垃圾并封顶", () => {
+  it("mantém o texto na tela curto, de alta confiança e sem repetição, ignorando lixo e respeitando o teto", () => {
     const content = JSON.stringify({
-      cells: [{ i: 1, energy: 7, note: "产品特写", visibleText: ["  HotClip  ", "hotclip", "无文字", 3, "¥19.9", "A", "B", "C", "D"] }],
+      cells: [{ i: 1, energy: 7, note: "close do produto", visibleText: ["  HotClip  ", "hotclip", "sem texto", 3, "R$ 19,90", "A", "B", "C", "D"] }],
     });
     expect(parseSheetVerdicts(content, 1)).toEqual([
-      { i: 1, energy: 7, note: "产品特写", visibleText: ["HotClip", "¥19.9", "A", "B", "C"] },
+      { i: 1, energy: 7, note: "close do produto", visibleText: ["HotClip", "R$ 19,90", "A", "B", "C"] },
     ]);
     expect(sanitizeVisibleText("not-an-array")).toEqual([]);
   });
-  it("解析标准九宫格批量输出", () => {
-    const content = '{"cells":[{"i":1,"energy":8,"note":"两人激烈争论"},{"i":2,"energy":3,"note":"静态口播"}]}';
+  it("lê a saída em lote do mosaico padrão de nove células", () => {
+    const content = '{"cells":[{"i":1,"energy":8,"note":"duas pessoas discutindo forte"},{"i":2,"energy":3,"note":"locução estática"}]}';
     expect(parseSheetVerdicts(content, 9)).toEqual([
-      { i: 1, energy: 8, note: "两人激烈争论" },
-      { i: 2, energy: 3, note: "静态口播" },
+      { i: 1, energy: 8, note: "duas pessoas discutindo forte" },
+      { i: 2, energy: 3, note: "locução estática" },
     ]);
   });
 
-  it("剥掉 think 块与包裹文本后仍能解析", () => {
-    const content = '<think>先看第一格…</think>结果:{"cells":[{"i":1,"energy":3,"note":"口播"}]}';
-    expect(parseSheetVerdicts(content, 9)).toEqual([{ i: 1, energy: 3, note: "口播" }]);
+  it("continua sendo possível ler depois de remover o bloco de raciocínio e o texto em volta", () => {
+    const content = '<think>vamos ver a primeira célula…</think>resultado: {"cells":[{"i":1,"energy":3,"note":"locução"}]}';
+    expect(parseSheetVerdicts(content, 9)).toEqual([{ i: 1, energy: 3, note: "locução" }]);
   });
 
-  it("越界格号丢弃、重复格取首个、energy 夹回 0-10", () => {
+  it("número de célula fora do intervalo é descartado, célula repetida fica com a primeira e energy volta para a faixa de 0 a 10", () => {
     const content =
       '{"cells":[{"i":0,"energy":9},{"i":10,"energy":9},{"i":2,"energy":99},{"i":2,"energy":1},{"i":3,"energy":-4}]}';
     expect(parseSheetVerdicts(content, 9)).toEqual([
@@ -102,21 +102,21 @@ describe("parseSheetVerdicts", () => {
     ]);
   });
 
-  it("cellCount 之外的格被过滤(最后一张不满格)", () => {
+  it("as células além de cellCount são filtradas (o último mosaico não vem cheio)", () => {
     const content = '{"cells":[{"i":1,"energy":5},{"i":8,"energy":5}]}';
     expect(parseSheetVerdicts(content, 2)).toEqual([{ i: 1, energy: 5, note: "" }]);
   });
 
-  it("垃圾输出返回 null", () => {
-    expect(parseSheetVerdicts("这一批都很精彩", 9)).toBeNull();
-    expect(parseSheetVerdicts('{"cells":"没有数组"}', 9)).toBeNull();
-    expect(parseSheetVerdicts('{"cells":[{"i":1,"note":"没有分数"}]}', 9)).toBeNull();
+  it("saída inaproveitável devolve null", () => {
+    expect(parseSheetVerdicts("este lote está todo muito bom", 9)).toBeNull();
+    expect(parseSheetVerdicts('{"cells":"não é um array"}', 9)).toBeNull();
+    expect(parseSheetVerdicts('{"cells":[{"i":1,"note":"sem nota"}]}', 9)).toBeNull();
     expect(parseSheetVerdicts("", 9)).toBeNull();
   });
 });
 
 describe("sheetUserPrompt", () => {
-  it("报出每格的 mm:ss 时刻", () => {
+  it("informa o instante de cada célula em mm:ss", () => {
     const p = sheetUserPrompt([65, 130.6]);
     expect(p).toContain("1=01:05");
     expect(p).toContain("2=02:10");
@@ -124,13 +124,13 @@ describe("sheetUserPrompt", () => {
 });
 
 describe("visualPeakRanges", () => {
-  it("高能帧扩成时段并按间隔合并", () => {
+  it("os quadros de alta energia se abrem em trechos e são fundidos pelo intervalo", () => {
     const ranges = visualPeakRanges(
       [
         { t: 100, energy: 8 },
-        { t: 106, energy: 9 }, // 与上一段间隔 < merge gap → 并段
+        { t: 106, energy: 9 }, // intervalo menor que o de fusão em relação ao trecho anterior → fundido
         { t: 300, energy: 7 },
-        { t: 50, energy: 3 }, // 低于阈值,忽略
+        { t: 50, energy: 3 }, // abaixo do limite, então ignorado
       ],
       600
     );
@@ -140,25 +140,25 @@ describe("visualPeakRanges", () => {
     expect(ranges[1].startSec).toBeCloseTo(296.5);
   });
 
-  it("时段夹在 [0, duration] 内", () => {
+  it("os trechos ficam presos dentro de [0, duração]", () => {
     const ranges = visualPeakRanges([{ t: 1, energy: 9 }, { t: 599, energy: 9 }], 600);
     expect(ranges[0].startSec).toBe(0);
     expect(ranges[ranges.length - 1].endSec).toBe(600);
   });
 
-  it("没有高能帧返回空数组", () => {
+  it("sem nenhum quadro de alta energia, devolve um array vazio", () => {
     expect(visualPeakRanges([{ t: 10, energy: 2 }], 600)).toEqual([]);
   });
 });
 
-describe("collectVisionSignal (接触表批量)", () => {
+describe("collectVisionSignal (em lote por mosaico)", () => {
   const config = { baseUrl: "http://localhost:11434/v1", model: "qwen3-vl:4b" };
-  const okSheet = async (): Promise<string> => "ZmFrZQ=="; // "fake" 的 base64
-  /** 满格九个分的批量输出(不满格由解析端按 cellCount 过滤)。 */
+  const okSheet = async (): Promise<string> => "ZmFrZQ=="; // o base64 de "fake"
+  /** Saída em lote com as nove notas de um mosaico cheio (um mosaico incompleto é filtrado pela leitura, conforme cellCount). */
   const cellsJson = (energy: number): string =>
     JSON.stringify({ cells: Array.from({ length: 9 }, (_, k) => ({ i: k + 1, energy, note: "" })) });
 
-  it("正常路径:一表九帧批量研判并圈出高能时段", async () => {
+  it("caminho normal: um mosaico julga nove quadros em lote e delimita os trechos de alta energia", async () => {
     let calls = 0;
     const chat: VisionChatFn = async () => {
       calls++;
@@ -173,13 +173,13 @@ describe("collectVisionSignal (接触表批量)", () => {
     });
     expect(outcome).not.toBeNull();
     expect(outcome!.stats.framesScored).toBe(outcome!.stats.framesTotal);
-    // 27 帧只用 3 次调用——接触表批量的意义所在
+    // 27 quadros usam só 3 chamadas — é para isso que o lote por mosaico existe
     expect(calls).toBe(Math.ceil(outcome!.stats.framesTotal / 9));
     expect(outcome!.visualPeaks.length).toBeGreaterThan(0);
     expect(outcome!.stats.peakCount).toBe(outcome!.visualPeaks.length);
   });
 
-  it("把选中视频轨与颜色预览契约传给每张接触表", async () => {
+  it("passa a trilha de vídeo escolhida e o contrato de prévia de cor para cada mosaico", async () => {
     const seen: unknown[] = [];
     await collectVisionSignal({
       videoPath: "/v.mkv",
@@ -196,7 +196,7 @@ describe("collectVisionSignal (接触表批量)", () => {
     expect(seen.every((value) => (value as { videoStreamIndex?: number }).videoStreamIndex === 4)).toBe(true);
   });
 
-  it("端点全挂 → fail-open 返回 null", async () => {
+  it("com todos os endpoints fora do ar → fail-open devolvendo null", async () => {
     const chat: VisionChatFn = async () => {
       throw new Error("connect ECONNREFUSED");
     };
@@ -210,11 +210,11 @@ describe("collectVisionSignal (接触表批量)", () => {
     expect(outcome).toBeNull();
   });
 
-  it("个别表失败不影响整体", async () => {
+  it("um mosaico que falha não afeta o resultado geral", async () => {
     let n = 0;
     const chat: VisionChatFn = async () => {
       n++;
-      if (n === 2) throw new Error("单表超时");
+      if (n === 2) throw new Error("tempo esgotado num mosaico");
       return cellsJson(2);
     };
     const outcome = await collectVisionSignal({
@@ -226,10 +226,10 @@ describe("collectVisionSignal (接触表批量)", () => {
     });
     expect(outcome).not.toBeNull();
     expect(outcome!.stats.framesScored).toBeLessThan(outcome!.stats.framesTotal);
-    expect(outcome!.visualPeaks).toEqual([]); // 全是低分,不给假信号
+    expect(outcome!.visualPeaks).toEqual([]); // tudo com nota baixa, então nenhum sinal falso é dado
   });
 
-  it("拼图全失败(如纯音频) → null", async () => {
+  it("com a montagem falhando por completo (num material só de áudio, por exemplo) → null", async () => {
     const chat: VisionChatFn = async () => cellsJson(9);
     const outcome = await collectVisionSignal({
       videoPath: "/audio.mp3",
@@ -241,7 +241,7 @@ describe("collectVisionSignal (接触表批量)", () => {
     expect(outcome).toBeNull();
   });
 
-  it("上游取消原样上抛", async () => {
+  it("um cancelamento vindo de cima é propagado como está", async () => {
     const ac = new AbortController();
     ac.abort();
     const chat: VisionChatFn = async () => cellsJson(5);
@@ -257,7 +257,7 @@ describe("collectVisionSignal (接触表批量)", () => {
     ).rejects.toThrow();
   });
 
-  it("预算耗尽带着已得结果收工", async () => {
+  it("com o orçamento esgotado, o trabalho encerra com o que já foi obtido", async () => {
     let calls = 0;
     const chat: VisionChatFn = async () => {
       calls++;
@@ -270,10 +270,10 @@ describe("collectVisionSignal (接触表批量)", () => {
       config,
       composeSheet: okSheet,
       chat,
-      budgetMs: 30, // 只够跑一张表
+      budgetMs: 30, // só dá para rodar um mosaico
     });
     expect(calls).toBeLessThan(Math.ceil(VISION_MAX_FRAMES / 9));
-    // 首张表总能完成 → 至少九帧在手,信号成立
+    // o primeiro mosaico sempre termina → pelo menos nove quadros em mãos, e o sinal se sustenta
     expect(outcome).not.toBeNull();
     expect(outcome!.stats.framesScored).toBeGreaterThanOrEqual(9);
     expect(outcome!.stats.framesScored).toBeLessThan(outcome!.stats.framesTotal);

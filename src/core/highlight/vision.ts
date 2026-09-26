@@ -1,14 +1,23 @@
 /**
- * 视觉爆点信号:端侧视觉模型(Ollama qwen3-vl 等)抽帧研判"画面高能时刻",
- * 并成时段后作为第三条视听信号进 LLM 提示词——解决纯文本检测"看不见画面"
- * 的行业通病(表情包式画面/肢体梗/场景炸点在转写文本里是空白)。
+ * Sinal de pico visual: um modelo de visão rodando na própria máquina (Ollama com
+ * qwen3-vl, por exemplo) amostra quadros para julgar os "momentos de alta energia
+ * visual", e esses momentos viram trechos que entram no prompt do LLM como o
+ * terceiro sinal de imagem e som — resolvendo o defeito clássico do mercado, em que
+ * a detecção só por texto "não vê a imagem" (uma cena de meme, uma piada corporal
+ * ou um momento visual impactante são um vazio no texto transcrito).
  *
- * 抽帧时刻优先取 Tier-0 信号(响度峰值/镜头密集段)圈出的窗口中点——它们是
- * "这里可能有画面"的免费先验;剩余额度均匀铺满全片防漏。研判按 3×3 接触表
- * 批量走:九帧拼一张带序号的九宫格,一次调用出九个分——调用次数比逐帧降
- * 一个量级(27 帧只要 3 次)。全程 fail-open:端点不可用/单表失败/预算耗尽
- * 都不能拖垮检测,最差退回纯文本结果。
- * 纯函数(规划/解析/并段)可单测;拼图与 HTTP 通过注入点替换。
+ * Os instantes de amostragem vêm primeiro do meio das janelas que os sinais de
+ * nível 0 (picos de volume, trechos com troca densa de plano) delimitaram — eles
+ * são o palpite gratuito de que "aqui pode ter imagem"; a cota restante é espalhada
+ * uniformemente pelo material inteiro, para não deixar nada de fora. O julgamento é
+ * feito em lote por mosaico 3×3: nove quadros viram um mosaico numerado, e uma
+ * chamada devolve nove notas — o que reduz a quantidade de chamadas em uma ordem de
+ * grandeza em relação a ir quadro a quadro (27 quadros custam só 3 chamadas). Tudo
+ * é fail-open: endpoint indisponível, um mosaico que falha ou o orçamento esgotado
+ * não podem derrubar a detecção, e no pior caso o resultado volta a ser o de texto
+ * puro.
+ * As funções puras (planejamento, leitura e fusão de trechos) são testáveis; a
+ * montagem do mosaico e o HTTP são substituíveis por pontos de injeção.
  */
 import type { LlmConfig } from "../../shared/api-types";
 import { chunkCells, composeContactSheetJpeg } from "../contact-sheet";
@@ -17,48 +26,55 @@ import type { MediaSignals, TimeRange } from "../signals";
 import { stripThinkBlocks } from "./prefilter";
 import { llmRequestBudget, modelErrorDetail, requestLlmText } from "../llm-transport";
 
-/** 全片抽帧上限——接触表批量研判后一次调用看九帧,27 帧=3 次调用。 */
+/** Teto de quadros amostrados no material inteiro — com o julgamento em lote por mosaico, uma chamada olha nove quadros, então 27 quadros são 3 chamadas. */
 export const VISION_MAX_FRAMES = 27;
-/** 两帧最小间隔:同一个画面高潮抽两帧是浪费额度。 */
+/** Intervalo mínimo entre dois quadros: amostrar dois quadros do mesmo auge visual desperdiça cota. */
 export const VISION_MIN_SPACING_SEC = 8;
-/** energy(0-10) 达到该值的帧才算"画面高能"。 */
+/** Só os quadros que atingem este valor de energy (de 0 a 10) contam como "alta energia visual". */
 export const VISION_ENERGY_THRESHOLD = 7;
-/** 高能帧向两侧扩出的时段半径(画面高潮通常持续数秒)。 */
+/** O raio do trecho que se abre para os dois lados de um quadro de alta energia (um auge visual costuma durar alguns segundos). */
 export const VISION_PEAK_PAD_SEC = 3.5;
-/** 相邻高能时段间隔小于该值时并成一段。 */
+/** Quando dois trechos vizinhos de alta energia têm intervalo menor que este valor, eles são fundidos. */
 export const VISION_MERGE_GAP_SEC = 10;
-/** 单表研判超时;总预算见 budgetMs(默认 180s,超预算带着已得结果收工)。 */
+/** Tempo máximo do julgamento de um mosaico; o orçamento total está em budgetMs (o padrão é 180s, e passando dele o trabalho encerra com o que já foi obtido). */
 export const VISION_CALL_TIMEOUT_MS = 60_000;
 const VISION_BUDGET_MS = 180_000;
-/** 成功研判帧数低于该值时证据太薄,宁可不给信号也不给噪声。 */
+/** Abaixo desta quantidade de quadros julgados com sucesso a evidência é fina demais, e é melhor não dar sinal nenhum do que dar ruído. */
 const MIN_SCORED_FRAMES = 3;
 
-// ---- 全场扫描档(v0.13):把 27 帧快扫升级为「~30 秒一帧扫完整场」----
-// 三轮调研翻案:视频 token 价格塌方后「整场喂视觉模型」已是每场几毛到几块钱
-// 的常规操作。工程形态取「时间戳接触表 + 分段转写」:复用同一 OpenAI 兼容
-// 端点,本地 Ollama 免费、云端 qwen3-vl-flash 级别整场几毛钱,不引任何
-// 供应商专属的视频上传 API(原生视频输入留作后续升级路径)。
-/** 全场扫描抽帧间隔(秒)。 */
+// ---- O nível de varredura completa (v0.13): a varredura rápida de 27 quadros vira
+// "um quadro a cada ~30 segundos ao longo de tudo" ----
+// Três rodadas de pesquisa mudaram o veredito: depois que o preço do token de vídeo
+// desabou, "entregar a transmissão inteira ao modelo de visão" passou a ser uma
+// operação comum, de alguns centavos a poucos reais por transmissão. A forma de
+// engenharia escolhida é "mosaico com marcação de tempo + transcrição por trecho":
+// o mesmo endpoint compatível com OpenAI é reaproveitado, o Ollama local sai de
+// graça e na nuvem, num nível como o do qwen3-vl-flash, a transmissão inteira custa
+// centavos, sem depender de nenhuma API de envio de vídeo específica de um
+// provedor (a entrada nativa de vídeo fica como caminho de evolução futuro).
+/** Intervalo de amostragem da varredura completa (em segundos). */
 export const SCAN_FRAME_INTERVAL_SEC = 30;
-/** 全场扫描抽帧上限(270 帧 = 30 张接触表,3 小时场刚好铺满)。 */
+/** Teto de quadros da varredura completa (270 quadros = 30 mosaicos, o que cobre exatamente uma transmissão de 3 horas). */
 export const SCAN_MAX_FRAMES = 270;
-/** 全场扫描的最小帧距(比快扫密,均匀覆盖优先)。 */
+/** Distância mínima entre quadros na varredura completa (é mais densa que a rápida, porque aqui a cobertura uniforme vem primeiro). */
 export const SCAN_MIN_SPACING_SEC = 10;
-/** 全场扫描总预算(本地端点慢,给足;云端远用不满)。 */
+/** Orçamento total da varredura completa (um endpoint local é lento, então a folga é grande; na nuvem ela nunca é usada por inteiro). */
 export const SCAN_BUDGET_MS = 600_000;
-/** 画面时刻线的能量门槛与条数上限(进提示词的只要真高能的)。 */
+/** Limite de energia e teto de itens da linha do tempo visual (só o que é realmente de alta energia entra no prompt). */
 export const SCAN_NOTE_ENERGY_MIN = 6;
 export const SCAN_NOTES_MAX = 20;
 
-/** 时长 → 全场扫描抽帧数(至少一张满格接触表,封顶 SCAN_MAX_FRAMES)。 */
+/** Duração → quantidade de quadros da varredura completa (no mínimo um mosaico cheio, com teto em SCAN_MAX_FRAMES). */
 export function scanFrameBudget(durationSec: number): number {
   if (!(durationSec > 1)) return 0;
   return Math.min(SCAN_MAX_FRAMES, Math.max(9, Math.ceil(durationSec / SCAN_FRAME_INTERVAL_SEC)));
 }
 
 /**
- * 从打分帧里挑「画面时刻线」:能量达标且带描述的帧,按能量取前 N、按时间排。
- * 这是全场扫描回流给选段 LLM 的第九路证据(文字稿看不见的画面事件)。纯函数。
+ * Escolhe a "linha do tempo visual" entre os quadros com nota: os que atingem a
+ * energia e têm descrição, pegando os N maiores por energia e ordenando por tempo.
+ * É a nona via de evidência que a varredura completa devolve ao LLM de seleção (os
+ * acontecimentos em tela que a transcrição não vê). Função pura.
  */
 export function pickVisualNotes(
   scored: Array<{ t: number; energy: number; note: string; visibleText?: string[] }>,
@@ -66,8 +82,11 @@ export function pickVisualNotes(
   max = SCAN_NOTES_MAX
 ): Array<{ t: number; energy: number; note: string; visibleText?: string[] }> {
   const byEnergy = [...scored].filter((s) => s.energy >= energyMin).sort((a, b) => b.energy - a.energy);
-  // 静态 PPT/价格牌的画面能量可能很低,但清晰屏显文字对知识/带货切片很关键。
-  // 给它们保留四分之一席位;没有文字证据时额度自动全部还给高能画面。
+  // A energia visual de um slide estático ou de uma cartela de preço pode ser bem
+  // baixa, mas o texto nítido na tela é essencial para cortes de conhecimento e de
+  // venda.
+  // Eles ficam com um quarto das vagas reservado; sem evidência de texto, a cota
+  // volta inteira para a imagem de alta energia.
   const textReserve = Math.min(max, Math.ceil(max / 4));
   const byText = [...scored]
     .filter((s) => (s.visibleText?.length ?? 0) > 0)
@@ -85,31 +104,31 @@ export function pickVisualNotes(
 export interface VisionConfig {
   baseUrl: string;
   model: string;
-  /** 云端端点的 API Key;本地 Ollama 缺省(会补 "ollama" 占位)。 */
+  /** Chave de API do endpoint de nuvem; ausente no Ollama local (um "ollama" é colocado como preenchimento). */
   apiKey?: string;
 }
 
 export interface VisionStats {
-  /** 计划抽帧数。 */
+  /** Quantos quadros foram planejados. */
   framesTotal: number;
-  /** 实际成功研判帧数。 */
+  /** Quantos quadros foram de fato julgados com sucesso. */
   framesScored: number;
-  /** 圈出的画面高能时段数。 */
+  /** Quantos trechos de alta energia visual foram delimitados. */
   peakCount: number;
-  /** 本轮是全场扫描档。 */
+  /** Esta rodada é do nível de varredura completa. */
   fullScan?: boolean;
-  /** 带画面描述回流的时刻数(画面时刻线)。 */
+  /** Quantidade de momentos que voltaram com descrição da imagem (a linha do tempo visual). */
   notedMoments?: number;
 }
 
 export interface VisionOutcome {
   visualPeaks: TimeRange[];
-  /** 画面时刻线(全场扫描档才有内容;快扫档为空数组)。 */
+  /** A linha do tempo visual (só tem conteúdo no nível de varredura completa; na varredura rápida é um array vazio). */
   visualNotes: Array<{ t: number; energy: number; note: string; visibleText?: string[] }>;
   stats: VisionStats;
 }
 
-/** 与 chatComplete 同思路的注入点,多带一张 jpeg(base64)。 */
+/** Ponto de injeção com a mesma ideia do chatComplete, levando junto um jpeg (em base64). */
 export type VisionChatFn = (
   llm: LlmConfig,
   system: string,
@@ -118,7 +137,7 @@ export type VisionChatFn = (
   signal?: AbortSignal
 ) => Promise<string>;
 
-/** 接触表拼图注入点(times → base64 jpeg;失败 null)。 */
+/** Ponto de injeção da montagem do mosaico (times → jpeg em base64; null em caso de falha). */
 export type SheetComposer = (
   videoPath: string,
   times: number[],
@@ -126,8 +145,10 @@ export type SheetComposer = (
 ) => Promise<string | null>;
 
 /**
- * 规划抽帧时刻:先取信号窗口中点(按时间序),再用均匀网格补满额度;
- * 全程保持最小间隔,并夹在 [0.5, duration-0.5] 内。纯函数。
+ * Planeja os instantes de amostragem: primeiro o meio das janelas de sinal (em
+ * ordem de tempo) e depois uma grade uniforme para completar a cota;
+ * o intervalo mínimo é mantido do começo ao fim, e tudo fica dentro de
+ * [0,5, duração menos 0,5]. Função pura.
  */
 export function planFrameTimes(
   durationSec: number,
@@ -145,33 +166,38 @@ export function planFrameTimes(
     const c = clamp(t);
     if (picked.length < maxFrames && fits(c)) picked.push(c);
   };
-  // 信号窗口中点优先——那里"可能有画面"的先验最强
+  // O meio das janelas de sinal vem primeiro — é ali que o palpite de "pode ter imagem" é mais forte
   const priority = [
     ...(signals?.loudPeaks ?? []).map((r) => (r.startSec + r.endSec) / 2),
     ...(signals?.cutDense ?? []).map((r) => (r.startSec + r.endSec) / 2),
     ...(signals?.motionPeaks ?? []).map((r) => (r.startSec + r.endSec) / 2),
     ...[...(signals?.activityKeyframes ?? [])].sort((a, b) => b.score - a.score || a.t - b.t).map((frame) => frame.t),
   ];
-  // Always reserve at least one third of the budget for uniform coverage so
-  // dense activity near the start cannot hide a quiet-but-important later scene.
+  // Pelo menos um terço do orçamento fica sempre reservado para a cobertura
+  // uniforme, para que a atividade densa perto do começo não esconda uma cena
+  // silenciosa mas importante mais adiante.
   const priorityBudget = Math.max(1, Math.floor((maxFrames * 2) / 3));
   for (const t of priority) {
     if (picked.length >= priorityBudget) break;
     tryPick(t);
   }
-  // 先显式铺满保留的全场格,再用细网格补齐;否则从头顺序补点会在有大量
-  // 优先时刻时提前耗尽额度,长片尾段仍可能失去覆盖。
+  // As células reservadas da varredura completa são preenchidas explicitamente
+  // antes, e só então a grade fina completa o resto; do contrário, ir preenchendo em
+  // ordem desde o começo esgotaria a cota cedo quando há muitos instantes
+  // prioritários, e o fim de um vídeo longo ainda poderia perder cobertura.
   const uniformReserve = Math.max(1, maxFrames - priorityBudget);
   for (let i = 1; i <= uniformReserve; i++) tryPick((durationSec * i) / (uniformReserve + 1));
-  // 均匀细网格补满剩余额度,防"信号盲区"整段漏掉
+  // A grade fina uniforme completa a cota restante, para que um trecho inteiro na "zona cega de sinal" não fique de fora
   for (let i = 1; i <= maxFrames; i++) tryPick((durationSec * i) / (maxFrames + 1));
   return picked.sort((a, b) => a - b);
 }
 
 /**
- * 解析接触表批量研判输出:{"cells":[{"i":1,"energy":0-10,"note":"…"}…]}。
- * 只收 1..cellCount 内的合法格(重复取首个,energy 夹回 0-10);
- * 一个合法格都没有(垃圾输出)返回 null。
+ * Lê a saída do julgamento em lote do mosaico:
+ * {"cells":[{"i":1,"energy":0-10,"note":"…"}…]}.
+ * Só as células válidas de 1 até cellCount são aceitas (uma repetida fica com a
+ * primeira, e energy é trazido de volta para a faixa de 0 a 10);
+ * quando não há nenhuma célula válida (saída inaproveitável), devolve null.
  */
 export function parseSheetVerdicts(
   content: string,
@@ -208,7 +234,7 @@ export function parseSheetVerdicts(
   return out.length > 0 ? out : null;
 }
 
-/** VLM 不是逐像素 OCR:只保留少量、短、去重后的逐字结果;不确定时宁缺毋滥。 */
+/** Um modelo de visão não é um OCR pixel a pixel: só resultados literais curtos, poucos e sem repetição são mantidos; na dúvida, é melhor faltar do que sobrar. */
 export function sanitizeVisibleText(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const out: string[] = [];
@@ -217,7 +243,7 @@ export function sanitizeVisibleText(value: unknown): string[] {
     if (typeof item !== "string") continue;
     const text = item.replace(/\s+/g, " ").trim().slice(0, 40);
     const key = text.toLocaleLowerCase();
-    if (!text || /^(无|没有|无文字|看不清|none|no text|n\/a|unknown)$/i.test(text) || seen.has(key)) continue;
+    if (!text || /^(nenhum|nenhuma|sem texto|n[aã]o d[aá] para ler|ileg[íi]vel|none|no text|n\/a|unknown)$/i.test(text) || seen.has(key)) continue;
     seen.add(key);
     out.push(text);
     if (out.length >= 5) break;
@@ -225,7 +251,7 @@ export function sanitizeVisibleText(value: unknown): string[] {
   return out;
 }
 
-/** 高能帧 → 时段(±pad),按间隔并段,夹进 [0, duration]。纯函数。 */
+/** Quadro de alta energia → trecho (±pad), fundido pelo intervalo e preso dentro de [0, duração]. Função pura. */
 export function visualPeakRanges(
   scored: Array<{ t: number; energy: number }>,
   durationSec: number,
@@ -254,25 +280,25 @@ export function visualPeakRanges(
 
 export function visionSystemPrompt(cellCount: number): string {
   return [
-    `你在为短视频切片评估画面的"爆点能量"。图是 ${cellCount} 帧拼成的接触表,`,
-    "从左到右、从上到下编号 1 起(每格左上角有白色序号;多余黑格忽略)。",
-    "逐格打分 energy 0-10:夸张表情/激烈肢体动作/多人冲突或互动高潮/醒目道具或文字梗/场面炸裂给高分;",
-    "静态口播、空镜、PPT、普通对坐聊天给低分(0-3)。",
-    "visibleText:只抄画面里清晰可逐字确认的标题/产品名/价格/比分/PPT要点;不确定、太小或只是根据语境猜到就给空数组,每格最多3条;",
-    `严格只输出 JSON:{"cells":[{"i":1,"energy":0-10,"note":"≤15字画面描述","visibleText":["原样文字"]}…]},共 ${cellCount} 项,不要输出其他内容。`,
+    `Você está avaliando a "energia de destaque" da imagem para cortes de vídeo curto. A figura é um mosaico formado por ${cellCount} quadros,`,
+    "numerados a partir de 1, da esquerda para a direita e de cima para baixo (cada célula tem o número em branco no canto superior esquerdo; ignore as células preta sobrando).",
+    "Dê a cada célula uma nota energy de 0 a 10: expressão exagerada, movimento corporal intenso, conflito ou interação intensa entre pessoas, objeto ou texto chamativo, cena impactante recebem nota alta;",
+    "locução estática, cena vazia, slide e conversa comum sentada recebem nota baixa (de 0 a 3).",
+    "visibleText: copie apenas o título, o nome de produto, o preço, o placar ou o tópico de slide que dá para confirmar letra por letra na imagem; se estiver em dúvida, se for pequeno demais ou se você só deduziu pelo contexto, devolva um array vazio, com no máximo 3 itens por célula;",
+    `Responda com JSON estrito e nada mais: {"cells":[{"i":1,"energy":0-10,"note":"descrição da imagem em até 15 palavras","visibleText":["o texto como está"]}…]}, com ${cellCount} itens no total, sem escrever mais nada.`,
   ].join("\n");
 }
 
-/** 接触表的用户提示:报出每格对应的片内时刻,帮模型对齐语境。 */
+/** Prompt de usuário do mosaico: informa o instante do material a que cada célula corresponde, ajudando o modelo a alinhar o contexto. */
 export function sheetUserPrompt(times: number[]): string {
   const clock = (t: number): string => {
     const s = Math.floor(t);
     return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
   };
-  return `逐格评估画面爆点能量。各格时刻:${times.map((t, i) => `${i + 1}=${clock(t)}`).join(" ")}`;
+  return `Avalie a energia de destaque da imagem célula por célula. Instante de cada célula: ${times.map((t, i) => `${i + 1}=${clock(t)}`).join(" ")}`;
 }
 
-/** 默认研判实现:OpenAI 兼容多模态 chat(Ollama /v1 同样支持 image_url)。 */
+/** Implementação padrão do julgamento: chat multimodal compatível com OpenAI (o /v1 do Ollama também aceita image_url). */
 export const visionChatComplete: VisionChatFn = async (llm, system, userText, imageBase64Jpeg, signal) => {
   const url = `${llm.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   const res = await requestLlmText(url, {
@@ -303,12 +329,17 @@ export const visionChatComplete: VisionChatFn = async (llm, system, userText, im
 };
 
 /**
- * 采集视觉爆点信号(接触表批量:九帧一张九宫格,一次调用出九个分)。
- * fail-open:
- * - 单表拼图/研判失败 → 跳过该表继续;
- * - 成功帧不足 MIN_SCORED_FRAMES → 返回 null(证据太薄不给信号);
- * - 超总预算 → 停止研判,用已得的帧收工;
- * - 上游 AbortSignal 取消 → 原样上抛(整个检测要停)。
+ * Coleta o sinal de pico visual (em lote por mosaico: nove quadros num mosaico,
+ * uma chamada devolvendo nove notas).
+ * É fail-open:
+ * - a montagem ou o julgamento de um mosaico que falha → aquele mosaico é pulado e o
+ *   resto continua;
+ * - quadros bem-sucedidos abaixo de MIN_SCORED_FRAMES → devolve null (evidência fina
+ *   demais não vira sinal);
+ * - orçamento total estourado → o julgamento para e o trabalho encerra com os quadros
+ *   já obtidos;
+ * - cancelamento pelo AbortSignal de cima → propagado como está (a detecção inteira
+ *   precisa parar).
  */
 export async function collectVisionSignal(opts: {
   videoPath: string;
@@ -316,12 +347,12 @@ export async function collectVisionSignal(opts: {
   config: VisionConfig;
   signals?: MediaSignals;
   signal?: AbortSignal;
-  /** 序号标注字体文件(默认拼图用;缺省不烧序号)。 */
+  /** Arquivo de fonte usado para escrever o número (é o padrão da montagem; ausente, o número não é queimado). */
   fontFile?: string;
   composeSheet?: SheetComposer;
   chat?: VisionChatFn;
   budgetMs?: number;
-  /** 全场扫描档(v0.13):~30 秒一帧扫完整场,并回流画面描述时刻线。 */
+  /** Nível de varredura completa (v0.13): um quadro a cada ~30 segundos ao longo de tudo, devolvendo também a linha do tempo com descrição da imagem. */
   scan?: boolean;
   analysis?: AnalysisVideoOptions;
 }): Promise<VisionOutcome | null> {
@@ -341,7 +372,7 @@ export async function collectVisionSignal(opts: {
   const scored: Array<{ t: number; energy: number; note: string; visibleText?: string[] }> = [];
   for (const group of chunkCells(times)) {
     if (signal?.aborted) throw new Error("aborted");
-    if (Date.now() > deadline) break; // 预算耗尽,带着已得结果收工
+    if (Date.now() > deadline) break; // orçamento esgotado, o trabalho encerra com o que já foi obtido
     const sheet = await composeSheet(videoPath, group, opts.analysis);
     if (!sheet) continue;
     try {
@@ -358,13 +389,13 @@ export async function collectVisionSignal(opts: {
         });
       }
     } catch (e) {
-      if (signal?.aborted) throw e; // 上游主动取消要中断整个检测
-      // 其余错误跳过该表(端点冷启动/单表超时都不致命)
+      if (signal?.aborted) throw e; // um cancelamento pedido de cima precisa interromper a detecção inteira
+      // Os outros erros pulam aquele mosaico (partida a frio do endpoint e tempo esgotado num mosaico não são fatais)
     }
   }
   if (scored.length < MIN_SCORED_FRAMES) return null;
   const visualPeaks = visualPeakRanges(scored, durationSec);
-  // 画面时刻线只在全场扫描档回流——快扫 27 帧太稀,描述回流噪声大于信息
+  // A linha do tempo visual só volta no nível de varredura completa — na varredura rápida os 27 quadros são esparsos demais, e a descrição devolvida traz mais ruído que informação
   const visualNotes = scan ? pickVisualNotes(scored) : [];
   return {
     visualPeaks,

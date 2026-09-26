@@ -1,16 +1,25 @@
 /**
- * VLM 候选段复核(v0.12):候选定稿后,对每条候选在其时间范围内抽 ≤9 帧拼一张
- * 接触表,让视觉模型看画面回答——画面精彩度、一句话看点、画面与文案是否匹配。
- * 结论回流候选:高画面分小幅加分、信号候选画面死气则小幅降分、看点写进 reason
- * (证据链可审计)。
+ * Revisão visual dos candidatos pelo modelo de visão (v0.12): com os candidatos já
+ * fechados, cada um recebe uma amostragem de até 9 quadros dentro do seu intervalo
+ * de tempo, montados num mosaico, e o modelo de visão olha a imagem e responde — o
+ * quanto ela é marcante, o ponto forte em uma frase e se a imagem combina com o
+ * texto.
+ * A conclusão volta para o candidato: nota visual alta dá um pequeno bônus, um
+ * candidato vindo de sinal com imagem sem vida perde alguns pontos, e o ponto forte
+ * entra na justificativa (mantendo a cadeia de evidências auditável).
  *
- * 为什么值得做:纯文本选段"看不见画面"是行业通病(跳舞/萌宠/户外的峰值时刻
- * 文字常常只有"卧槽");OpusClip 的 ClipAnything 是唯一被第三方认可在非口播
- * 内容占优的多模态选段。每条候选一张接触表 = 一次调用,本地 Ollama 免费,
- * 云端(Atlas MiMo/Qwen3-VL)每条几分钱——同一个 OpenAI 兼容通道,零新增基建。
+ * Por que isso vale a pena: escolher trechos só pelo texto "não vê a imagem", e esse
+ * é um defeito clássico do mercado (em dança, pets e rua, o texto do momento de pico
+ * costuma ser só um "caraca"); o ClipAnything do OpusClip é a única seleção
+ * multimodal que terceiros reconheceram como superior em conteúdo que não é
+ * locução. Um mosaico por candidato equivale a uma chamada, o Ollama local sai de
+ * graça e na nuvem (Atlas MiMo ou Qwen3-VL) cada candidato custa centavos — pelo
+ * mesmo canal compatível com OpenAI, sem nenhuma infraestrutura nova.
  *
- * 纯函数(抽帧规划/提示词/解析/回流)可单测;网络与拼图经注入点替换。
- * fail-open:单条复核失败跳过该条,整体失败退回原候选——复核只锦上添花。
+ * As funções puras (planejamento da amostragem, prompt, leitura e retorno) são
+ * testáveis; a rede e a montagem do mosaico são substituíveis por pontos de injeção.
+ * É fail-open: a revisão de um candidato que falha é pulada, e uma falha geral volta
+ * aos candidatos originais — a revisão só acrescenta.
  */
 import type { HighlightCandidate, LlmConfig } from "../../shared/api-types";
 import { composeContactSheetJpeg } from "../contact-sheet";
@@ -18,30 +27,30 @@ import type { AnalysisVideoOptions } from "../analysis-video";
 import { stripThinkBlocks } from "./prefilter";
 import { sanitizeVisibleText, visionChatComplete, VISION_CALL_TIMEOUT_MS, type VisionChatFn, type VisionConfig, type SheetComposer } from "./vision";
 
-/** 每条候选的抽帧上限(一张 3×3 接触表 = 一次调用)。 */
+/** Teto de quadros amostrados por candidato (um mosaico 3×3 equivale a uma chamada). */
 export const REVIEW_FRAMES_PER_CANDIDATE = 9;
-/** 一轮复核最多看多少条候选(按分数取前 N,防长尾浪费额度)。 */
+/** Quantos candidatos, no máximo, uma rodada de revisão olha (os N melhores por nota, para a cauda longa não gastar cota). */
 export const REVIEW_MAX_CANDIDATES = 8;
-/** 复核总预算(超时带着已得结果收工)。 */
+/** Orçamento total da revisão (esgotado o tempo, o trabalho encerra com o que já foi obtido). */
 const REVIEW_BUDGET_MS = 120_000;
-/** 画面分达到该值起加分(满 10)。 */
+/** A partir desta nota visual (de um total de 10) o candidato ganha bônus. */
 export const REVIEW_BOOST_THRESHOLD = 8;
-/** 信号候选画面分低于该值降分——信号候选的立身之本就是"画面有货"。 */
+/** Abaixo desta nota visual o candidato vindo de sinal perde pontos — o que sustenta esse tipo de candidato é justamente "ter algo na imagem". */
 export const REVIEW_DEMOTE_THRESHOLD = 3;
-/** 加/降分幅度上限:复核是修正不是推翻,文本证据仍是主体。 */
+/** Teto do bônus e do desconto: a revisão corrige, não derruba, e a evidência de texto continua sendo o principal. */
 const BOOST_PER_POINT = 4;
 const BOOST_MAX = 12;
 const DEMOTE_DELTA = 6;
 
-/** 单条候选的复核结论。 */
+/** A conclusão da revisão de um candidato. */
 export interface CandidateReview {
-  /** 画面精彩度 0-10。 */
+  /** O quanto a imagem é marcante, de 0 a 10. */
   visual: number;
-  /** 一句话画面看点(≤30 字)。 */
+  /** O ponto forte da imagem em uma frase (até 30 palavras). */
   scene: string;
-  /** 画面与标题/钩子是否对得上(明显货不对板会标 false)。 */
+  /** Se a imagem combina com o título e o gancho (uma incoerência evidente é marcada como false). */
   match: boolean;
-  /** 抽样帧中可以逐字确认的屏显文字;不确定时省略。 */
+  /** O texto na tela que pode ser confirmado letra por letra nos quadros amostrados; em caso de dúvida, é omitido. */
   visibleText?: string[];
 }
 
@@ -52,8 +61,12 @@ export interface ReviewVisionStats {
 }
 
 /**
- * 候选内抽帧:多段拼接按各段时长比例分配帧数(每段至少 1 帧),段内均匀铺;
- * 单段直接均匀铺。帧距各段边缘留 0.3s(边界帧常是转场废帧)。纯函数。
+ * Amostragem dentro do candidato: numa costura de vários trechos, a quantidade de
+ * quadros é distribuída na proporção da duração de cada um (com pelo menos 1 quadro
+ * por trecho) e espalhada uniformemente dentro dele; num trecho único, é espalhada
+ * uniformemente direto.
+ * Os quadros ficam a 0,3s de distância das bordas de cada trecho (o quadro da borda
+ * costuma ser um quadro perdido de transição). Função pura.
  */
 export function planCandidateFrames(
   candidate: Pick<HighlightCandidate, "startSec" | "endSec" | "pieces">,
@@ -66,11 +79,11 @@ export function planCandidateFrames(
   const total = pieces.reduce((a, p) => a + Math.max(0, p.endSec - p.startSec), 0);
   if (!(total > 0)) return [];
   const times: number[] = [];
-  // 按比例分帧(至少 1),多出的额度从头再分一轮
+  // Distribui os quadros na proporção (com pelo menos 1), e a cota que sobra é distribuída em outra rodada, desde o começo
   const quota = pieces.map((p) => Math.max(1, Math.floor((maxFrames * (p.endSec - p.startSec)) / total)));
   let used = quota.reduce((a, b) => a + b, 0);
   for (let i = 0; used > maxFrames && i < quota.length; i++) {
-    // 超发时从帧数最多的段回收
+    // Passando da conta, os quadros são recolhidos do trecho que tem mais
     const maxIdx = quota.indexOf(Math.max(...quota));
     if (quota[maxIdx] > 1) {
       quota[maxIdx]--;
@@ -92,28 +105,28 @@ export function planCandidateFrames(
 
 export function reviewSystemPrompt(cellCount: number): string {
   return [
-    `你在为短视频切片复核画面。图是同一条候选切片内的 ${cellCount} 帧接触表,`,
-    "从左到右、从上到下编号 1 起(多余黑格忽略)。综合所有帧回答:",
-    "visual:这条切片的画面精彩度 0-10(夸张表情/激烈动作/冲突互动/场面炸裂高分;静态口播/空镜/PPT 低分);",
-    "scene:一句话说出画面最大的看点(≤30字,没有就写画面平淡之处);",
-    "match:画面与给出的标题/钩子是否对得上(标题说的东西画面里根本没有 = false)。",
-    "visibleText:只抄所有帧里清晰可逐字确认的产品名/价格/比分/标题/PPT要点;不确定或只是推断就给空数组,最多5条。",
-    '严格只输出 JSON:{"visual":0-10,"scene":"…","match":true/false,"visibleText":["原样文字"]},不要输出其他内容。',
+    `Você está revisando a imagem de um corte de vídeo curto. A figura é um mosaico com ${cellCount} quadros de dentro do mesmo clipe candidato,`,
+    "numerados a partir de 1, da esquerda para a direita e de cima para baixo (ignore as células preta sobrando). Responda considerando todos os quadros:",
+    "visual: o quanto a imagem deste clipe é marcante, de 0 a 10 (expressão exagerada, movimento intenso, conflito ou interação e cena impactante recebem nota alta; locução estática, cena vazia e slide recebem nota baixa);",
+    "scene: diga em uma frase qual é o maior ponto forte da imagem (até 30 palavras; se não houver, diga em que ela é sem graça);",
+    "match: se a imagem combina com o título e o gancho informados (o que o título diz simplesmente não aparecer na imagem = false).",
+    "visibleText: copie apenas o nome de produto, o preço, o placar, o título ou o tópico de slide que dá para confirmar letra por letra em algum dos quadros; em caso de dúvida ou de dedução, devolva um array vazio, com no máximo 5 itens.",
+    'Responda com JSON estrito e nada mais: {"visual":0-10,"scene":"…","match":true/false,"visibleText":["o texto como está"]}, sem escrever mais nada.',
   ].join("\n");
 }
 
-/** 用户提示:带上标题/钩子与转写摘录,模型才能判 match。 */
+/** Prompt de usuário: leva o título, o gancho e um trecho da transcrição, que é o que permite ao modelo julgar o match. */
 export function reviewUserPrompt(candidate: Pick<HighlightCandidate, "title" | "hook" | "text">): string {
   const excerpt = (candidate.text ?? "").replace(/\s+/g, " ").slice(0, 160);
   return [
-    `候选标题:${candidate.title}`,
-    `开场钩子:${candidate.hook}`,
-    `转写摘录:${excerpt}`,
-    "请按系统要求输出 JSON。",
+    `Título do candidato: ${candidate.title}`,
+    `Gancho de abertura: ${candidate.hook}`,
+    `Trecho da transcrição: ${excerpt}`,
+    "Responda em JSON, conforme as instruções do sistema.",
   ].join("\n");
 }
 
-/** 解析复核输出;垃圾输出返回 null(该条按未复核处理)。纯函数。 */
+/** Lê a saída da revisão; saída inaproveitável devolve null (e aquele candidato é tratado como não revisado). Função pura. */
 export function parseCandidateReview(content: string): CandidateReview | null {
   const cleaned = stripThinkBlocks(content);
   const m = cleaned.match(/\{[\s\S]*\}/);
@@ -137,11 +150,15 @@ export function parseCandidateReview(content: string): CandidateReview | null {
 }
 
 /**
- * 复核结论回流候选(纯函数):
- * - visual ≥ 8:每高 1 分加 4 分,封顶 +12、总分 ≤99(画面是真加分项)
- * - boundary="signal" 且 visual ≤ 3:降 6 分,下限 1(信号候选画面死气 = 负证据)
- * - match=false:reason 里显式标注货不对板(不动分——判定尚不稳,先给人看)
- * - scene 写进 reason(证据链);全部重排序按新分。
+ * A conclusão da revisão volta para o candidato (função pura):
+ * - visual maior ou igual a 8: cada ponto acima disso vale 4, com teto de +12 e nota
+ *   total no máximo 99 (a imagem é um bônus de verdade)
+ * - boundary="signal" e visual menor ou igual a 3: desconto de 6 pontos, com piso em 1
+ *   (um candidato vindo de sinal com imagem sem vida é evidência negativa)
+ * - match=false: a incoerência é registrada explicitamente na justificativa (sem
+ *   mexer na nota — o julgamento ainda não é estável, então primeiro a pessoa vê)
+ * - scene entra na justificativa (cadeia de evidências); e tudo é reordenado pela
+ *   nota nova.
  */
 export function applyCandidateReviews(
   candidates: HighlightCandidate[],
@@ -161,9 +178,9 @@ export function applyCandidateReviews(
       demoted++;
     }
     const notes = [
-      r.scene ? `画面复核 ${r.visual}/10:${r.scene}` : `画面复核 ${r.visual}/10`,
-      ...(r.visibleText?.length ? [`屏显文字:${r.visibleText.join(" / ")}`] : []),
-      ...(r.match ? [] : ["⚠画面与标题可能货不对板"]),
+      r.scene ? `revisão da imagem ${r.visual}/10: ${r.scene}` : `revisão da imagem ${r.visual}/10`,
+      ...(r.visibleText?.length ? [`texto na tela: ${r.visibleText.join(" / ")}`] : []),
+      ...(r.match ? [] : ["⚠ a imagem pode não combinar com o título"]),
     ].join(";");
     return {
       ...c,
@@ -182,8 +199,10 @@ export function applyCandidateReviews(
 }
 
 /**
- * 执行一轮候选复核:按分取前 N 条,各自一张接触表一次调用。
- * fail-open:单条失败跳过;一条都没复核成返回 null(调用方沿用原候选)。
+ * Executa uma rodada de revisão dos candidatos: os N melhores por nota, cada um com
+ * um mosaico e uma chamada.
+ * É fail-open: um candidato que falha é pulado, e se nenhum for revisado com sucesso,
+ * devolve null (e quem chamou segue com os candidatos originais).
  */
 export async function reviewCandidatesVision(opts: {
   videoPath: string;
@@ -224,7 +243,7 @@ export async function reviewCandidatesVision(opts: {
       if (verdict) reviews.set(c.id, verdict);
     } catch (e) {
       if (signal?.aborted) throw e;
-      // 单条失败不致命,跳过继续
+      // A falha de um candidato não é fatal, então ele é pulado e o resto continua
     }
   }
   if (reviews.size === 0) return null;

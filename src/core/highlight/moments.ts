@@ -1,17 +1,26 @@
 /**
- * 信号驱动的候选通道:不靠文字稿定位爆点。
+ * Canal de candidatos guiado por sinal: localizar o destaque sem depender da
+ * transcrição.
  *
- * 为什么必须有:HotClip 原本整条链路是「LLM 引用原话 → 反查时间轴」,这对
- * 带货/讲课/访谈成立,但对**跳舞、才艺、户外**根本不成立——跳舞直播的文字稿
- * 是空的(只有零散寒暄),户外收音差、峰值时刻的话常常只有"卧槽"两个字。
- * 没有可引用的原话 = 一条候选都出不来,品类判据写得再好也救不回来。
+ * Por que isso é indispensável: a cadeia original do HotClip era "o LLM cita a
+ * fala → a busca reversa encontra o tempo", o que funciona para venda, aula e
+ * entrevista, mas **não funciona de jeito nenhum** para dança, talento e conteúdo
+ * de rua — a transcrição de uma live de dança é vazia (só cumprimentos soltos), e
+ * na rua a captação é ruim, com a fala do momento de pico sendo muitas vezes só um
+ * "caraca".
+ * Sem fala para citar, não sai um único candidato, e nenhum critério de gênero,
+ * por bem escrito que seja, salva isso.
  *
- * 所以这里换一条路:把八路视听信号(响度/镜头切换/帧差运动/视觉模型/表情/
- * 语气/笑声掌声/弹幕)按品类权重融合成一条时间轴热度曲线,直接从曲线上取窗口。
- * 时间由信号给,LLM 只负责在这些窗口里挑哪几个值得发、起什么标题——
- * 它不需要引用任何原话,自然也就不会因为"没话可引"而交白卷。
+ * Então aqui o caminho é outro: os oito sinais de imagem e som (volume, troca de
+ * plano, movimento por diferença de quadros, modelo de visão, expressão facial,
+ * tom de voz, riso e aplauso, chat ao vivo) são fundidos, com pesos por gênero, em
+ * uma única curva de intensidade ao longo do tempo, e as janelas são tiradas
+ * direto dessa curva.
+ * O tempo vem dos sinais, e o LLM só decide quais dessas janelas valem publicar e
+ * que título dar — ele não precisa citar nenhuma fala e, por isso, também não
+ * entrega folha em branco por "não ter o que citar".
  *
- * 纯函数,可单测;不碰 ffmpeg、不发网络请求。
+ * São funções puras, testáveis; não tocam no ffmpeg e não fazem requisição de rede.
  */
 import type { MediaSignals } from "../signals";
 import type { Transcript } from "../transcribe/types";
@@ -22,7 +31,7 @@ export interface TimeRange {
   endSec: number;
 }
 
-/** 八路信号各自的权重(融合曲线用)。 */
+/** O peso de cada um dos oito sinais (usado na curva de fusão). */
 export interface MomentWeights {
   loud: number;
   cut: number;
@@ -35,31 +44,37 @@ export interface MomentWeights {
 }
 
 /**
- * 按证据类别给权重。这两套权重几乎是反的,这正是「不同品类证据权重相反」
- * 那条调研结论落到代码里的样子:
- *  - visual(跳舞/才艺/唱歌):画面和弹幕说了算,语气基本没用(表演时不说话)
- *  - reaction(游戏/户外/聊天):语气爆发和弹幕是主证据,画面只作参考
+ * Os pesos por classe de evidência. Os dois conjuntos são quase opostos, e é
+ * exatamente assim que a conclusão de pesquisa "os pesos de evidência se invertem
+ * entre gêneros" chega ao código:
+ *  - visual (dança, talento, canto): quem manda é a imagem e o chat, e o tom de voz
+ *    é praticamente inútil (durante a apresentação ninguém fala)
+ *  - reaction (jogos, rua, bate-papo): as explosões de voz e o chat são a evidência
+ *    principal, e a imagem serve só de referência
  */
 export const MOMENT_WEIGHTS: Record<Exclude<EvidenceClass, "words">, MomentWeights> = {
   visual: { loud: 1.2, cut: 2.2, motion: 2.8, visual: 3, emotion: 1.5, voice: 0.5, audioEvent: 1, danmaku: 3 },
   reaction: { loud: 2, cut: 1, motion: 1.5, visual: 1.5, emotion: 2, voice: 3, audioEvent: 2.5, danmaku: 3 },
 };
 
-/** 热度曲线的采样粒度。1 秒足够——再细也超出信号本身的分辨率。 */
+/** Granularidade de amostragem da curva de intensidade. 1 segundo já basta — mais fino que isso passa da resolução dos próprios sinais. */
 export const MOMENT_BIN_SEC = 1;
-/** 峰与峰之间至少隔这么久,避免同一个高潮被切成好几条。 */
+/** Distância mínima entre um pico e outro, para o mesmo auge não ser partido em vários candidatos. */
 export const MOMENT_MIN_GAP_SEC = 8;
-/** 内部最多融合出多少个时刻。 */
+/** Quantos momentos, no máximo, a fusão produz internamente. */
 export const MOMENT_MAX_COUNT = 12;
 /**
- * 真正塞进提示词的上限(按热度取前 N,再按时间排回)。
- * 实测教训:12 条 × 每条 25 秒的噪声转写堆进提示词,模型会直接吐回未填写的
- * 模板(`"momentId": x`);砍到 8 条并截短参考原话后一次成功。提示词本身也说
- * 「真正值得剪的通常只有两三个」,给 12 个选项本来就自相矛盾。
+ * O teto do que de fato entra no prompt (os N mais intensos, recolocados em ordem
+ * de tempo).
+ * Lição da prática: com 12 momentos de 25 segundos cada e transcrição cheia de
+ * ruído empilhados no prompt, o modelo devolve o template sem preencher
+ * (`"momentId": x`); reduzir para 8 e truncar a fala de referência resolveu na
+ * primeira tentativa. O próprio prompt já diz que "normalmente só dois ou três
+ * valem o corte", então oferecer 12 opções era contraditório desde o começo.
  */
 export const MOMENT_PROMPT_MAX = 8;
 
-/** 按热度取前 N,再按时间排回并重新编号(编号必须与提示词里一致)。 */
+/** Pega os N mais intensos, recoloca em ordem de tempo e renumera (a numeração precisa ser a mesma do prompt). */
 export function topMoments(moments: SignalMoment[], max = MOMENT_PROMPT_MAX): SignalMoment[] {
   if (moments.length <= max) return moments;
   return [...moments]
@@ -69,40 +84,50 @@ export function topMoments(moments: SignalMoment[], max = MOMENT_PROMPT_MAX): Si
     .map((m, i) => ({ ...m, id: i + 1 }));
 }
 /**
- * 单路信号覆盖超过这个比例就判为"一直在响",权重打折。
- * 这条是 SenseVoice 情绪饱和那次踩出来的:中性播音也判 HAPPY、脱口秀 62% 的
- * 窗口都有笑声——一路信号如果全程都亮,它就不再有区分度。
+ * Quando um sinal isolado cobre mais que esta proporção, ele é considerado "está
+ * sempre soando" e o peso é descontado.
+ * Isto saiu da vez em que a emoção do SenseVoice saturou: locução neutra também era
+ * julgada HAPPY, e 62% das janelas de um stand-up tinham riso — um sinal que fica
+ * aceso o tempo todo deixa de distinguir qualquer coisa.
  */
 export const MOMENT_SATURATION = 0.55;
 /**
- * 多路共振加成:同一秒被越多种信号同时命中越可信——只有音量高可能是 BGM,
- * 只有弹幕高可能是刷屏,音量+弹幕+笑声一起亮才是真爆点。每多一路乘一档。
- * 提示词早就告诉 LLM「单路孤证可以放心丢」;这里把同一judgement落进曲线,
- * 让共振时刻在排序上直接压过孤证。
+ * Bônus de ressonância entre sinais: quanto mais tipos de sinal acertam o mesmo
+ * segundo, mais confiável — só volume alto pode ser a trilha, só chat alto pode ser
+ * spam, e é volume + chat + riso acesos juntos que marcam o destaque de verdade.
+ * Cada sinal a mais multiplica por um degrau.
+ * O prompt já diz ao LLM que "um sinal isolado pode ser descartado sem medo"; aqui
+ * o mesmo julgamento entra na curva, para que os momentos de ressonância passem à
+ * frente dos isolados já na ordenação.
  */
 export const MOMENT_AGREEMENT_BONUS = 0.25;
 /**
- * 峰值低于最强峰的该比例时停止取窗——弱尾巴是噪声(某路低权信号的一闪),
- * 塞给 LLM 只会稀释真候选。相对比例而非绝对阈值:信号贫瘠的素材照样出峰。
+ * Quando um pico cai abaixo desta proporção do pico mais forte, a extração de
+ * janelas para — uma cauda fraca é ruído (o relance de algum sinal de peso baixo),
+ * e entregá-la ao LLM só dilui os candidatos de verdade. A proporção é relativa e
+ * não um limite absoluto: material pobre em sinal continua produzindo picos.
  */
 export const MOMENT_NOISE_FLOOR = 0.25;
-/** 取窗时向两侧扩到热度跌破峰值的该比例为止——窗口随内容伸缩,不再一刀切。 */
+/** Ao tirar a janela, ela se expande para os dois lados até a intensidade cair abaixo desta proporção do pico — a janela acompanha o conteúdo, em vez de ter um tamanho fixo. */
 export const MOMENT_WINDOW_REL_HEIGHT = 0.35;
 
 export interface SignalMoment {
-  /** 1-based,给 LLM 引用用(它只需要报编号,不需要引用原话)。 */
+  /** Começa em 1, para o LLM citar (ele só precisa informar o número, e não citar a fala). */
   id: number;
   startSec: number;
   endSec: number;
-  /** 融合热度(相对值,同一场内可比)。 */
+  /** Intensidade da fusão (valor relativo, comparável dentro da mesma transmissão). */
   heat: number;
-  /** 命中的信号种类(展示给 LLM 和用户的证据链)。 */
+  /** Os tipos de sinal que acertaram (é a cadeia de evidências mostrada ao LLM e à pessoa). */
   evidence: Array<keyof MomentWeights>;
 }
 
 /**
- * 说话占比:各句时长之和 / 总时长。语言无关(不数字符),所以中英文都适用。
- * 跳舞/唱歌直播大段时间没人说话,这个值会很低。
+ * Proporção de fala: a soma da duração das frases dividida pela duração total.
+ * Independe do idioma (não conta caracteres), então vale igualmente para qualquer
+ * língua.
+ * Em lives de dança e de canto há longos trechos em que ninguém fala, e esse valor
+ * fica bem baixo.
  */
 export function speechRatio(transcript: Transcript): number {
   if (transcript.durationSec <= 0) return 0;
@@ -110,14 +135,18 @@ export function speechRatio(transcript: Transcript): number {
   return Math.min(1, spoken / transcript.durationSec);
 }
 
-/** 低于这个说话占比就当"文字稿基本没东西",不管用户选了什么品类都补跑信号通道。 */
+/** Abaixo desta proporção de fala, a transcrição é considerada "praticamente vazia", e o canal de sinais roda também, independente do gênero que a pessoa escolheu. */
 export const SPARSE_SPEECH_RATIO = 0.35;
 
 /**
- * 要不要跑信号通道。三个触发条件任一成立即跑:
- *  ① 品类本身就是靠反应/画面的(用户明确选了游戏/户外/才艺)
- *  ② 说话占比过低——素材自己说明了文字稿没内容(兜住没枚举到的品类)
- *  ③ 文本通道产出太少——引不出原话时的最后一道保险
+ * Se o canal de sinais deve rodar. Basta uma das três condições:
+ *  1. o gênero em si depende de reação ou de imagem (a pessoa escolheu
+ *     explicitamente jogos, rua ou talento);
+ *  2. a proporção de fala é baixa demais — o próprio material está dizendo que a
+ *     transcrição não tem conteúdo (o que cobre os gêneros que não foram
+ *     enumerados);
+ *  3. o canal de texto produziu pouco — é a última proteção para quando não há fala
+ *     para citar.
  */
 export function shouldRunMoments(
   evidence: EvidenceClass,
@@ -127,7 +156,7 @@ export function shouldRunMoments(
   return evidence !== "words" || ratio < SPARSE_SPEECH_RATIO || textCandidateCount < 2;
 }
 
-/** 某路信号的总覆盖时长占比——用于饱和打折。 */
+/** A proporção do tempo total que um sinal cobre — usada no desconto por saturação. */
 function coverageRatio(ranges: TimeRange[] | undefined, durationSec: number): number {
   if (!ranges || ranges.length === 0 || durationSec <= 0) return 0;
   const total = ranges.reduce((a, r) => a + Math.max(0, r.endSec - r.startSec), 0);
@@ -135,8 +164,10 @@ function coverageRatio(ranges: TimeRange[] | undefined, durationSec: number): nu
 }
 
 /**
- * 把一路信号加进热度数组。覆盖过广的信号按覆盖率反比打折——全程都亮的信号
- * 没有区分度,不打折会把曲线压平、峰值退化成随机。
+ * Acrescenta um sinal ao array de intensidade. Um sinal com cobertura larga demais
+ * é descontado na razão inversa da cobertura — um sinal que fica aceso o tempo todo
+ * não distingue nada, e sem o desconto ele achataria a curva, degenerando os picos
+ * em aleatoriedade.
  */
 function addSignal(
   heat: Float64Array,
@@ -160,7 +191,7 @@ function addSignal(
   }
 }
 
-/** 三点移动平均:抹掉单格抖动,峰值位置更稳。 */
+/** Média móvel de três pontos: elimina o tremor de uma célula só e deixa a posição do pico mais estável. */
 function smooth(heat: Float64Array): Float64Array {
   const out = new Float64Array(heat.length);
   for (let i = 0; i < heat.length; i++) {
@@ -173,7 +204,7 @@ function smooth(heat: Float64Array): Float64Array {
 
 export interface FuseOptions {
   weights: MomentWeights;
-  /** 目标片长下限/上限(秒),与切片时长档一致。 */
+  /** Piso e teto da duração alvo (em segundos), iguais aos da faixa de duração do clipe. */
   minSec: number;
   maxSec: number;
   maxCount?: number;
@@ -181,12 +212,16 @@ export interface FuseOptions {
 }
 
 /**
- * 融合八路信号 → 按热度排序的时刻清单。
+ * Funde os oito sinais → uma lista de momentos ordenada por intensidade.
  *
- * 取窗口的办法:反复取当前最热的一格,从峰向两侧扩到热度跌破峰值比例
- * (窗口随内容伸缩:碎峰给短窗、持续高潮给长窗,都夹在目标片长档内),
- * 然后把这一段(加上最小间隔)标记已取再找下一个——保证彼此不重叠、
- * 不扎堆;峰值弱到只剩最强峰的零头时收工,弱尾噪声不进清单。
+ * Como as janelas são tiradas: pega-se repetidamente a célula mais intensa do
+ * momento e expande-se do pico para os dois lados até a intensidade cair abaixo da
+ * proporção definida (a janela acompanha o conteúdo: pico curto dá janela curta,
+ * auge prolongado dá janela longa, e as duas ficam dentro da faixa de duração
+ * alvo), depois esse trecho (mais o intervalo mínimo) é marcado como usado e a
+ * busca segue para o próximo — o que garante que eles não se sobreponham nem se
+ * amontoem; quando os picos ficam tão fracos que sobra só uma fração do mais forte,
+ * o trabalho encerra, e o ruído da cauda fraca não entra na lista.
  */
 export function fuseMoments(
   signals: MediaSignals | undefined,
@@ -210,7 +245,7 @@ export function fuseMoments(
   addSignal(heat, hits, signals.audioEventPeaks, w.audioEvent, "audioEvent", binSec, durationSec);
   addSignal(heat, hits, signals.danmakuPeaks, w.danmaku, "danmaku", binSec, durationSec);
 
-  // 多路共振加成:加权求和之后,再按同秒命中的信号路数乘档——孤证不奖励
+  // Bônus de ressonância: depois da soma ponderada, o valor é multiplicado por um degrau conforme quantos sinais acertam o mesmo segundo — sinal isolado não é premiado
   for (let i = 0; i < bins; i++) {
     const extra = hits[i].size - 1;
     if (extra > 0) heat[i] *= 1 + MOMENT_AGREEMENT_BONUS * extra;
@@ -236,9 +271,9 @@ export function fuseMoments(
     }
     if (best < 0 || bestVal <= 0) break;
     if (strongest === 0) strongest = bestVal;
-    else if (bestVal < strongest * MOMENT_NOISE_FLOOR) break; // 弱尾噪声收工
+    else if (bestVal < strongest * MOMENT_NOISE_FLOOR) break; // o ruído da cauda fraca encerra o trabalho
 
-    // 从峰向两侧扩:热度跌破峰值比例、撞上已取格或素材边界就停
+    // Expande do pico para os dois lados: para quando a intensidade cai abaixo da proporção, quando encosta numa célula já usada ou quando chega na borda do material
     const floor = bestVal * MOMENT_WINDOW_REL_HEIGHT;
     let from = best;
     let to = best;
@@ -249,7 +284,7 @@ export function fuseMoments(
       if (right >= left) to++;
       else from--;
     }
-    // 碎峰太短的补到目标下限(仍不越过已取格/边界)——凑出能看完整内容的窗
+    // Um pico curto demais é completado até o piso alvo (ainda sem atravessar célula já usada nem borda) — para formar uma janela em que dê para assistir a um conteúdo inteiro
     while (to - from + 1 < minBins) {
       const canLeft = from > 0 && !taken[from - 1];
       const canRight = to < bins - 1 && !taken[to + 1];
@@ -257,23 +292,23 @@ export function fuseMoments(
       if (canRight && (!canLeft || curve[to + 1] >= curve[from - 1])) to++;
       else from--;
     }
-    // 证据取窗口内出现过的所有信号种类(而不是只看峰值那一格)
+    // A evidência reúne todos os tipos de sinal que apareceram dentro da janela (e não apenas o da célula do pico)
     const kinds = new Set<keyof MomentWeights>();
     for (let i = from; i <= to; i++) {
       for (const k of hits[i]) kinds.add(k);
     }
     out.push({
-      id: 0, // 排序后统一编号
+      id: 0, // a numeração é dada de uma vez depois da ordenação
       startSec: Number((from * binSec).toFixed(2)),
       endSec: Number(Math.min(durationSec, (to + 1) * binSec).toFixed(2)),
-      // 热度记峰值强度(不是窗内求和)——长窗不因长度占排序便宜
+      // A intensidade guarda a força do pico (e não a soma da janela) — assim uma janela longa não leva vantagem na ordenação por ser longa
       heat: Number(bestVal.toFixed(3)),
       evidence: [...kinds],
     });
     for (let i = Math.max(0, from - gapBins); i <= Math.min(bins - 1, to + gapBins); i++) taken[i] = 1;
   }
 
-  // 交给 LLM 时按时间排(它要能看出先后),编号也按时间走
+  // Na entrega ao LLM a ordem é a de tempo (ele precisa ver o que vem antes e o que vem depois), e a numeração também segue o tempo
   return out
     .sort((a, b) => a.startSec - b.startSec)
     .map((m, i) => ({ ...m, id: i + 1 }));

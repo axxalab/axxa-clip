@@ -1,36 +1,46 @@
 /**
- * 主播口令打点(voice-activated clipping,2026 切片工具新趋势):主播在直播里
- * 亲口说「这段剪下来 / 切片君记一下 / clip that」,等于他本人实时认证了一个
- * 爆点——这是所有信号里最直接的一路人工标注,零成本(纯文本扫描,不跑模型)。
+ * Marcação do pedido de corte de quem transmite (voice-activated clipping, a nova
+ * tendência das ferramentas de corte em 2026): quando a pessoa diz ao vivo, com as
+ * próprias palavras, "corta esse pedaço", "clipa isso" ou "clip that", é como se
+ * ela certificasse um destaque em tempo real — é a marcação humana mais direta de
+ * todos os sinais, e custa zero (é varredura só de texto, sem rodar modelo).
  *
- * ⚠ 口令和观众笑声一样是「滞后标记」:要剪的内容发生在口令**之前**。
- * 这里只负责找到口令出现的时刻;怎么往前找内容由提示词交代给 LLM
- * (见 prompt.ts renderSignals 的 clipCommandMarks 段)。
+ * ⚠ Como o riso do público, o pedido é uma "marca atrasada": o conteúdo a cortar
+ * aconteceu **antes** dele.
+ * Aqui o trabalho é apenas achar o instante em que o pedido apareceu; como voltar
+ * para achar o conteúdo é o que o prompt explica ao LLM (veja o bloco
+ * clipCommandMarks de renderSignals em prompt.ts).
  *
- * 纯函数,可单测。误报的代价很低(只是提示词里多一行证据,LLM 仍会核对
- * 前文内容),所以模式取「宁可稍宽」;但对高频日常语(切换/这段时间)做了
- * 负向排除,不至于满屏假口令。
+ * São funções puras, testáveis. O custo de um falso positivo é baixo (só uma linha
+ * a mais de evidência no prompt, e o LLM ainda vai conferir o que veio antes),
+ * então os padrões são deliberadamente um pouco abertos; mas há exclusão negativa
+ * das expressões corriqueiras de alta frequência, para a tela não encher de pedido
+ * falso.
  */
 import type { Transcript } from "../transcribe/types";
 
-/** 两个口令的最小间隔:同一句话被断成几段时只记一次。 */
+/** Intervalo mínimo entre dois pedidos: quando a mesma fala é quebrada em vários trechos, só um é registrado. */
 export const COMMAND_MIN_GAP_SEC = 20;
-/** 口令上限:超过说明是误报刷屏(或主播口头禅),截断防提示词爆量。 */
+/** Teto de pedidos: passar disso indica enxurrada de falso positivo (ou um bordão de quem transmite), então o corte evita estourar o prompt. */
 export const COMMAND_MAX_MARKS = 12;
 
 /**
- * 中文口令模式:
- *  1. 指代 + 剪/切:「(把)这段/刚才那段 …… 剪/切」——排除「这段时间/日子/经历/感情」
- *     等日常搭配,排除「切换/切入」类动词;
- *  2. 剪/切 + 完成补语:「剪下来/切出来/剪个切片」——不含「剪一下/切一下」
- *     (切一下水果类误报太多,真口令几乎都带指代,走第 1 条就能中);
- *  3. 祈使前缀 + 剪/切:「记得/帮我/给我/待会/回头/后期/剪辑组/切片君 …… 剪/切」。
- * 英文口令:clip that / clip this / clip it / that's a clip / someone clip …
+ * Padrões em português:
+ *  1. Referência ao trecho + verbo de cortar: "corta esse pedaço", "clipa esse
+ *     trecho", "recorta essa parte" — com exclusão dos usos corriqueiros do tipo
+ *     "corta o barato" ou "corta essa relação", que não são pedido de corte;
+ *  2. Verbo de cortar + complemento de corte: "tira um corte disso", "faz um
+ *     clipe disso", "vira corte", "manda pro corte";
+ *  3. Prefixo imperativo + verbo de cortar: "lembra de cortar", "me corta isso",
+ *     "depois corta", "na edição corta", "galera do corte, corta isso".
+ * Padrões em inglês: clip that / clip this / clip it / that's a clip / someone clip…
  */
-const ZH_PATTERNS: RegExp[] = [
-  /(?:把)?(?:这段|这一段|刚才那段|刚刚那段|刚那段)(?!时间|日子|经历|感情|关系)[^。！？!?]{0,8}?[剪切](?![换磋入])/,
-  /[剪切](?:下来|出来|个切片|个片段|成切片)/,
-  /(?:记得|帮我|给我|待会儿?|回头|后期|剪辑组|切片君)[^。！？!?]{0,6}?[剪切](?![换磋入])/,
+const PT_PATTERNS: RegExp[] = [
+  /\b(?:corta|corte|clipa|clipe|recorta)\s+(?:a[íi]|isso|isto|esse|essa|este|esta|aquele|aquela)\s*(?:peda[çc]o|trecho|parte|momento|peda[çc]inho)?\b(?!\s+(?:barato|rela[çc][ãa]o|mal|papo\s+furado))/i,
+  /\b(?:tira|faz|fa[çc]a|gera|manda|salva|guarda)\s+(?:um\s+|o\s+|pro\s+|pra\s+|para\s+o\s+)?(?:corte|clipe|clip)\b/i,
+  /\bvira\s+(?:um\s+)?(?:corte|clipe)\b/i,
+  /\b(?:lembra\s+de|lembre\s+de|depois|na\s+edi[çc][ãa]o|galera\s+do\s+corte|pessoal\s+do\s+corte|time\s+de\s+edi[çc][ãa]o)\b[^.!?]{0,20}?\b(?:corta|cortar|clipa|clipar|recorta|recortar)\b/i,
+  /\b(?:me|pra\s+mim)\s+(?:corta|clipa|recorta)\b/i,
 ];
 
 const EN_PATTERNS: RegExp[] = [
@@ -39,14 +49,16 @@ const EN_PATTERNS: RegExp[] = [
   /\bsomeone\s+clip\b/i,
 ];
 
-/** 一句话是否命中剪辑口令。 */
+/** Diz se uma fala contém um pedido de corte. */
 export function isClipCommand(text: string): boolean {
   if (!text) return false;
-  return ZH_PATTERNS.some((p) => p.test(text)) || EN_PATTERNS.some((p) => p.test(text));
+  return PT_PATTERNS.some((p) => p.test(text)) || EN_PATTERNS.some((p) => p.test(text));
 }
 
 /**
- * 全稿扫描口令时刻:返回命中句的开始时间(升序),近距离命中去重、总量截断。
+ * Varre a transcrição inteira em busca dos instantes de pedido: devolve o tempo de
+ * início das falas encontradas (em ordem crescente), removendo as que estão perto
+ * demais uma da outra e cortando o total no teto.
  */
 export function detectClipCommands(transcript: Transcript): number[] {
   const marks: number[] = [];

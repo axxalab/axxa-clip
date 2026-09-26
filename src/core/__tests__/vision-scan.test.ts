@@ -1,6 +1,7 @@
 /**
- * 全场画面扫描档(v0.13):抽帧预算/画面时刻线挑选/collectVisionSignal 扫描
- * 模式(注入 chat 与拼图,不跑真 ffmpeg/端点)。
+ * O nível de varredura visual completa (v0.13): orçamento de quadros, escolha da
+ * linha do tempo visual e o modo de varredura do collectVisionSignal (com chat e
+ * montagem injetados, sem rodar ffmpeg nem endpoint de verdade).
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -13,51 +14,51 @@ import {
 } from "../highlight/vision";
 
 describe("scanFrameBudget", () => {
-  it("~30 秒一帧,下限一张满格接触表,封顶 270", () => {
-    expect(scanFrameBudget(60)).toBe(9); // 短片也至少 9 帧
-    expect(scanFrameBudget(3600)).toBe(120); // 1 小时 = 120 帧
-    expect(scanFrameBudget(6 * 3600)).toBe(SCAN_MAX_FRAMES); // 超长封顶
+  it("um quadro a cada ~30 segundos, com o piso de um mosaico cheio e teto em 270", () => {
+    expect(scanFrameBudget(60)).toBe(9); // até um material curto tem pelo menos 9 quadros
+    expect(scanFrameBudget(3600)).toBe(120); // 1 hora = 120 quadros
+    expect(scanFrameBudget(6 * 3600)).toBe(SCAN_MAX_FRAMES); // material longuíssimo trava no teto
     expect(scanFrameBudget(0)).toBe(0);
   });
 });
 
 describe("pickVisualNotes", () => {
-  it("能量达标才入选,按能量取前 N 后按时间排", () => {
+  it("só entra quem atinge a energia, e depois de pegar os N maiores a ordem volta a ser a de tempo", () => {
     const scored = [
-      { t: 300, energy: 8, note: "翻车瞬间" },
-      { t: 100, energy: 9, note: "摔产品" },
-      { t: 200, energy: 3, note: "静态口播" }, // 低能量剔除
+      { t: 300, energy: 8, note: "o momento em que deu errado" },
+      { t: 100, energy: 9, note: "derrubou o produto" },
+      { t: 200, energy: 3, note: "locução estática" }, // energia baixa é descartada
     ];
     expect(pickVisualNotes(scored)).toEqual([
-      { t: 100, energy: 9, note: "摔产品" },
-      { t: 300, energy: 8, note: "翻车瞬间" },
+      { t: 100, energy: 9, note: "derrubou o produto" },
+      { t: 300, energy: 8, note: "o momento em que deu errado" },
     ]);
   });
-  it("屏显文字随画面时刻线保留", () => {
-    expect(pickVisualNotes([{ t: 20, energy: 9, note: "计分板", visibleText: ["3 : 2"] }]))
-      .toEqual([{ t: 20, energy: 9, note: "计分板", visibleText: ["3 : 2"] }]);
+  it("o texto na tela é preservado junto com a linha do tempo visual", () => {
+    expect(pickVisualNotes([{ t: 20, energy: 9, note: "placar", visibleText: ["3 : 2"] }]))
+      .toEqual([{ t: 20, energy: 9, note: "placar", visibleText: ["3 : 2"] }]);
   });
-  it("静态低能量画面的清晰文字仍可进入选段证据", () => {
-    expect(pickVisualNotes([{ t: 20, energy: 2, note: "PPT", visibleText: ["转化率提升 32%"] }]))
-      .toEqual([{ t: 20, energy: 2, note: "PPT", visibleText: ["转化率提升 32%"] }]);
+  it("o texto nítido de uma imagem estática de baixa energia ainda entra na evidência de seleção", () => {
+    expect(pickVisualNotes([{ t: 20, energy: 2, note: "slide", visibleText: ["conversão 32% maior"] }]))
+      .toEqual([{ t: 20, energy: 2, note: "slide", visibleText: ["conversão 32% maior"] }]);
   });
-  it("条数封顶", () => {
-    const many = Array.from({ length: 40 }, (_, i) => ({ t: i * 10, energy: 7, note: `画面${i}` }));
+  it("a quantidade de itens tem teto", () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ t: i * 10, energy: 7, note: `imagem ${i}` }));
     expect(pickVisualNotes(many)).toHaveLength(SCAN_NOTES_MAX);
   });
 });
 
-describe("collectVisionSignal 扫描档", () => {
+describe("collectVisionSignal no nível de varredura completa", () => {
   const config = { baseUrl: "http://localhost:11434/v1", model: "qwen3-vl:4b" };
-  /** 注入的研判:每格 energy 7 且带描述。 */
+  /** O julgamento injetado: cada célula com energy 7 e uma descrição. */
   const chat = async (_llm: unknown, _sys: string, user: string): Promise<string> => {
     const n = (user.match(/\d+=/g) ?? []).length;
-    const cells = Array.from({ length: n }, (_, i) => `{"i":${i + 1},"energy":7,"note":"画面${i + 1}"}`);
+    const cells = Array.from({ length: n }, (_, i) => `{"i":${i + 1},"energy":7,"note":"imagem ${i + 1}"}`);
     return `{"cells":[${cells.join(",")}]}`;
   };
-  const composeSheet = async (): Promise<string> => "ZmFrZQ=="; // 假 jpeg
+  const composeSheet = async (): Promise<string> => "ZmFrZQ=="; // jpeg falso
 
-  it("扫描档抽帧数按时长扩到快扫之上,并回流画面时刻线", async () => {
+  it("no nível de varredura, a quantidade de quadros cresce com a duração além da varredura rápida, e a linha do tempo visual volta", async () => {
     const out = await collectVisionSignal({
       videoPath: "/tmp/fake.mp4",
       durationSec: 3600,
@@ -72,12 +73,12 @@ describe("collectVisionSignal 扫描档", () => {
     expect(out!.stats.notedMoments).toBe(out!.visualNotes.length);
     expect(out!.visualNotes.length).toBeGreaterThan(0);
     expect(out!.visualNotes.length).toBeLessThanOrEqual(SCAN_NOTES_MAX);
-    // 时刻线按时间升序
+    // a linha do tempo vem em ordem crescente de tempo
     const ts = out!.visualNotes.map((n) => n.t);
     expect([...ts].sort((a, b) => a - b)).toEqual(ts);
   });
 
-  it("快扫档(缺省)不回流时刻线,统计不带 fullScan", async () => {
+  it("na varredura rápida (o padrão) a linha do tempo não volta, e a estatística não traz fullScan", async () => {
     const out = await collectVisionSignal({
       videoPath: "/tmp/fake.mp4",
       durationSec: 3600,

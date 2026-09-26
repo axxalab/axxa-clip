@@ -1,6 +1,6 @@
 /**
- * Highlight detection orchestrator: transcript → LLM selections → reverse
- * matching → validated HighlightCandidate list.
+ * Orquestrador da detecção de destaques: transcrição → seleções do LLM → busca
+ * reversa → lista validada de HighlightCandidate.
  */
 import type { Transcript } from "../transcribe/types";
 import type { MediaSignals } from "../signals";
@@ -39,8 +39,10 @@ import {
 } from "./moments";
 
 /**
- * 时长档过滤界:目标范围外放容差(下 0.5×/上 1.5×)——LLM 轻微超标的候选
- * 留给用户决定,离谱的直接丢;绝对下限 4 秒防碎片。
+ * Limites de filtragem da faixa de duração: uma folga em torno do alvo (metade
+ * abaixo e uma vez e meia acima) — os candidatos em que o LLM passou um pouco
+ * ficam para a pessoa decidir, e os absurdos são descartados; o piso absoluto é 4
+ * segundos, para evitar fragmento.
  */
 export function clipLengthBounds(length: ClipLength = "standard"): { lo: number; hi: number } {
   const r = CLIP_LENGTH_RANGES[length];
@@ -48,20 +50,23 @@ export function clipLengthBounds(length: ClipLength = "standard"): { lo: number;
 }
 
 /**
- * Pollinations' keyless tier serves a reasoning model with a small output
- * budget — without reasoning_effort:"low" it spends every token thinking and
- * returns empty content. Scoped to that host; real OpenAI rejects the param.
+ * O nível sem chave do Pollinations serve um modelo de raciocínio com orçamento
+ * de saída pequeno — sem reasoning_effort:"low" ele gasta cada token pensando e
+ * devolve conteúdo vazio. Isto vale só para aquele host; a OpenAI de verdade
+ * recusa o parâmetro.
  */
 export function extraParams(baseUrl: string): Record<string, unknown> {
   return /pollinations\.ai/i.test(baseUrl) ? { reasoning_effort: "low" } : {};
 }
 
 /**
- * Hybrid Qwen models default to thinking on several OpenAI-compatible hosts.
- * Highlight detection needs a short structured answer; spending the whole
- * completion budget on hidden reasoning produces an empty `content` field.
- * Keep this scoped to model ids that document the switch so ordinary OpenAI
- * compatible providers are not sent an unsupported parameter.
+ * Os modelos Qwen híbridos vêm com o raciocínio ligado em vários hosts
+ * compatíveis com OpenAI.
+ * A detecção de destaques precisa de uma resposta curta e estruturada; gastar o
+ * orçamento inteiro de conclusão em raciocínio escondido produz um campo
+ * `content` vazio.
+ * Isto fica restrito aos ids de modelo que documentam a chave, para que provedores
+ * compatíveis comuns não recebam um parâmetro sem suporte.
  */
 export function thinkingParams(model: string): Record<string, unknown> {
   return /(?:^|[/:-])qwen3(?:[.:-]|$)|(?:^|[/:-])qwq(?:[.:-]|$)/i.test(model)
@@ -69,20 +74,20 @@ export function thinkingParams(model: string): Record<string, unknown> {
     : {};
 }
 
-/** 单次调用的输出预算。注意:思考型模型的推理 token 也计入这份预算。 */
+/** Orçamento de saída de uma chamada. Atenção: os tokens de raciocínio dos modelos de raciocínio entram neste mesmo orçamento. */
 export const MAX_TOKENS = 4000;
-/** 空正文重试的放大预算:思考型模型把常规预算全烧在推理上时,给足空间再试一次。 */
+/** Orçamento ampliado da retentativa por conteúdo vazio: quando um modelo de raciocínio queima o orçamento normal só pensando, a segunda tentativa recebe espaço de sobra. */
 export const RETRY_MAX_TOKENS = 16000;
 
-/** 一次 chat 调用的三元结果:正文之外还带推理轨迹与收尾原因,供空响应诊断。 */
+/** O resultado em três partes de uma chamada de chat: além do conteúdo, vêm o rastro de raciocínio e o motivo do encerramento, para diagnosticar resposta vazia. */
 interface ChatAttempt {
   content: string;
-  /** 思考型模型的推理轨迹(reasoning_content 或 OpenRouter 风格的 reasoning)。 */
+  /** O rastro de raciocínio dos modelos de raciocínio (reasoning_content, ou reasoning no estilo do OpenRouter). */
   reasoning: string;
   finishReason: string;
 }
 
-/** 发一次 OpenAI 兼容请求。网络/HTTP/解析错误都带可执行的指引。 */
+/** Faz uma requisição compatível com OpenAI. Erros de rede, de HTTP e de leitura vêm todos com uma orientação executável. */
 async function chatAttempt(
   llm: LlmConfig,
   system: string,
@@ -116,25 +121,27 @@ async function chatAttempt(
   } catch (e) {
     signal?.throwIfAborted();
     if (e instanceof LlmTransportError) throw e;
-    // 连不上最常见的场景是「选了本地 Ollama 但没装/没启动」(issue #6)——
-    // 报错必须告诉用户下一步做什么,一句 fetch failed 只会把人留在原地
+    // O cenário mais comum de não conseguir conectar é "escolheu o Ollama local
+    // mas não instalou ou não iniciou" (issue #6) — a mensagem precisa dizer o
+    // próximo passo, porque um "fetch failed" seco só deixa a pessoa parada
     const hint = isLocalBaseUrl(llm.baseUrl)
-      ? "本机 LLM 服务没有响应:若用 Ollama,请先到 ollama.com 安装并启动,再运行 ollama pull 拉取模型;或点「连接 AI 模型」换云端供应商,填 API Key 即用。/ Local LLM not responding: install & start Ollama (ollama.com) and pull the model, or switch to a cloud provider with an API key."
-      : "请检查网络连接,并确认 Base URL 填写正确。/ Check your network and verify the Base URL.";
-    throw new Error(`无法连接 LLM 服务 / cannot reach LLM endpoint\n${hint}`);
+      ? "O serviço de LLM desta máquina não respondeu: se você usa o Ollama, instale e inicie a partir de ollama.com e rode ollama pull para baixar o modelo; ou clique em \"Conectar um modelo de IA\" e escolha um provedor de nuvem, colando uma chave de API. / Local LLM not responding: install & start Ollama (ollama.com) and pull the model, or switch to a cloud provider with an API key."
+      : "Confira sua conexão e verifique se a URL base está correta. / Check your network and verify the Base URL.";
+    throw new Error(`Não foi possível conectar ao serviço de LLM / cannot reach LLM endpoint\n${hint}`);
   }
   const text = res.text;
   if (!res.ok) {
-    // Ollama 在跑但模型没拉:404 补一句拉取命令,免得用户以为软件坏了
+    // O Ollama está rodando mas o modelo não foi baixado: no 404, o comando de
+    // download é acrescentado, para a pessoa não achar que o programa quebrou
     const retryWait = retryAfterMs(res.headers.get("retry-after"));
     const hint = isLocalBaseUrl(llm.baseUrl) && res.status === 404
-      ? `\n本机可能还没拉取这个模型:先运行 ollama pull ${llm.model} / model likely not pulled yet: run ollama pull ${llm.model}`
+      ? `\nEsta máquina provavelmente ainda não baixou este modelo: rode antes ollama pull ${llm.model} / model likely not pulled yet: run ollama pull ${llm.model}`
       : res.status === 429 || res.status === 503
         ? retryWait !== null && retryWait > 0
-          ? `\n服务商建议等待 ${Math.ceil(retryWait / 1000)} 秒后重试。/ Retry after ${Math.ceil(retryWait / 1000)} seconds.`
-          : "\n服务暂时不可用或额度受限，请稍后重试并检查服务状态与额度。/ Check service availability and quota, then retry later."
+          ? `\nO provedor sugere esperar ${Math.ceil(retryWait / 1000)} segundos antes de tentar de novo. / Retry after ${Math.ceil(retryWait / 1000)} seconds.`
+          : "\nO serviço está indisponível no momento ou a cota foi limitada; tente de novo mais tarde e confira o estado do serviço e a cota. / Check service availability and quota, then retry later."
         : "";
-    throw new Error(`LLM 请求失败 / LLM request failed (HTTP ${res.status}): ${modelErrorDetail(text, llm.apiKey)}${hint}`);
+    throw new Error(`A requisição ao LLM falhou / LLM request failed (HTTP ${res.status}): ${modelErrorDetail(text, llm.apiKey)}${hint}`);
   }
   let data: {
     choices?: Array<{
@@ -150,7 +157,7 @@ async function chatAttempt(
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("LLM 返回非 JSON 响应，请检查 Base URL。/ Non-JSON response; check the Base URL.");
+    throw new Error("O LLM devolveu uma resposta que não é JSON; verifique a URL base. / Non-JSON response; check the Base URL.");
   }
   const choice = data?.choices?.[0];
   const msg = choice?.message;
@@ -174,26 +181,35 @@ async function chatAttempt(
 }
 
 /**
- * Call an OpenAI-compatible chat endpoint. Throws with an actionable message.
+ * Chama um endpoint de chat compatível com OpenAI. Lança erro com uma mensagem
+ * executável.
  *
- * 空正文的三层处理(issue #8,多家平台的「深度思考」模型都会踩):
- * 1. 思考型模型把 4k 预算全烧在推理上(finish=length、只有 reasoning 没有
- *    content)——换 4 倍预算自动重试一次,多数场景直接救活;
- * 2. 个别网关把正文错放进 reasoning 字段(模型正常收尾但 content 为空)——
- *    直接取 reasoning 交给下游解析,解析不动自会走既有重试;
- * 3. 仍然空:按证据分因报错(思考模型烧预算/安全审查拦截/服务端偶发),
- *    每条都告诉用户下一步换什么。
+ * O tratamento de conteúdo vazio em três camadas (issue #8; os modelos de
+ * "raciocínio profundo" de várias plataformas caem nisso):
+ * 1. O modelo de raciocínio queima o orçamento de 4 mil tokens inteiro pensando
+ *    (finish=length, com reasoning e sem content) — a retentativa automática usa
+ *    quatro vezes o orçamento, o que resolve a maioria dos casos na hora;
+ * 2. Alguns gateways colocam o conteúdo no campo reasoning por engano (o modelo
+ *    encerra normalmente mas content fica vazio) — o reasoning é entregue direto
+ *    para a camada de leitura, e se não der para ler, a retentativa que já existe
+ *    entra em ação;
+ * 3. Continuando vazio: o erro é atribuído pela evidência (modelo de raciocínio
+ *    que queimou o orçamento, bloqueio da revisão de segurança, falha
+ *    esporádica do servidor), e cada caso diz o que a pessoa deve trocar.
  */
 export async function chatComplete(llm: LlmConfig, system: string, user: string, signal?: AbortSignal): Promise<string> {
-  // 参数回退与空正文重试共用时限和一次限流重试额度，不逐层放大请求次数。
+  // O recuo de parâmetro e a retentativa por conteúdo vazio compartilham o mesmo
+  // prazo e a mesma cota de uma retentativa por limite de taxa, sem multiplicar a
+  // quantidade de requisições camada por camada.
   const budget = llmRequestBudget(isLocalBaseUrl(llm.baseUrl) ? LLM_LOCAL_TIMEOUT_MS : LLM_REMOTE_TIMEOUT_MS, 1);
   let includeThinkingParam = Object.keys(thinkingParams(llm.model)).length > 0;
   let first: ChatAttempt;
   try {
     first = await chatAttempt(llm, system, user, signal, MAX_TOKENS, budget, includeThinkingParam);
   } catch (e) {
-    // A strict OpenAI-compatible gateway may reject the provider-specific
-    // switch. Retry once without it; ordinary HTTP/auth failures still throw.
+    // Um gateway estritamente compatível com OpenAI pode recusar a chave
+    // específica do provedor. A retentativa é feita uma vez sem ela; falhas
+    // comuns de HTTP e de autenticação continuam lançando erro.
     const message = e instanceof Error ? e.message : String(e);
     if (!includeThinkingParam || !/HTTP 400/i.test(message) || !/thinking|unknown parameter|unsupported/i.test(message)) throw e;
     includeThinkingParam = false;
@@ -201,8 +217,10 @@ export async function chatComplete(llm: LlmConfig, system: string, user: string,
   }
   if (first.content) return first.content;
   if (first.reasoning && first.finishReason !== "length") return first.reasoning;
-  // 大预算重试自身的报错(比如超过模型输出上限的 400)不覆盖「空响应」这个
-  // 更准的诊断;用户主动取消照常中断
+  // O erro da própria retentativa com orçamento grande (um 400 por passar do
+  // limite de saída do modelo, por exemplo) não substitui o diagnóstico mais
+  // preciso de "resposta vazia"; um cancelamento pedido pela pessoa interrompe
+  // normalmente
   let retry: ChatAttempt | null = null;
   try {
     retry = await chatAttempt(llm, system, user, signal, RETRY_MAX_TOKENS, budget, includeThinkingParam);
@@ -213,32 +231,37 @@ export async function chatComplete(llm: LlmConfig, system: string, user: string,
   if (retry?.content) return retry.content;
   if (retry?.reasoning && retry.finishReason !== "length") return retry.reasoning;
   const filtered = first.finishReason === "content_filter" || retry?.finishReason === "content_filter";
-  // 没吐 reasoning 也可能在思考:部分服务商隐藏推理轨迹,但 finish=length
-  // 且正文为空,预算只可能是被思考吃掉的
+  // Sem devolver reasoning ainda é possível que o modelo esteja pensando: alguns
+  // provedores esconderam o rastro de raciocínio, mas com finish=length e conteúdo
+  // vazio, o orçamento só pode ter sido consumido pelo pensamento
   const thinking =
     Boolean(first.reasoning || retry?.reasoning) ||
     first.finishReason === "length" ||
     retry?.finishReason === "length";
   const hint = filtered
-    ? "内容被服务商的安全审查拦截了,请换一家供应商或换一段素材。/ Blocked by the provider's content filter — try another provider or different footage."
+    ? "O conteúdo foi bloqueado pela revisão de segurança do provedor; troque de provedor ou use outro material. / Blocked by the provider's content filter — try another provider or different footage."
     : thinking
-      ? "当前模型是「深度思考」模型,思考过程就把输出预算烧完了。请在模型列表换它的非思考版本(通常带 instruct/chat 字样,或平台上可关闭深度思考),或换常规对话模型。/ This is a reasoning model that spends the whole output budget thinking — switch to its non-thinking variant (usually named instruct/chat) or a regular chat model."
-      : "服务商返回了空内容,可点重试;若持续出现请换个模型。/ The provider returned empty content — retry, or switch models if it persists.";
-  throw new Error(`LLM 未返回内容 / empty LLM response\n${hint}`);
+      ? "O modelo atual é de \"raciocínio profundo\", e o próprio processo de pensar consumiu todo o orçamento de saída. Na lista de modelos, troque pela versão sem raciocínio dele (em geral com instruct ou chat no nome, ou com o raciocínio profundo desligável na plataforma), ou escolha um modelo de conversa comum. / This is a reasoning model that spends the whole output budget thinking — switch to its non-thinking variant (usually named instruct/chat) or a regular chat model."
+      : "O provedor devolveu conteúdo vazio; você pode tentar de novo, e se continuar acontecendo, troque de modelo. / The provider returned empty content — retry, or switch models if it persists.";
+  throw new Error(`O LLM não devolveu conteúdo / empty LLM response\n${hint}`);
 }
 
-/** 要 JSON 的调用最多试几次(1 次重试)。 */
+/** Quantas tentativas no máximo para uma chamada que espera JSON (1 retentativa). */
 export const JSON_ATTEMPTS = 2;
 
 /**
- * 要 JSON 的调用:解析失败就重来一次。
+ * Chamada que espera JSON: uma falha de leitura provoca uma nova tentativa.
  *
- * 为什么需要:实测主流服务商会**偶发在 JSON 中间吐出杂质 token**——
- * `"score":数和 90`、`"endSegmentId": to 3`、`"momentId": vii`、`"score": —`
- * 都真实出现过,整份响应因此不是合法 JSON。这不是提示词能修的(同一份提示词
- * 重发一次就干净了),而不重试的代价是用户看到「找爆点失败」、整轮白跑。
+ * Por que isso é necessário: na prática, os provedores conhecidos **emitem de vez
+ * em quando um token sujo no meio do JSON** — `"score": mais ou menos 90`,
+ * `"endSegmentId": to 3`, `"momentId": vii` e `"score": —` já apareceram de
+ * verdade, e por causa disso a resposta inteira deixa de ser JSON válido. Isso não
+ * é algo que o prompt resolva (reenviar o mesmo prompt já vem limpo), e o preço de
+ * não tentar de novo é a pessoa ver "a busca de destaques falhou" e perder a
+ * rodada inteira.
  *
- * 只重试解析失败;网络/鉴权错误直接抛(重试也没用),用户取消立即中断。
+ * Só a falha de leitura é repetida; erros de rede e de autenticação são lançados
+ * direto (repetir não resolveria), e um cancelamento da pessoa interrompe na hora.
  */
 export async function chatCompleteJson<T>(
   llm: LlmConfig,
@@ -261,9 +284,11 @@ export async function chatCompleteJson<T>(
 }
 
 /**
- * 解析多片段拼接的 parts 数组(缺省/畸形一律当作没写,退回单段)。
- * 每段至少要有引文或有效句 id 才收;超过 MAX_PIECES 的多余段在 normalizePieces
- * 里按时长取舍,这里只做防爆量截断。
+ * Lê o array parts da costura de vários trechos (ausente ou malformado conta como
+ * não informado, voltando para trecho único).
+ * Cada trecho só é aceito se tiver pelo menos a citação ou um id de frase válido;
+ * os trechos que passam de MAX_PIECES são escolhidos por duração dentro de
+ * normalizePieces, e aqui só existe o corte que evita volume excessivo.
  */
 export function parseParts(raw: unknown): RawPart[] | undefined {
   if (!Array.isArray(raw) || raw.length < 2) return undefined;
@@ -285,16 +310,16 @@ export function parseParts(raw: unknown): RawPart[] | undefined {
   return out.length >= 2 ? out : undefined;
 }
 
-/** Parse + validate the LLM's clips JSON into RawSelections (drops malformed rows). */
+/** Lê e valida o JSON de clipes do LLM, transformando em RawSelections (as linhas malformadas são descartadas). */
 export function parseSelections(content: string): RawSelection[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(extractJson(content));
   } catch {
-    throw new Error(`LLM 返回的内容不是合法 JSON / invalid JSON: ${content.slice(0, 200)}`);
+    throw new Error(`O conteúdo devolvido pelo LLM não é JSON válido / invalid JSON: ${content.slice(0, 200)}`);
   }
   const clips = (parsed as { clips?: unknown[] })?.clips;
-  if (!Array.isArray(clips)) throw new Error("LLM 输出缺少 clips 数组 / missing clips array");
+  if (!Array.isArray(clips)) throw new Error("A saída do LLM não tem o array clips / missing clips array");
   const out: RawSelection[] = [];
   for (const c of clips) {
     if (typeof c !== "object" || c === null) continue;
@@ -306,7 +331,7 @@ export function parseSelections(content: string): RawSelection[] {
     if (!quoteStart && !Number.isFinite(startSegmentId)) continue;
     out.push({
       parts: parseParts(r.parts),
-      title: String(r.title ?? "").trim() || "未命名片段",
+      title: String(r.title ?? "").trim() || "Trecho sem nome",
       hook: String(r.hook ?? "").trim(),
       score: Math.max(0, Math.min(100, Number(r.score) || 0)),
       reason: String(r.reason ?? "").trim(),
@@ -322,7 +347,7 @@ export function parseSelections(content: string): RawSelection[] {
   return out;
 }
 
-/** 信号通道的一条选择:LLM 只报时刻编号,不引用原话。 */
+/** Uma escolha do canal de sinais: o LLM só informa o número do momento, sem citar a fala. */
 export interface RawMomentPick {
   momentId: number;
   title: string;
@@ -332,16 +357,16 @@ export interface RawMomentPick {
   keywords: string[];
 }
 
-/** 解析信号通道的输出(畸形行丢弃)。 */
+/** Lê a saída do canal de sinais (as linhas malformadas são descartadas). */
 export function parseMomentPicks(content: string): RawMomentPick[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(extractJson(content));
   } catch {
-    throw new Error(`LLM 返回的内容不是合法 JSON / invalid JSON: ${content.slice(0, 200)}`);
+    throw new Error(`O conteúdo devolvido pelo LLM não é JSON válido / invalid JSON: ${content.slice(0, 200)}`);
   }
   const clips = (parsed as { clips?: unknown[] })?.clips;
-  if (!Array.isArray(clips)) throw new Error("LLM 输出缺少 clips 数组 / missing clips array");
+  if (!Array.isArray(clips)) throw new Error("A saída do LLM não tem o array clips / missing clips array");
   const out: RawMomentPick[] = [];
   for (const c of clips) {
     if (typeof c !== "object" || c === null) continue;
@@ -350,7 +375,7 @@ export function parseMomentPicks(content: string): RawMomentPick[] {
     if (!Number.isFinite(momentId)) continue;
     out.push({
       momentId,
-      title: String(r.title ?? "").trim() || "未命名片段",
+      title: String(r.title ?? "").trim() || "Trecho sem nome",
       hook: String(r.hook ?? "").trim(),
       score: Math.max(0, Math.min(100, Number(r.score) || 0)),
       reason: String(r.reason ?? "").trim(),
@@ -362,7 +387,7 @@ export function parseMomentPicks(content: string): RawMomentPick[] {
   return out;
 }
 
-/** 落在 [startSec, endSec] 内的整句文本(信号候选的展示文本)。 */
+/** O texto das frases inteiras que caem em [startSec, endSec] (é o texto exibido dos candidatos vindos de sinal). */
 export function textInRange(transcript: Transcript, startSec: number, endSec: number): string {
   return transcript.segments
     .filter((s) => s.endSec > startSec && s.startSec < endSec)
@@ -371,8 +396,10 @@ export function textInRange(transcript: Transcript, startSec: number, endSec: nu
 }
 
 /**
- * 把 LLM 的时刻选择落成候选。时间完全由信号给定(不做任何反查),
- * boundary 标 "signal" —— UI 和回执要能看出这条不是按原话切的。
+ * Transforma as escolhas de momento do LLM em candidatos. O tempo vem
+ * inteiramente dos sinais (sem nenhuma busca reversa), e boundary é marcado como
+ * "signal" — a interface e o comprovante precisam deixar ver que este candidato
+ * não foi cortado a partir da fala.
  */
 export function momentsToCandidates(
   transcript: Transcript,
@@ -383,7 +410,7 @@ export function momentsToCandidates(
   const out: HighlightCandidate[] = [];
   for (const p of picks) {
     const m = byId.get(p.momentId);
-    if (!m) continue; // 编号是编的,丢弃——绝不猜时间
+    if (!m) continue; // o número foi inventado, então é descartado — o tempo nunca é adivinhado
     const text = textInRange(transcript, m.startSec, m.endSec);
     out.push({
       id: out.length + 1,
@@ -395,7 +422,7 @@ export function momentsToCandidates(
       score: p.score,
       reason: p.reason,
       boundary: "signal",
-      // 关键词可能来自画面描述而非原话,所以这里不做"必须在片内出现"的过滤
+      // As palavras-chave podem vir da descrição da imagem e não da fala, então aqui não existe o filtro de "precisa aparecer dentro do clipe"
       keywords: p.keywords,
       recommended: true,
       reviewNote: "",
@@ -415,7 +442,7 @@ export interface ScoreDims {
 export interface ReviewVerdict {
   id: number;
   keep: boolean;
-  /** 质量门三档(v0.13)。老模型不吐 verdict 时由 keep 推导(true→publish,false→review 保守档)。 */
+  /** Os três níveis da porta de qualidade (v0.13). Quando um modelo antigo não devolve verdict, o nível é deduzido do keep (true → publish, false → o nível conservador review). */
   gate: GateTier;
   score: number;
   note: string;
@@ -456,8 +483,10 @@ export function parseReviews(content: string): ReviewVerdict[] {
     const dims = hasDims
       ? { hook: clamp(v.hook), flow: clamp(v.flow), value: clamp(v.value), trend: clamp(v.trend) }
       : undefined;
-    // 三档判决:非法/缺省时由 keep 推导——keep=false 走保守的 review 档
-    // (老模型没见过 verdict 字段,不能把它的否决直接判成 drop)
+    // Julgamento em três níveis: quando é inválido ou ausente, o nível é deduzido
+    // do keep — keep=false vai para o conservador review
+    // (modelos antigos nunca viram o campo verdict, então a recusa deles não pode
+    // ser convertida direto em drop)
     const rawVerdict = String(v.verdict ?? "");
     const gate: GateTier =
       rawVerdict === "publish" || rawVerdict === "review" || rawVerdict === "drop"
@@ -497,7 +526,7 @@ export function applyReviews(candidates: HighlightCandidate[], reviews: ReviewVe
       score: r.score || c.score,
       recommended: r.keep,
       reviewNote: r.note,
-      // 质量门三档落进候选;drop 的理由必须让人看得见(UI 弃片折叠区展示)
+      // Os três níveis da porta de qualidade entram no candidato; o motivo de um drop precisa ficar visível (a interface mostra na área recolhida de descartados)
       gate: r.gate,
       gateNotes: r.note ? [r.note] : undefined,
       scoreDims: r.dims,
@@ -527,15 +556,16 @@ export function normalizeScores(candidates: HighlightCandidate[]): HighlightCand
   return candidates.map((c) => ({ ...c, score: (c.recommended ? rec : rej).get(c.id) ?? c.score }));
 }
 
-/** 实际占用的源片区间:多段拼接按段比,否则按整段跨度。 */
+/** O intervalo da origem que de fato é ocupado: numa costura de vários trechos é a comparação trecho a trecho, e fora disso é o intervalo inteiro. */
 function occupiedRanges(c: HighlightCandidate): ClipPiece[] {
   return c.pieces && c.pieces.length > 1 ? c.pieces : [{ startSec: c.startSec, endSec: c.endSec }];
 }
 
 /**
  * Drop overlapping candidates, keeping higher scores (they arrive score-sorted).
- * 多段拼接按「段与段」比重叠——否则一条横跨十几分钟的拼接片会把中间所有
- * 候选全吃掉,而它其实只占用了两小段。
+ * Uma costura de vários trechos compara a sobreposição "trecho por trecho" — do
+ * contrário, um clipe costurado que atravessa quinze minutos engoliria todos os
+ * candidatos do meio, quando na verdade ele só ocupa dois trechos curtos.
  */
 export function dropOverlaps(candidates: HighlightCandidate[]): HighlightCandidate[] {
   const kept: HighlightCandidate[] = [];
@@ -551,14 +581,17 @@ export function dropOverlaps(candidates: HighlightCandidate[]): HighlightCandida
 
 export interface DetectOutcome {
   candidates: HighlightCandidate[];
-  /** 本地初筛生效时的漏斗统计;未启用或回退全文时缺省。 */
+  /** Estatística do funil quando a triagem local entra em ação; ausente quando não é usada ou quando volta ao texto completo. */
   funnel?: FunnelStats;
 }
 
 /** Full detection pass. */
 /**
- * 商品词确定性并入候选 keywords:片文本真实包含才算命中(拉丁忽略大小写),
- * 去重保序——关键词字幕的商品强调、发布文案的话题都从这里受益。纯函数。
+ * Junta de forma determinística os produtos nas keywords do candidato: só conta
+ * quando o texto do clipe realmente os contém (em alfabeto latino, ignorando
+ * maiúsculas), sem repetição e preservando a ordem — a ênfase de produto na
+ * legenda de palavras-chave e as hashtags do texto de publicação se beneficiam
+ * daqui. Função pura.
  */
 export function mergeProductKeywords(keywords: string[], clipText: string, products: string[]): string[] {
   if (products.length === 0) return keywords;
@@ -578,32 +611,36 @@ export async function detectHighlights(
   products?: string[],
   reference?: ReferenceProfile,
   reviewMemory?: ReviewRecord[],
-  /** 直播品类判据(内置预设 id + 用户自定义文本,见 core/genre.ts)。 */
+  /** Critérios do gênero da transmissão (o id do preset interno mais o texto personalizado; veja core/genre.ts). */
   genre?: { id?: string; custom?: string },
-  /** 用户点题:重点找什么/明确排除什么(v0.13,见 prompt.briefSection)。 */
+  /** Briefing do usuário: o que procurar e o que excluir explicitamente (v0.13; veja prompt.briefSection). */
   brief?: { focus?: string; exclude?: string },
-  /** 用户导入的真实发布表现(本地记忆,只注入高/低表现摘要)。 */
+  /** O desempenho real das publicações que a pessoa importou (memória local; só o resumo de alto e baixo desempenho é injetado). */
   performanceMemory?: PerformanceEntry[]
 ): Promise<DetectOutcome> {
   if (transcript.segments.length === 0) return { candidates: [] };
   const pt = isPortugueseTranscript(transcript);
 
-  // 主播口令打点(v0.13):「这段剪下来/clip that」是主播自证的爆点,纯文本
-  // 扫描零成本,所有调用方(桌面/watch/MCP)自动获得。滞后标记的用法交给
-  // 提示词交代(内容在口令之前)。
+  // Marcação do pedido de corte de quem transmite (v0.13): "corta esse pedaço" ou
+  // "clip that" é um destaque que a própria pessoa certificou, a varredura é só de
+  // texto e custa zero, e todos os pontos de entrada (desktop, monitoramento, MCP)
+  // ganham isso automaticamente. Como usar essa marca, que é atrasada, fica a cargo
+  // do prompt (o conteúdo está antes do pedido).
   const commandMarks = detectClipCommands(transcript);
   if (commandMarks.length > 0) {
     signals = { loudPeaks: [], cutDense: [], ...signals, clipCommandMarks: commandMarks };
   }
 
-  // 两级漏斗第一级:本地小模型圈入围区间,云端只精读入围部分。
-  // 任何失败静默回退全文(反查仍然用全量转写,所以下游完全无感)。
+  // Primeiro nível do funil de dois estágios: o modelo pequeno local delimita os
+  // intervalos selecionados, e a nuvem só lê com atenção essa parte.
+  // Qualquer falha volta em silêncio ao texto completo (a busca reversa continua
+  // usando a transcrição inteira, então quem está adiante não sente nada).
   let promptTranscript = transcript;
   let funnel: FunnelStats | undefined;
   if (prefilter?.baseUrl && prefilter.model) {
     const local: LlmConfig = { baseUrl: prefilter.baseUrl, apiKey: "ollama", model: prefilter.model };
     const outcome = await prefilterTranscript(transcript, local, chatComplete, signal).catch((e) => {
-      // 上游主动取消要中断整个检测;其余错误回退全文
+      // Um cancelamento pedido de cima interrompe a detecção inteira; os outros erros voltam ao texto completo
       if (signal?.aborted) throw e;
       return null;
     });
@@ -626,7 +663,8 @@ export async function detectHighlights(
   for (const sel of selections) {
     const resolved = resolveSelection(transcript, sel);
     if (!resolved) continue;
-    // 时长按「成片时长」算:多段拼接是各段之和,不是跨度(跨度可能有十几分钟)
+    // A duração é contada como "duração do vídeo final": numa costura de vários
+    // trechos é a soma deles, e não o intervalo (que pode ter quinze minutos)
     const dur = clipDurationSec(resolved);
     if (dur < lo || dur > hi) continue;
     candidates.push({
@@ -641,8 +679,10 @@ export async function detectHighlights(
       reason: sel.reason,
       boundary: resolved.boundary,
       // keep only keywords the clip actually contains — hallucinated ones
-      // would silently no-op in caption highlighting anyway;商品词命中的
-      // 确定性补齐(不依赖 LLM 记得写),关键词字幕/发布文案都能吃到
+      // de qualquer forma não faria nada na ênfase da legenda; o preenchimento
+      // determinístico dos produtos encontrados (sem depender de o LLM lembrar de
+      // escrever) beneficia tanto a legenda de palavras-chave quanto o texto de
+      // publicação
       keywords: mergeProductKeywords(
         sel.keywords.filter((k) => resolved.text.toLowerCase().includes(k.toLowerCase())),
         resolved.text,
@@ -654,9 +694,12 @@ export async function detectHighlights(
   }
   const textKept = dropOverlaps(candidates);
 
-  // 信号驱动通道:文字稿没内容的品类(舞见/萌宠/美食/户外/游戏/电台…)靠
-  // 引用原话根本挑不出东西,改从视听信号融合出的「高能时刻」里挑。
-  // fail-open:这一路任何失败都只是没有额外候选,绝不拖垮文本通道的结果。
+  // Canal guiado por sinal: nos gêneros em que a transcrição não tem conteúdo
+  // (dança, pets, comida, rua, jogos, rádio…) não há como escolher nada citando a
+  // fala, então a escolha passa a sair dos "momentos de alta energia" que vêm da
+  // fusão dos sinais de imagem e som.
+  // É fail-open: qualquer falha por aqui significa apenas ficar sem candidatos
+  // extras, e nunca derruba o resultado do canal de texto.
   const evidence: EvidenceClass = genrePreset(normalizeGenreId(genre?.id)).evidence;
   const ratio = speechRatio(transcript);
   let momentKept: HighlightCandidate[] = [];
@@ -674,13 +717,18 @@ export async function detectHighlights(
   // completeness and standalone value; weak clips get flagged (not silently
   // dropped) so the UI can default-deselect them and hands-off mode skips
   // them. Fail-open: a broken review call must never take down detection.
-  // 复评的上下文用全量转写(不是漏斗后的)——评审要看片段前后文防断章取义。
+  // O contexto da reavaliação usa a transcrição inteira (e não a que passou pelo funil) — quem revisa precisa ver o antes e o depois do trecho para não deixar passar uma distorção de sentido.
   //
-  // 信号候选**不送复评**:复评的四个维度(钩子/结构/价值/热点)全部按"读文本"
-  // 打分,拿它去评一段跳舞或萌宠,必然全判死刑——那正是这条通道要救的品类。
-  // applyReviews 对没评到的 id 本来就保持原样(fail-open),所以直接跳过即可。
-  // 质量门规则层收尾:无论复评走不走/成不成,确定性硬伤检查都要跑
-  // (只降档到 review、不 drop,fail-open 见 gate.ts)。
+  // Os candidatos vindos de sinal **não são enviados à reavaliação**: as quatro
+  // dimensões dela (gancho, estrutura, valor e tendência) dão nota lendo o texto,
+  // e usar isso para avaliar um trecho de dança ou de pets condenaria todos eles —
+  // que são justamente os gêneros que este canal existe para salvar.
+  // O applyReviews já mantém como estão os ids que não foram avaliados (fail-open),
+  // então basta pular.
+  // A camada de regras da porta de qualidade fecha a etapa: a checagem
+  // determinística dos defeitos evidentes roda sempre, com ou sem reavaliação e
+  // independente de ela dar certo
+  // (só rebaixa até review e nunca dá drop; o fail-open está em gate.ts).
   // A densidade útil dá o bônus depois da reavaliação (que sobrescreve score) e antes da normalização (porque precisa afetar a ordenação).
   const finish = (list: HighlightCandidate[]): HighlightCandidate[] =>
     applyRuleGate(transcript, normalizeScores(applyUtilitySignal(list, pt)), pt);
@@ -730,8 +778,10 @@ export function applyUtilitySignal(candidates: HighlightCandidate[], pt: boolean
 }
 
 /**
- * 信号通道的一趟检测:融合信号取时刻 → LLM 按编号挑 → 落成候选。
- * 时间全程由信号给定,LLM 不需要(也不允许)引用原话。
+ * Uma passagem de detecção pelo canal de sinais: os sinais fundidos dão os
+ * momentos → o LLM escolhe pelo número → os escolhidos viram candidatos.
+ * O tempo vem inteiramente dos sinais, e o LLM não precisa (nem tem permissão
+ * para) citar a fala.
  */
 export async function detectMoments(
   transcript: Transcript,
@@ -742,9 +792,10 @@ export async function detectMoments(
   signal?: AbortSignal
 ): Promise<HighlightCandidate[]> {
   const range = CLIP_LENGTH_RANGES[length ?? "standard"];
-  // words 类走到这里说明是"说话太少/文本通道没产出"触发的,按 reaction 权重兜底
+  // Chegar aqui com a classe words significa que o gatilho foi "fala de menos" ou
+  // "o canal de texto não produziu nada", então o peso de reaction serve de reserva
   const weights = MOMENT_WEIGHTS[evidence === "visual" ? "visual" : "reaction"];
-  // 融合出来的全量时刻按热度收敛到提示词上限——给太多选项反而让模型交白卷
+  // Todos os momentos que saíram da fusão são reduzidos por intensidade até o teto do prompt — dar opções demais faz o modelo entregar folha em branco
   const moments = topMoments(
     fuseMoments(signals, transcript.durationSec, {
       weights,
