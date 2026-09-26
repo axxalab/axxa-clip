@@ -654,7 +654,7 @@ const browserMock: HotClipApi = {
     await sleep(1500);
     // 浏览器预览:给了参考视频就演示一份画像
     const reference = referencePath
-      ? { durationSec: 42, speechRate: 5.2, avgSentenceLen: 14, cutsPerMin: 18, hookLine: "你敢信这是同一个人剪的?", zh: true }
+      ? { durationSec: 42, speechRate: 5.2, avgSentenceLen: 14, cutsPerMin: 18, hookLine: "Você acredita que foi a mesma pessoa que editou isso?", charUnits: false }
       : undefined;
     // 浏览器预览:开了本地初筛就演示一份漏斗统计
     const funnel = prefilter

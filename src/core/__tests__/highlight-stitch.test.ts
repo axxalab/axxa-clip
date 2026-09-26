@@ -1,6 +1,8 @@
 /**
- * 多片段拼接的检测侧:parts 解析 → 逐段反查 → 规整 → 时长/重叠口径。
- * 「前后打脸」这类爆点必须引用相隔很远的两处内容,靠的就是这条路径。
+ * Lado da detecção na costura de vários trechos: leitura de parts → busca
+ * reversa de cada trecho → organização → critério de duração e de sobreposição.
+ * Destaques do tipo "contradição" precisam citar dois pontos bem distantes um do
+ * outro, e é por este caminho que isso acontece.
  */
 import { describe, it, expect } from "vitest";
 import { resolveSelection, type RawSelection } from "../highlight/match";
@@ -10,7 +12,7 @@ import { PIECE_JOINER } from "../../shared/pieces";
 import type { Transcript, TranscriptWord } from "../transcribe/types";
 import type { HighlightCandidate } from "../../shared/api-types";
 
-/** 逐字 0.2s 的中文转写;句间留 gapSec 好把两段拉开距离。 */
+/** Transcrição com um token de 0,2s por caractere; gapSec entre as frases serve para afastar os dois trechos. */
 function makeTranscript(sentences: string[], gapSec = 0.5): Transcript {
   let t = 0;
   let id = 0;
@@ -25,53 +27,53 @@ function makeTranscript(sentences: string[], gapSec = 0.5): Transcript {
     t = seg.endSec + gapSec;
     return seg;
   });
-  return { language: "zh", segments, engine: "test", durationSec: t };
+  return { language: "pt", segments, engine: "test", durationSec: t };
 }
 
-/** 前后打脸的典型素材:先立誓,中间一大段无关内容,后面自己打脸。 */
+/** Material típico de contradição: primeiro a promessa, no meio um assunto sem relação, e no fim a pessoa se desmentindo. */
 const FLIP = makeTranscript(
   [
-    "我今天把话放在这儿,这个价格绝对绝对不会降。",
-    "接下来我们聊点别的东西吧朋友们。",
-    "这段中间的内容跟前后都没有关系。",
-    "行吧那我今天就给大家降到七十九块钱。",
+    "Eu vou deixar registrado aqui, esse preço não vai baixar de jeito nenhum.",
+    "Agora vamos falar de outra coisa, pessoal.",
+    "Esse trecho do meio não tem relação nenhuma com o resto.",
+    "Beleza, então hoje eu vou baixar para setenta e nove reais.",
   ],
-  30 // 句间隔 30 秒,足够拉开成两段
+  30 // 30 segundos entre as frases, o suficiente para virarem dois trechos separados
 );
 
 const base = { title: "t", hook: "h", score: 90, reason: "r", keywords: [] };
 
 describe("parseParts", () => {
-  it("少于两段视为没写(退回单段定位)", () => {
-    expect(parseParts([{ quoteStart: "只有一段" }])).toBeUndefined();
+  it("menos de dois trechos conta como não informado (volta para a localização de trecho único)", () => {
+    expect(parseParts([{ quoteStart: "só um trecho" }])).toBeUndefined();
     expect(parseParts(undefined)).toBeUndefined();
-    expect(parseParts("不是数组")).toBeUndefined();
+    expect(parseParts("não é um array")).toBeUndefined();
   });
 
-  it("解析两段,句 id 缺失时填 -1(下游退回引文反查)", () => {
+  it("lê os dois trechos e preenche -1 quando falta o id da frase (adiante a busca volta a ser pela citação)", () => {
     const out = parseParts([
-      { startSegmentId: 1, endSegmentId: 1, quoteStart: "我今天", quoteEnd: "不会降。" },
-      { quoteStart: "行吧那我", quoteEnd: "七十九块钱。" },
+      { startSegmentId: 1, endSegmentId: 1, quoteStart: "Eu vou deixar", quoteEnd: "de jeito nenhum." },
+      { quoteStart: "Beleza, então", quoteEnd: "setenta e nove reais." },
     ]);
     expect(out).toHaveLength(2);
     expect(out![0].startSegmentId).toBe(1);
     expect(out![1].startSegmentId).toBe(-1);
   });
 
-  it("剔掉既没引文也没句 id 的空段;剩不足两段就整个不算", () => {
-    expect(parseParts([{ quoteStart: "有引文" }, { title: "空的" }])).toBeUndefined();
+  it("descarta o trecho vazio, sem citação e sem id de frase; sobrando menos de dois, nada vale", () => {
+    expect(parseParts([{ quoteStart: "tem citação" }, { title: "vazio" }])).toBeUndefined();
   });
 
-  it("parseSelections 把 parts 带进 RawSelection", () => {
+  it("parseSelections leva parts para dentro de RawSelection", () => {
     const out = parseSelections(
       JSON.stringify({
         clips: [
           {
-            title: "打脸", score: 90, startSegmentId: 1, endSegmentId: 4,
-            quoteStart: "我今天", quoteEnd: "七十九块钱。",
+            title: "contradição", score: 90, startSegmentId: 1, endSegmentId: 4,
+            quoteStart: "Eu vou deixar", quoteEnd: "setenta e nove reais.",
             parts: [
-              { startSegmentId: 1, endSegmentId: 1, quoteStart: "我今天", quoteEnd: "不会降。" },
-              { startSegmentId: 4, endSegmentId: 4, quoteStart: "行吧那我", quoteEnd: "七十九块钱。" },
+              { startSegmentId: 1, endSegmentId: 1, quoteStart: "Eu vou deixar", quoteEnd: "de jeito nenhum." },
+              { startSegmentId: 4, endSegmentId: 4, quoteStart: "Beleza, então", quoteEnd: "setenta e nove reais." },
             ],
           },
         ],
@@ -81,18 +83,18 @@ describe("parseParts", () => {
   });
 });
 
-describe("resolveSelection with parts", () => {
+describe("resolveSelection com parts", () => {
   const sel: RawSelection = {
     ...base,
     startSegmentId: 1, endSegmentId: 4,
-    quoteStart: "我今天把话放在这儿", quoteEnd: "七十九块钱。",
+    quoteStart: "Eu vou deixar registrado aqui", quoteEnd: "setenta e nove reais.",
     parts: [
-      { startSegmentId: 1, endSegmentId: 1, quoteStart: "我今天把话放在这儿", quoteEnd: "绝对不会降。" },
-      { startSegmentId: 4, endSegmentId: 4, quoteStart: "行吧那我今天", quoteEnd: "七十九块钱。" },
+      { startSegmentId: 1, endSegmentId: 1, quoteStart: "Eu vou deixar registrado aqui", quoteEnd: "não vai baixar de jeito nenhum." },
+      { startSegmentId: 4, endSegmentId: 4, quoteStart: "Beleza, então hoje", quoteEnd: "setenta e nove reais." },
     ],
   };
 
-  it("两段各自反查,跨度取首尾,段清单按时间序", () => {
+  it("cada trecho é localizado por conta própria, o intervalo pega as pontas e a lista sai em ordem de tempo", () => {
     const r = resolveSelection(FLIP, sel);
     expect(r).not.toBeNull();
     expect(r!.pieces).toHaveLength(2);
@@ -101,115 +103,115 @@ describe("resolveSelection with parts", () => {
     expect(r!.pieces![0].endSec).toBeLessThan(r!.pieces![1].startSec);
   });
 
-  it("展示文本用省略标记连接——评审和用户必须看得出中间跳了", () => {
+  it("o texto exibido é ligado por reticências — quem revisa e quem usa precisa ver que houve um salto no meio", () => {
     const r = resolveSelection(FLIP, sel);
     expect(r!.text).toContain(PIECE_JOINER.trim());
-    expect(r!.text).toContain("不会降");
-    expect(r!.text).toContain("七十九");
-    // 中间那两句无关内容不能混进来
-    expect(r!.text).not.toContain("聊点别的");
+    expect(r!.text).toContain("não vai baixar");
+    expect(r!.text).toContain("setenta e nove");
+    // As duas frases sem relação do meio não podem entrar junto
+    expect(r!.text).not.toContain("falar de outra coisa");
   });
 
-  it("乱序给的 parts 会被排回时间序(成片不能倒放剧情)", () => {
+  it("parts fora de ordem são recolocadas em ordem de tempo (o vídeo final não pode contar a história de trás para frente)", () => {
     const r = resolveSelection(FLIP, { ...sel, parts: [sel.parts![1], sel.parts![0]] });
     expect(r!.pieces![0].startSec).toBeLessThan(r!.pieces![1].startSec);
-    expect(r!.text.indexOf("不会降")).toBeLessThan(r!.text.indexOf("七十九"));
+    expect(r!.text.indexOf("não vai baixar")).toBeLessThan(r!.text.indexOf("setenta e nove"));
   });
 
-  it("有一段反查不到就退回单段(顶层引文仍然管用),不是整条丢掉", () => {
+  it("se um dos trechos não for localizado, volta para trecho único (a citação de topo continua valendo) em vez de descartar o candidato inteiro", () => {
     const r = resolveSelection(FLIP, {
       ...sel,
-      parts: [sel.parts![0], { startSegmentId: 9, endSegmentId: 9, quoteStart: "这句根本不存在", quoteEnd: "也不存在" }],
+      parts: [sel.parts![0], { startSegmentId: 9, endSegmentId: 9, quoteStart: "esta frase não existe", quoteEnd: "e esta também não" }],
     });
     expect(r).not.toBeNull();
     expect(r!.pieces).toBeUndefined();
     expect(r!.startSec).toBeCloseTo(FLIP.segments[0].startSec, 2);
   });
 
-  it("两段挨得太近会被合并 → 不足两段 → 退回单段", () => {
-    const near = makeTranscript(["前面这句话说得很满。", "后面这句立刻就打脸了。"], 0.4);
+  it("trechos perto demais são fundidos → sobra menos de dois → volta para trecho único", () => {
+    const near = makeTranscript(["A frase anterior prometeu muita coisa.", "A frase seguinte já desmentiu na hora."], 0.4);
     const r = resolveSelection(near, {
       ...base,
       startSegmentId: 1, endSegmentId: 2,
-      quoteStart: "前面这句", quoteEnd: "打脸了。",
+      quoteStart: "A frase anterior", quoteEnd: "desmentiu na hora.",
       parts: [
-        { startSegmentId: 1, endSegmentId: 1, quoteStart: "前面这句话", quoteEnd: "很满。" },
-        { startSegmentId: 2, endSegmentId: 2, quoteStart: "后面这句", quoteEnd: "打脸了。" },
+        { startSegmentId: 1, endSegmentId: 1, quoteStart: "A frase anterior", quoteEnd: "muita coisa." },
+        { startSegmentId: 2, endSegmentId: 2, quoteStart: "A frase seguinte", quoteEnd: "desmentiu na hora." },
       ],
     });
     expect(r!.pieces).toBeUndefined();
   });
 
-  it("没有 parts 时行为与历史完全一致", () => {
-    const r = resolveSelection(FLIP, { ...base, startSegmentId: 1, endSegmentId: 1, quoteStart: "我今天把话", quoteEnd: "不会降。" });
+  it("sem parts, o comportamento é exatamente o de antes", () => {
+    const r = resolveSelection(FLIP, { ...base, startSegmentId: 1, endSegmentId: 1, quoteStart: "Eu vou deixar registrado", quoteEnd: "de jeito nenhum." });
     expect(r!.pieces).toBeUndefined();
     expect(r!.boundary).toBe("anchored");
   });
 });
 
-describe("dropOverlaps 的拼接口径", () => {
+describe("critério de costura do dropOverlaps", () => {
   const c = (id: number, s: number, e: number, score: number, pieces?: Array<{ startSec: number; endSec: number }>): HighlightCandidate => ({
     id, startSec: s, endSec: e, pieces, text: "", title: "", hook: "", score, reason: "",
     boundary: "exact", keywords: [], recommended: true, reviewNote: "",
   });
 
-  it("拼接片按段比重叠,不会把跨度中间的候选全吃掉", () => {
+  it("um clipe costurado compara sobreposição trecho a trecho e não engole os candidatos que caem no meio do intervalo", () => {
     const stitch = c(1, 0, 600, 80, [{ startSec: 0, endSec: 15 }, { startSec: 580, endSec: 600 }]);
-    const middle = c(2, 200, 220, 70); // 落在跨度里,但不碰任何一段
+    const middle = c(2, 200, 220, 70); // cai dentro do intervalo, mas não encosta em nenhum trecho
     const kept = dropOverlaps([stitch, middle]);
     expect(kept).toHaveLength(2);
   });
 
-  it("真压在某一段上的候选照样被去重", () => {
+  it("o candidato que realmente cai em cima de um dos trechos continua sendo removido", () => {
     const stitch = c(1, 0, 600, 80, [{ startSec: 0, endSec: 15 }, { startSec: 580, endSec: 600 }]);
-    const clash = c(2, 10, 30, 70); // 与第一段重叠
+    const clash = c(2, 10, 30, 70); // sobrepõe o primeiro trecho
     expect(dropOverlaps([stitch, clash])).toHaveLength(1);
   });
 });
 
-describe("prompt 里的拼接约定", () => {
-  const tx = makeTranscript(["第一句。", "第二句。"]);
+describe("as convenções de costura dentro do prompt", () => {
+  const tx = makeTranscript(["Primeira frase para o teste.", "Segunda frase para o teste."]);
 
-  it("系统提示词讲清「只在必须对照时才拼」并保留时长锚点", () => {
+  it("o system prompt deixa claro que a costura só entra quando o contraste é obrigatório, e mantém a âncora de duração", () => {
     const p = highlightSystemPrompt(tx);
     expect(p).toContain("parts");
-    expect(p).toContain("时长 8~40 秒"); // 时长档 replace 的锚点,不能被拼接段落挤掉
-    expect(p).toContain("不能制造原话里没有的意思");
+    expect(p).toContain("Duração de 8 a 40 segundos"); // âncora que a troca de faixa de duração substitui; o bloco de costura não pode empurrá-la para fora
+    expect(p).toContain("nunca pode fabricar um sentido que não existia");
   });
 
-  it("输出格式说明里给了 parts 的形状,但主示例保持单段", () => {
+  it("a explicação do formato de saída mostra o formato de parts, mas o exemplo principal continua com trecho único", () => {
     const p = buildHighlightPrompt(tx);
     expect(p).toContain('"parts"');
-    // OUTPUT_SHAPE 主示例(clips → keywords)里不出现 parts——否则模型会以为每条都该拼
+    // O exemplo principal do OUTPUT_SHAPE (clips → keywords) não traz parts — senão o modelo acha que todo clipe deve ser costurado
     expect(p.slice(p.indexOf('"clips"'), p.indexOf('"keywords"'))).not.toContain("parts");
   });
 
-  it("复评提示词报的是成片时长并标出拼接段数", () => {
+  it("o prompt de reavaliação informa a duração do vídeo final e marca quantos trechos foram costurados", () => {
     const prompt = buildReviewPrompt(tx, [
-      { id: 1, title: "打脸", startSec: 0, endSec: 600, text: `前${PIECE_JOINER}后`, pieces: [{ startSec: 0, endSec: 10 }, { startSec: 585, endSec: 600 }] },
+      { id: 1, title: "contradição", startSec: 0, endSec: 600, text: `antes${PIECE_JOINER}depois`, pieces: [{ startSec: 0, endSec: 10 }, { startSec: 585, endSec: 600 }] },
     ]);
-    expect(prompt).toContain("时长25秒"); // 10+15,不是跨度 600
-    expect(prompt).toContain("2 段拼接");
+    expect(prompt).toContain("25s"); // 10+15, e não os 600 do intervalo
+    expect(prompt).toContain("costura de 2 partes");
   });
 });
 
-describe("chatCompleteJson 的一次重试", () => {
-  /** 造一个「第一次吐杂质、第二次干净」的端点(真实观测到的故障形态)。 */
+describe("a única retentativa do chatCompleteJson", () => {
+  /** Monta um endpoint que "suja a saída na primeira vez e acerta na segunda" (a forma de falha observada na prática). */
   function flakyOnce(): { calls: number; complete: (c: string) => string } {
     let calls = 0;
     return {
       get calls() { return calls; },
       complete: () => {
         calls++;
-        // 实测出现过:`"score":数和 90`、`"momentId": vii`、`"score": —`
+        // Já apareceu de verdade: `"score": mais ou menos 90`, `"momentId": vii`, `"score": —`
         return calls === 1
           ? '{"clips":[{"momentId": vii,"title":"x","score": —}]}'
-          : '{"clips":[{"momentId":2,"title":"干净的","score":88}]}';
+          : '{"clips":[{"momentId":2,"title":"saída limpa","score":88}]}';
       },
     };
   }
 
-  it("第一次解析失败会重发一次,第二次干净就照常返回", async () => {
+  it("a primeira falha de leitura provoca um reenvio, e vindo limpo na segunda o retorno é normal", async () => {
     const f = flakyOnce();
     let n = 0;
     const parsed = await (async (): Promise<ReturnType<typeof parseMomentPicks>> => {
@@ -226,10 +228,10 @@ describe("chatCompleteJson 的一次重试", () => {
       throw lastErr;
     })();
     expect(n).toBe(2);
-    expect(parsed[0].title).toBe("干净的");
+    expect(parsed[0].title).toBe("saída limpa");
   });
 
-  it("杂质 token 确实会让整份响应解析失败(所以才需要重试)", () => {
+  it("um token sujo realmente derruba a leitura da resposta inteira (é por isso que a retentativa existe)", () => {
     expect(() => parseMomentPicks('{"clips":[{"momentId": vii,"score": —}]}')).toThrow();
     expect(() => parseSelections('{"clips":[{"endSegmentId": to 3}]}')).toThrow();
   });

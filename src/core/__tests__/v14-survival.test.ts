@@ -119,10 +119,10 @@ describe("分发台账 CSV", () => {
 describe("AIGC 平台文案", () => {
   it("发布包文案开 AIGC 时附平台操作提示", () => {
     const spec = platformSpec("douyin")!;
-    const withNote = adaptPost("标题", undefined, spec, true);
-    expect(withNote.text).toContain("【AIGC 标注】");
-    expect(withNote.text).toContain("内容由AI生成");
-    expect(adaptPost("标题", undefined, spec, false).text).not.toContain("AIGC");
+    const withNote = adaptPost("titulo", undefined, spec, true);
+    expect(withNote.text).toContain("[Sinalização de conteúdo por IA]");
+    expect(withNote.text).toContain("conteúdo gerado por IA");
+    expect(adaptPost("titulo", undefined, spec, false).text).not.toContain("IA");
   });
   it(".post.txt 开 AIGC 时附通用声明", () => {
     const copy = { title: "t", hashtags: [], description: "d" };

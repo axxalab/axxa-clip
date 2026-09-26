@@ -1586,7 +1586,7 @@ export async function exportClips(
     // 草稿目录即可打开精修——EDL 的国民级剪辑器版本。纯音频源无画面轨,
     // 草稿无意义跳过;单条失败静默,绝不拖垮导出。
     if (options.jianyingDraft && edlClips.length > 0 && srcInfo && srcInfo.hasVideo) {
-      const draftsRoot = join(outDir, "剪映草稿");
+      const draftsRoot = join(outDir, "rascunhos-jianying");
       const fps = srcInfo.fps > 0 ? Math.round(srcInfo.fps) : 30;
       for (let d = 0; d < edlClips.length; d++) {
         const ec = edlClips[d];
@@ -1815,7 +1815,7 @@ export async function exportClips(
       const subResults = await exportClips(
         inputPath,
         clips,
-        join(outDir, "横屏"),
+        join(outDir, "horizontal"),
         // 标题贴片/悬念句大字是竖屏短视频形态,横屏版去掉(标题交给平台标题字段);
         // 字幕沿用横屏布局(底部小号),封面/回执/SRT 在子目录各自成套
         // publishPack 只在主目录打一次(横屏版在包 manifest 的备注里指路)

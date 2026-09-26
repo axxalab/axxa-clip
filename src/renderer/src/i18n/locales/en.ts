@@ -1,4 +1,4 @@
-/** English locale — same shape as zh (the source of truth). */
+/** English locale — same shape as pt (the source of truth). */
 export const en = {
   common: {
     updateChip: "v{v} available",
@@ -741,7 +741,7 @@ export const en = {
     desc: "Import view and engagement exports from your platform dashboards. HotClip learns which topics, hooks, and durations actually worked, then uses that evidence in the next highlight pass. Account data stays local and old titles are never copied.",
     importButton: "Import CSV / JSON",
     importing: "Importing…",
-    formats: "Accepts English/Chinese headers and compact numbers such as 7.8k or 1.2万",
+    formats: "Accepts English and Portuguese headers plus compact numbers such as 7.8k or 1.2M",
     importSuccess: "Imported {imported}, skipped {skipped}; reliably matched {matched}, with {unmatched} unmatched or ambiguous. {total} local records learned.",
     templateButton: "Export metrics template",
     templating: "Generating…",

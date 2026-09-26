@@ -1,31 +1,41 @@
 /**
- * 直播品类预设:不同品类的爆点判据差别极大,把「什么算爆点」做成可选、可改的
- * 配置,而不是写死在提示词里。
+ * Stream-genre presets: what counts as a highlight differs wildly per genre, so
+ * "what is a highlight" is a selectable, editable configuration instead of being
+ * hardcoded into the prompt.
  *
- * **分区口径来自平台真实分类,不是拍脑袋列的**:
- *  - B站直播 `api.live.bilibili.com/room/v1/Area/getList`(2026-08 实拉)的
- *    11 个一级分区:网游/手游/单机游戏/娱乐/电台/虚拟主播/聊天室/生活/知识/
- *    赛事/互动玩法/购物;二级分区里有舞见、唱见、颜值、团播、脱口秀、户外、
- *    萌宠、美食、手工绘画、运动体育、自习室、电子榨菜、沉浸体验等
- *  - 抖音直播分区(公开资料):颜值/时尚/亲子/美食/居家/音乐/舞蹈/旅游/萌宠/
- *    教育/科技/汽车/健康/剧情演绎/影视综艺/游戏/体育/健身/科普/财经/三农…
- *  - 斗鱼:游戏/户外/颜值/一起看/科技
- * 按真实分区归并成下面这些预设——所以「虚拟主播」「电台」「萌宠」「美食」
- * 「赛事」「手工」这些不会因为我没想到就漏掉。
+ * **The genre list comes from the platforms' real categories, not from guesswork**:
+ *  - Bilibili Live `api.live.bilibili.com/room/v1/Area/getList` (pulled 2026-08)
+ *    has 11 top-level categories: online games / mobile games / single-player games /
+ *    entertainment / radio / VTuber / chat room / lifestyle / knowledge / esports /
+ *    interactive / shopping; the sub-categories include dance, singing, looks,
+ *    group streams, stand-up, outdoor, pets, food, crafts & drawing, sports,
+ *    study rooms, background-watching and ambient experiences
+ *  - Douyin live categories (public sources): looks / fashion / parenting / food /
+ *    home / music / dance / travel / pets / education / tech / cars / health /
+ *    scripted drama / film & TV / games / sports / fitness / science / finance / farming…
+ *  - Douyu: games / outdoor / looks / co-watching / tech
+ * Merged into the presets below — which is why "VTuber", "radio", "pets", "food",
+ * "esports" and "crafts" don't get dropped just because nobody thought of them.
  *
- * 更要紧的是各品类**证据权重是反的**:带货/知识的爆点在话里,读文字稿就能挑;
- * 游戏/户外的爆点在语气和观众反应里(怒吼、爆笑、弹幕刷屏),文字稿常常只有
- * 「卧槽」两个字;舞见/萌宠更极端——文字稿基本是空的,全靠画面、音乐和弹幕。
- * 所以每个预设除了判据,还要标明它该信哪路证据(evidence),reaction/visual
- * 两类会额外跑 highlight/moments.ts 的信号通道。
+ * More importantly, **the evidence weighting is inverted between genres**: for
+ * selling and knowledge the highlight is in the words, so reading the transcript
+ * is enough; for gaming and outdoor it is in the tone and the audience reaction
+ * (shouting, laughter, a flood of live chat), where the transcript is often just
+ * "holy—"; for dance and pets it is more extreme still — the transcript is
+ * essentially empty and everything rides on picture, music and chat. So besides
+ * its criteria, every preset also declares which evidence it should trust
+ * (`evidence`); the reaction/visual classes additionally run the signal channel
+ * in highlight/moments.ts.
  *
- * 用户可以直接改判据文本(custom),写死的预设只是起点不是终点。纯函数,可单测。
+ * Users can edit the criteria text directly (custom) — the built-in presets are a
+ * starting point, not a ceiling. Pure functions, unit-testable.
  */
 
 /**
- * 预设 id。按平台一级分区归并而来;仍然枚举不完(平台每月都在加二级分区),
- * 真正兜底的是通用提示词里「先自己判断这是什么内容、再决定信哪路证据」
- * 那一段、说话占比自适应,以及 custom。
+ * Preset id. Merged from the platforms' top-level categories; still not
+ * exhaustive (platforms add sub-categories every month). The real fallbacks are
+ * the "work out what this content is first, then decide which evidence to trust"
+ * paragraph in the generic prompt, the adaptive speech-ratio handling, and custom.
  */
 export type GenreId =
   | "auto"
@@ -48,47 +58,52 @@ export type GenreId =
   | "custom";
 
 /**
- * 该品类的爆点主要靠哪一路证据——决定要不要跑信号驱动的候选通道:
- *  - words:话里有内容(带货/知识/访谈),文字稿够用,走原有文本通道
- *  - reaction:靠现场反应(游戏/户外/聊天/电台),峰值时刻的文字常常只有"卧槽"
- *  - visual:靠画面(舞见/唱见/萌宠/美食/手工),文字稿基本是空的
- * reaction/visual 两类必须额外跑 highlight/moments.ts 的信号通道,否则
- * 「没有可引用的原话」= 一条候选都出不来。
+ * Which evidence carries the highlights for this genre — it decides whether the
+ * signal-driven candidate channel runs at all:
+ *  - words: the substance is in the speech (selling / knowledge / interviews),
+ *    the transcript is enough, so the original text channel is used
+ *  - reaction: it rides on the live reaction (gaming / outdoor / chat / radio);
+ *    the text at a peak moment is frequently just "no way"
+ *  - visual: it rides on the picture (dance / singing / pets / food / crafts);
+ *    the transcript is essentially empty
+ * The reaction/visual classes MUST also run the signal channel in
+ * highlight/moments.ts — otherwise "no quotable line exists" means not a single
+ * candidate ever comes out.
  */
 export type EvidenceClass = "words" | "reaction" | "visual";
 
 export interface GenrePreset {
   id: GenreId;
-  labelZh: string;
+  labelPt: string;
   labelEn: string;
-  /** 注入 system prompt 的判据段;auto 为空(用通用判据)。 */
-  criteriaZh: string;
+  /** Criteria block injected into the system prompt; empty for auto (generic criteria apply). */
+  criteriaPt: string;
   criteriaEn: string;
-  /** 主证据路径;auto/custom 交给素材自适应(见 moments.shouldRunMoments)。 */
+  /** Primary evidence path; auto/custom adapt to the footage (see moments.shouldRunMoments). */
   evidence: EvidenceClass;
 }
 
-/** 内置预设。custom 的判据由用户自己填,这里只占位。 */
+/** Built-in presets. The criteria for custom are written by the user; this is only a placeholder. */
 export const GENRE_PRESETS: GenrePreset[] = [
   {
     id: "auto",
-    labelZh: "通用(不指定品类)",
+    labelPt: "Geral (sem gênero definido)",
     labelEn: "General",
-    criteriaZh: "",
+    criteriaPt: "",
     criteriaEn: "",
     evidence: "words",
   },
   {
     id: "shopping",
-    labelZh: "带货 / 购物",
+    labelPt: "Venda ao vivo / compras",
     labelEn: "Live selling / shopping",
-    criteriaZh:
-      "本场是带货直播(对应 B站「购物」分区、抖音带货)。爆点优先级:①产品出现意外效果/当场翻车(眼见为实,最炸) " +
-      "②价格揭晓的那一下(\"原价X今天只要Y\"的落点) ③被追问成分/售后/真假时的回答 " +
-      "④真实试用与对比演示 ⑤反常识的选购建议。" +
-      "证据权重:以话里的信息为主,语气激动只作参考——带货主播全程亢奋是常态,不代表那里是爆点。" +
-      "同一商品的「痛点句/试用演示/价格机制」往往相隔很远:能凑齐两三段时优先用 parts 按「痛点→演示→价格」顺序拼成完整种草片(要素凑不齐不硬拼)。" +
-      "一律不选:纯憋单拉互动(\"点赞到X万才上链接\",平台判违规会限流)、机械循环的价格话术、等人垫场的闲聊。",
+    criteriaPt:
+      "Esta é uma transmissão de venda ao vivo (live commerce). Prioridade dos destaques: (1) o produto se comportando de um jeito inesperado ou a demonstração dando errado ao vivo (ver para crer, é o mais explosivo) " +
+      "(2) o instante em que o preço é revelado (o ponto de chegada do \"de X por só Y hoje\") (3) as respostas quando a pessoa é pressionada sobre composição, pós-venda ou autenticidade " +
+      "(4) provas e comparações genuínas (5) conselhos de compra que contrariam o senso comum. " +
+      "Peso das evidências: vá pelo que é dito; tom empolgado conta pouco aqui — quem apresenta live commerce fica eufórico o tempo todo, e isso não marca um destaque. " +
+      "A frase da dor, a demonstração e a revelação do preço do mesmo produto costumam estar bem distantes entre si: quando dois ou três desses momentos existirem, prefira costurar com parts na ordem dor → demonstração → preço (nunca force quando faltar algum). " +
+      "Nunca escolha: enrolação para gerar engajamento (\"chega a X mil curtidas e eu libero o link\", que as plataformas punem com queda de alcance), repetição mecânica do script de preço ou conversa de encheção de linguiça esperando gente chegar.",
     criteriaEn:
       "Live-selling stream. Priority: (1) a product behaving unexpectedly or a demo going wrong (most explosive), " +
       "(2) the moment the price lands, (3) answers when pressed on ingredients/returns/authenticity, " +
@@ -100,14 +115,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "game",
-    labelZh: "游戏(网游 / 手游 / 单机)",
+    labelPt: "Jogos (PC / celular / console)",
     labelEn: "Gaming",
-    criteriaZh:
-      "本场是游戏直播(B站「网游/手游/单机游戏」三个一级分区都算)。爆点优先级:①极限操作/翻盘/秀技术的瞬间 " +
-      "②团灭、被偷家这类惨案与破防 ③和队友或对手的冲突、连麦对线 ④主播的爆笑反应与吐槽金句 ⑤运气离谱的时刻。" +
-      "证据权重:**这个品类不要只看文字稿**——精彩瞬间的文字常常只有\"卧槽/我去/没了\"几个字,毫无信息量。" +
-      "要重点参考语气激动时段(怒吼/尖叫/爆笑)和弹幕峰值,那才是操作发生的位置;文字稿用来确认那一下发生了什么。" +
-      "选段要包含\"操作前的紧张铺垫 + 那一下 + 主播的反应\",只切结果没有过程不好看。",
+    criteriaPt:
+      "Esta é uma transmissão de jogos. Prioridade dos destaques: (1) jogadas no limite, viradas de mesa e demonstrações de habilidade " +
+      "(2) tomar wipe, perder a base, as tragédias e as crises de nervos (3) atrito com o time ou com os adversários, discussões no microfone (4) as reações mais escandalosas e as tiradas de quem transmite (5) momentos de sorte absurda. " +
+      "Peso das evidências: **neste gênero não olhe só a transcrição** — o texto de um momento incrível costuma ser só \"caraca/vixe/acabou\", sem nenhuma informação. " +
+      "Apoie-se nos trechos de tom exaltado (gritos/berros/gargalhadas) e nos picos do chat ao vivo, que é onde a jogada acontece; use a transcrição para confirmar o que rolou ali. " +
+      "O trecho escolhido precisa conter \"a tensão antes da jogada + a jogada + a reação\"; só o resultado, sem o processo, não funciona.",
     criteriaEn:
       "Gaming stream (PC / mobile / console). Priority: (1) clutch plays and comebacks, (2) wipes and disasters, " +
       "(3) friction with teammates or opponents, (4) the host's biggest reactions and one-liners, (5) absurd luck. " +
@@ -118,14 +133,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "esports",
-    labelZh: "赛事解说",
+    labelPt: "Esports / narração de partidas",
     labelEn: "Esports / match commentary",
-    criteriaZh:
-      "本场是赛事直播或解说(B站「赛事」分区)。爆点优先级:①决定胜负的那一波团战/进球/绝杀 ②解说情绪炸裂的喊麦 " +
-      "③争议判罚与场外插曲 ④选手个人秀操作 ⑤赛后采访的金句。" +
-      "证据权重:解说的语气爆发和弹幕峰值几乎就是比分变化的位置,优先信它们;" +
-      "文字稿里解说语速极快、专有名词多,转写常出错,别拿错字当内容。" +
-      "选段务必包含\"局势铺垫→那一下→解说反应\",只切进球画面没有解说声不成立。",
+    criteriaPt:
+      "Esta é uma transmissão ou narração de partida. Prioridade dos destaques: (1) a jogada coletiva, o gol ou o lance decisivo que define o resultado (2) a narração explodindo de emoção " +
+      "(3) decisões polêmicas de arbitragem e episódios fora de campo (4) jogadas individuais de brilho (5) as frases marcantes da entrevista pós-jogo. " +
+      "Peso das evidências: os picos de voz da narração e do chat praticamente acompanham o placar — confie mais neles do que na transcrição, " +
+      "que erra muito na velocidade da narração e nos nomes próprios. Não trate erro de transcrição como conteúdo. " +
+      "O trecho precisa sempre conter \"a construção da jogada → o lance → a reação da narração\"; só a imagem do gol, sem a voz, não se sustenta.",
     criteriaEn:
       "Esports / match broadcast. Priority: (1) the decisive teamfight or goal, (2) the caster losing it, " +
       "(3) controversial calls, (4) individual highlight plays, (5) post-match quotables. " +
@@ -135,15 +150,15 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "vtuber",
-    labelZh: "虚拟主播 / VTuber",
+    labelPt: "VTuber / apresentador virtual",
     labelEn: "VTuber",
-    criteriaZh:
-      "本场是虚拟主播直播(B站「虚拟主播」一级分区:虚拟Singer/Gamer/声优/日常等)。" +
-      "**注意:这类内容的表情和肢体来自模型,人脸表情信号基本无效**,别指望它。" +
-      "爆点优先级:①中之人破防/笑场/说漏嘴(反差最强) ②角色扮演的名场面与整活 ③歌回的副歌段 " +
-      "④与观众/同行的互动名场面 ⑤模型穿帮或技术事故(观众很吃这个)。" +
-      "证据权重:语气变化和弹幕峰值是主证据(弹幕在这个品类里极其活跃,几乎等于实时打分);" +
-      "画面高能只在歌回/整活时有参考价值。梗要连铺垫一起选。",
+    criteriaPt:
+      "Esta é uma transmissão de VTuber. **Atenção: a expressão facial e os gestos vêm de um modelo 3D, então o sinal de emoção facial é praticamente inútil aqui** — não conte com ele. " +
+      "Prioridade dos destaques: (1) a pessoa por trás do avatar saindo do personagem, rindo sem conseguir parar ou falando o que não devia (o contraste é o mais forte) " +
+      "(2) as cenas antológicas de interpretação e as palhaçadas (3) os trechos de canto, especialmente o refrão " +
+      "(4) as interações marcantes com o público ou com colegas (5) falhas do modelo ou acidentes técnicos (o público adora). " +
+      "Peso das evidências: a variação de tom de voz e os picos do chat são a evidência principal (o chat é extremamente ativo neste gênero, funcionando quase como uma nota em tempo real); " +
+      "a energia da imagem só ajuda nos trechos de canto e de palhaçada. Sempre inclua a preparação da piada junto com ela.",
     criteriaEn:
       "VTuber stream. **Facial-emotion signals are meaningless here — the face is a rigged model.** " +
       "Priority: (1) the person behind the avatar breaking character or corpsing, (2) memorable bits and roleplay, " +
@@ -154,16 +169,16 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "show",
-    labelZh: "才艺 / 舞见 / 唱见 / 团播",
+    labelPt: "Talento / dança / canto / grupo",
     labelEn: "Performance / dance / singing",
-    criteriaZh:
-      "本场是才艺表演直播(B站「娱乐」分区下的舞见、视频唱见、团播;抖音的舞蹈/音乐)。" +
-      "**注意:这类直播的文字稿基本没有信息量**(多是零散寒暄和口水话)," +
-      "不要因为某句话\"读起来还行\"就选它——那不是观众看的东西。" +
-      "爆点优先级:①最有记忆点的表演段落(副歌、高难度动作、卡点整齐的那几拍) " +
-      "②表演里的高光反应与互动 ③开场或收尾的强画面。" +
-      "证据权重:以画面高能时段、音乐节拍与弹幕峰值为主,文字稿只用来避开明显的闲聊段。" +
-      "选段要卡在音乐的自然段落上(前奏进、副歌完整、别在半拍处切断),画面完整比话说完更重要。",
+    criteriaPt:
+      "Esta é uma transmissão de apresentação artística (dança, canto, performance em grupo). " +
+      "**Atenção: a transcrição deste tipo de live praticamente não tem informação** (são quase só cumprimentos soltos e conversa fiada). " +
+      "Não escolha um momento só porque a frase \"lê bem\" — não é isso que o público está assistindo. " +
+      "Prioridade dos destaques: (1) o trecho mais marcante da apresentação (o refrão, o movimento difícil, as batidas em que todo mundo acerta junto) " +
+      "(2) as melhores reações e interações durante a apresentação (3) uma abertura ou um encerramento com imagem forte. " +
+      "Peso das evidências: janelas de alta energia visual, o andamento da música e os picos do chat; use a transcrição apenas para evitar os trechos de conversa solta. " +
+      "Corte nos limites naturais da música (entre na introdução, mantenha o refrão inteiro, não corte no meio de um tempo); imagem completa importa mais do que frase terminada.",
     criteriaEn:
       "Performance / dance / singing stream. **The transcript is essentially empty of value here** — " +
       "never pick a moment just because a line reads well. " +
@@ -175,14 +190,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "looks",
-    labelZh: "颜值 / 交友 / 连麦",
+    labelPt: "Bate-papo social / convidados ao vivo",
     labelEn: "Just chatting / social",
-    criteriaZh:
-      "本场是颜值或交友连麦直播(B站「聊天室」分区:交友/点唱/找人玩;娱乐分区的颜值)。" +
-      "爆点优先级:①连麦对象的意外发言或翻车 ②主播的机智回怼与名场面 ③真情流露或突然认真 " +
-      "④整蛊与反差 ⑤高光互动(送礼答谢、才艺穿插)。" +
-      "证据权重:语气变化和弹幕峰值为主;这类直播大量时间是无信息量的寒暄和刷屏答谢,**默认从严**——" +
-      "宁可一条不出,也不要把\"感谢XX的礼物\"这种切出去。",
+    criteriaPt:
+      "Esta é uma transmissão social, de conversa com convidados entrando ao vivo. " +
+      "Prioridade dos destaques: (1) um convidado dizendo algo inesperado ou se enrolando (2) as respostas afiadas de quem apresenta e as cenas antológicas " +
+      "(3) um momento de sinceridade súbita ou de seriedade repentina (4) pegadinhas e contrastes (5) as melhores interações (agradecimento por presente, um número artístico no meio). " +
+      "Peso das evidências: variação de tom e picos do chat. Boa parte deste formato é cumprimento sem conteúdo e agradecimento por presente — **seja rigoroso por padrão**: " +
+      "é melhor não devolver nenhum clipe do que cortar um \"obrigado pelo presente\".",
     criteriaEn:
       "Just-chatting / social / co-host stream. Priority: (1) a guest saying something unexpected, " +
       "(2) the host's quick comebacks, (3) sudden sincerity, (4) pranks and reversals, (5) standout interactions. " +
@@ -192,13 +207,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "talk",
-    labelZh: "聊天 / 情感杂谈 / 脱口秀",
+    labelPt: "Conversa / comentário / stand-up",
     labelEn: "Talk / commentary",
-    criteriaZh:
-      "本场是聊天杂谈类直播(B站「生活」分区的生活杂谈/情感杂谈、「娱乐」分区的脱口秀)。" +
-      "爆点优先级:①争议或出格的发言(前后打脸、双标最炸) ②密集的梗与段子(必须含铺垫) " +
-      "③真情流露、突然认真的时刻 ④和观众的名场面互动 ⑤人设反转。" +
-      "证据权重:语气和现场反应与话本身同等重要;弹幕峰值是观众实时投票,证据力最强。",
+    criteriaPt:
+      "Esta é uma transmissão de conversa e comentário (papo aberto, desabafo, stand-up). " +
+      "Prioridade dos destaques: (1) declarações polêmicas ou fora da curva (contradizer a si mesmo e dois pesos e duas medidas são o mais explosivo) " +
+      "(2) sequências densas de piadas e tiradas (sempre com a preparação junto) (3) momentos de sinceridade, de seriedade repentina " +
+      "(4) interações antológicas com o público (5) reviravoltas na própria persona. " +
+      "Peso das evidências: o tom e a reação do ambiente pesam tanto quanto as palavras; os picos do chat são o público votando em tempo real e valem muito como evidência.",
     criteriaEn:
       "Talk / commentary stream. Priority: (1) controversial or off-the-cuff statements (self-contradiction is strongest), " +
       "(2) dense jokes and bits (always with the setup), (3) moments of sudden sincerity, " +
@@ -208,14 +224,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "radio",
-    labelZh: "电台 / 纯语音",
+    labelPt: "Rádio / somente áudio",
     labelEn: "Radio / audio-only",
-    criteriaZh:
-      "本场是电台类直播(B站「电台」一级分区:唱见电台/聊天电台/男声电台),**没有画面可用**——" +
-      "成片要靠音频波形图或封面,所以画面类证据一律不存在,别去找。" +
-      "爆点优先级:①唱段的副歌 ②情绪浓度最高的一段讲述 ③与听众的高光互动 ④金句。" +
-      "证据权重:语气变化、笑声/掌声与弹幕峰值是全部证据。" +
-      "选段必须听感完整——没有画面兜底,一句话被掐断在这个品类里格外难受。",
+    criteriaPt:
+      "Esta é uma transmissão de rádio, só com áudio — **não há imagem disponível**: " +
+      "o vídeo final sai como onda sonora ou capa, então nenhuma evidência visual existe aqui; não procure por ela. " +
+      "Prioridade dos destaques: (1) o refrão de uma música (2) o trecho de fala com maior carga emocional (3) a melhor interação com quem ouve (4) as frases marcantes. " +
+      "Peso das evidências: variação de tom, riso/aplauso e picos do chat são tudo o que você tem. " +
+      "O trecho precisa ser completo do ponto de vista auditivo — sem imagem para segurar a onda, uma frase cortada no meio é especialmente ruim neste gênero.",
     criteriaEn:
       "Radio / audio-only stream. **There is no picture** — output is a waveform or cover art, so visual evidence does not exist. " +
       "Priority: (1) the chorus of a song, (2) the most emotionally dense stretch of talk, (3) standout listener interaction, (4) quotables. " +
@@ -225,15 +241,15 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "knowledge",
-    labelZh: "知识 / 教育 / 科普 / 财经",
+    labelPt: "Conhecimento / educação / divulgação / finanças",
     labelEn: "Knowledge / education",
-    criteriaZh:
-      "本场是知识类直播(B站「知识」一级分区:教育学习/科技科学/社会观察财经/法律心理/历史人文)。" +
-      "爆点优先级:①能独立成立的方法论与结论(带步骤、清单、具体数字) ②颠覆常识的判断 " +
-      "③一句话说透的金句 ④真实案例与数据 ⑤对典型误区的当场纠正。" +
-      "证据权重:几乎全看内容本身,语气信号基本无参考价值。" +
-      "**这个品类的目标是「让人想收藏」而不是「让人笑」**——平台现在收藏权重最高。" +
-      "所以片段必须信息自足:结论、依据、可执行的做法都要在片段里,不能只有半截。",
+    criteriaPt:
+      "Esta é uma transmissão de conteúdo de conhecimento (ensino, ciência e tecnologia, economia, direito, psicologia, história). " +
+      "Prioridade dos destaques: (1) métodos e conclusões que se sustentam sozinhos (com passos, listas, números concretos) (2) afirmações que derrubam o senso comum " +
+      "(3) a frase que resolve o assunto de uma vez (4) casos reais e dados (5) a correção de um erro comum, feita ali na hora. " +
+      "Peso das evidências: julgue quase inteiramente pelo conteúdo; os sinais de tom valem pouco aqui. " +
+      "**O objetivo deste gênero é \"dar vontade de salvar\", não \"dar risada\"** — as plataformas hoje dão o maior peso ao salvamento. " +
+      "Por isso o trecho precisa ser autossuficiente em informação: a conclusão, o embasamento e o que fazer na prática precisam estar todos dentro dele, nunca pela metade.",
     criteriaEn:
       "Knowledge / education stream. Priority: (1) self-contained methods and conclusions (steps, checklists, numbers), " +
       "(2) claims that overturn conventional wisdom, (3) one-line summaries that nail it, (4) real cases and data, " +
@@ -244,13 +260,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "outdoor",
-    labelZh: "户外 / 旅行 / 探店",
+    labelPt: "Rua / viagem / visita a lugares",
     labelEn: "Outdoor / travel / on-location",
-    criteriaZh:
-      "本场是户外直播(B站「生活」分区的户外;抖音的旅游/三农)。爆点优先级:①突发状况与意外(遇到人、被拦、天气突变、东西坏了) " +
-      "②与陌生人的真实互动和对话 ③第一次看到某个场面的即时反应 ④踩雷/避雷的实话 ⑤强画面(风景、场面、猎奇)。" +
-      "证据权重:反应类为主——语气和画面变化比文字稿可靠;**户外收音差,转写错字多**,别被错字带偏,读不通的句子优先当噪声。" +
-      "选段要带上\"看到之前\"的一点铺垫,观众要跟着主播一起发现才有代入感。",
+    criteriaPt:
+      "Esta é uma transmissão externa, na rua ou em viagem. Prioridade dos destaques: (1) imprevistos e situações inesperadas (encontrar alguém, ser barrado, o tempo virar, algo quebrar) " +
+      "(2) interações e conversas genuínas com desconhecidos (3) a reação imediata ao ver alguma coisa pela primeira vez (4) a verdade nua e crua sobre valer ou não a pena (5) imagens fortes (paisagem, cena, curiosidade). " +
+      "Peso das evidências: é um gênero de reação — o tom e a mudança de imagem são mais confiáveis que a transcrição; **a captação de áudio na rua é ruim e a transcrição erra muito**. " +
+      "Não se deixe levar por erros de transcrição: frase que não faz sentido deve ser tratada como ruído, não como conteúdo. " +
+      "Inclua um pedacinho do \"antes de ver\": o público precisa descobrir junto para se sentir dentro da cena.",
     criteriaEn:
       "Outdoor / travel / on-location stream. Priority: (1) things going wrong or unexpected encounters, " +
       "(2) genuine interactions with strangers, (3) the instant reaction on first seeing something, " +
@@ -261,14 +278,15 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "food",
-    labelZh: "美食 / 吃播",
+    labelPt: "Culinária / comer ao vivo",
     labelEn: "Food / mukbang",
-    criteriaZh:
-      "本场是美食直播(B站「生活」分区的美食;抖音美食)。**这类内容的说服力在画面和声音上,不在解说词里**。" +
-      "爆点优先级:①最有食欲的那一口(拉丝、爆汁、酥脆声) ②备料/翻锅这类有观赏性的动作 " +
-      "③吃到意料之外(极辣、极难吃、极好吃)的真实反应 ④食材或价格的意外信息。" +
-      "证据权重:画面高能与咀嚼/烹饪的声音峰值为主,弹幕次之;文字稿多是\"嗯好吃\"这类无信息量的话,别当金句。" +
-      "选段务必包含完整的一个动作(下锅到出锅、夹起到入口),掐在半途最败胃口。",
+    criteriaPt:
+      "Esta é uma transmissão de comida. **O poder de convencimento aqui está na imagem e no som, não na narração.** " +
+      "Prioridade dos destaques: (1) a mordida mais apetitosa (o queijo puxando, o caldo escorrendo, o som da crocância) (2) as ações que dão gosto de assistir, como o preparo e o salteado na frigideira " +
+      "(3) a reação genuína a algo inesperadamente apimentado, horrível ou excelente (4) uma informação surpreendente sobre o ingrediente ou o preço. " +
+      "Peso das evidências: primeiro a energia visual e os picos de som de mastigação/cozimento, depois o chat; " +
+      "a transcrição é quase toda \"hmm, que delícia\", sem informação alguma — nunca trate isso como frase marcante. " +
+      "O trecho precisa conter uma ação completa (da panela ao prato, do garfo à boca); cortar no meio é o que mais estraga o apetite.",
     criteriaEn:
       "Food / mukbang stream. **The persuasion is in the picture and the sound, not the narration.** " +
       "Priority: (1) the most appetizing bite (cheese pull, juice, crunch), (2) watchable prep or wok work, " +
@@ -279,14 +297,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "pet",
-    labelZh: "萌宠",
+    labelPt: "Pets / bichinhos",
     labelEn: "Pets",
-    criteriaZh:
-      "本场是萌宠直播(B站「生活」分区的萌宠;抖音萌宠)。**主角不会说话,文字稿完全不能作为判据**。" +
-      "爆点优先级:①动物做出意外或拟人化举动的那一下 ②互动名场面(讨食、拆家、和主人斗智) " +
-      "③极致可爱的静态画面(睡姿、奶凶) ④主人被整到的反应。" +
-      "证据权重:画面高能与弹幕峰值几乎是唯一证据;主人的语气变化可以帮忙定位\"刚刚发生了什么\"。" +
-      "片段要短、要一眼看懂,前 1 秒必须已经能看到动物。",
+    criteriaPt:
+      "Esta é uma transmissão de pets. **O protagonista não fala — a transcrição não serve de critério aqui, de jeito nenhum.** " +
+      "Prioridade dos destaques: (1) o instante em que o animal faz algo inesperado ou muito humano (2) as interações antológicas (pedir comida, destruir a casa, passar a perna no dono) " +
+      "(3) as imagens paradas de fofura máxima (jeito de dormir, bravura fingida) (4) a reação do dono ao ser passado para trás. " +
+      "Peso das evidências: a energia visual e os picos do chat são praticamente a única evidência; a variação de tom do dono ajuda a localizar \"o que acabou de acontecer\". " +
+      "Os trechos devem ser curtos e compreensíveis de imediato — o animal precisa estar em tela no primeiro segundo.",
     criteriaEn:
       "Pet stream. **The subject cannot talk — the transcript is not evidence here at all.** " +
       "Priority: (1) the instant the animal does something unexpected or human-like, (2) memorable interactions, " +
@@ -297,13 +315,14 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "sports",
-    labelZh: "运动 / 健身",
+    labelPt: "Esporte / treino",
     labelEn: "Sports / fitness",
-    criteriaZh:
-      "本场是运动健身直播(B站「生活」分区的运动体育;抖音体育/健身)。爆点优先级:①完成高难度动作或破纪录的那一下 " +
-      "②失败/受伤/意外(观众同样爱看,但不要消费真实伤情) ③一句话讲清的训练要点 ④体态或成果的前后对比。" +
-      "证据权重:画面高能与语气爆发并重,弹幕作旁证;文字稿在动作过程中基本是喘息和计数,没有信息量。" +
-      "教学类要点必须信息自足(做什么、练哪里、错在哪),只喊\"再来五个\"不成片。",
+    criteriaPt:
+      "Esta é uma transmissão de esporte ou treino. Prioridade dos destaques: (1) o instante em que um movimento difícil sai ou um recorde pessoal cai " +
+      "(2) a falha, a lesão ou o acidente (o público também gosta, mas nunca explore uma lesão real) (3) um ponto técnico explicado em uma frase (4) a comparação de antes e depois, de postura ou de resultado. " +
+      "Peso das evidências: energia visual e explosões de voz pesam juntas, com o chat como confirmação; " +
+      "durante a execução a transcrição é só ofego e contagem, sem informação. " +
+      "Os trechos didáticos precisam ser autossuficientes (o que fazer, o que trabalha, onde está o erro); só gritar \"mais cinco\" não vira clipe.",
     criteriaEn:
       "Sports / fitness stream. Priority: (1) landing a hard move or hitting a PR, (2) a failure or mishap " +
       "(popular, but never exploit a real injury), (3) a coaching point stated in one line, (4) before/after comparisons. " +
@@ -313,14 +332,15 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "craft",
-    labelZh: "手工 / 绘画 / 沉浸体验",
+    labelPt: "Artesanato / desenho / ambiente",
     labelEn: "Crafts / drawing / ambient",
-    criteriaZh:
-      "本场是手工绘画或沉浸体验类直播(B站「生活」分区的手工绘画、沉浸体验)。" +
-      "**这类内容节奏极慢,绝大部分时间不值得剪**,默认从严。" +
-      "爆点优先级:①从无到有的关键一步(上色瞬间、成品揭晓) ②失手翻车与补救 ③加速看完整过程的那一段 ④技巧讲解的干货。" +
-      "证据权重:画面变化为主(成品揭晓那一下画面差异最大),弹幕次之;讲解声可有可无。" +
-      "选\"变化最大\"的时刻,不要选\"一直在涂\"的时刻。",
+    criteriaPt:
+      "Esta é uma transmissão de artesanato, desenho ou conteúdo de ambiente. " +
+      "**Este formato é lentíssimo e, na maior parte do tempo, não vale corte** — seja rigoroso por padrão. " +
+      "Prioridade dos destaques: (1) o passo que transforma tudo (a primeira cor, a revelação do resultado) (2) o erro e o conserto " +
+      "(3) um trecho que funciona acelerado (4) uma explicação de técnica de verdade. " +
+      "Peso das evidências: primeiro a mudança visual (a revelação é a maior diferença entre um quadro e outro), depois o chat; a narração é dispensável. " +
+      "Escolha os momentos de maior mudança, não os longos trechos de trabalho constante.",
     criteriaEn:
       "Crafts / drawing / ambient stream. **This format is slow and mostly not clippable** — be strict by default. " +
       "Priority: (1) the key transformation step (first colour, the reveal), (2) a mistake and the save, " +
@@ -331,15 +351,15 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "cowatch",
-    labelZh: "一起看 / 电子榨菜 / 自习室",
+    labelPt: "Assistir junto / estudar junto",
     labelEn: "Co-watching / study-with-me",
-    criteriaZh:
-      "本场是陪伴型直播(B站「生活」分区的电子榨菜、「知识」分区的自习室,斗鱼的一起看)。" +
-      "**⚠ 两个硬约束,比选得好不好更重要**:" +
-      "①屏幕上播放的影视内容是别人的版权,**绝对不要把影视画面本身切成片发布**——那是搬运,会被判侵权下架;" +
-      "②自习室这类内容本身就没有可剪的东西,大部分情况下正确答案是「一条都不给」。" +
-      "真要选,只能选**主播自己**的反应和评论(镜头里是主播、声音是主播的那几段),而且要能脱离原片独立成立。" +
-      "证据权重:主播的语气爆发与弹幕峰值;画面信号在这里会指向被播放的影视内容,**不能当作选段依据**。",
+    criteriaPt:
+      "Esta é uma transmissão de companhia (assistir junto, estudar junto). " +
+      "**⚠ Duas restrições rígidas, mais importantes do que escolher bem:** " +
+      "(1) o conteúdo que está na tela é obra protegida de outra pessoa — **nunca corte o filme ou a série em si para publicar**: isso é reupload e acaba em remoção por violação de direitos; " +
+      "(2) conteúdo de estudar junto simplesmente não tem o que cortar; na maior parte das vezes a resposta certa é não devolver nenhum clipe. " +
+      "Se for mesmo escolher, pegue apenas a reação e o comentário **de quem apresenta** (os trechos em que a pessoa está em quadro e é a voz dela), e só quando aquilo se sustentar sem a obra original. " +
+      "Peso das evidências: as explosões de voz de quem apresenta e os picos do chat; os sinais de imagem aqui apontam para a obra protegida e **não podem servir de critério**.",
     criteriaEn:
       "Co-watching / study-with-me stream. **Two hard constraints matter more than picking well:** " +
       "(1) the content on screen is someone else's copyright — **never clip the film/show itself**; that is reuploading and gets taken down; " +
@@ -350,13 +370,13 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "interview",
-    labelZh: "访谈 / 播客 / 对谈",
+    labelPt: "Entrevista / podcast / conversa",
     labelEn: "Interview / podcast",
-    criteriaZh:
-      "本场是访谈/播客对谈。爆点优先级:①尖锐提问与不回避的回答 ②观点交锋、当场不同意 " +
-      "③嘉宾说漏嘴或首次披露的信息 ④能独立成立的观点金句 ⑤真情流露的个人经历。" +
-      "证据权重:以内容为主。" +
-      "**一问一答必须成对**——只有回答没有问题,观众不知道在答什么;跨说话人选段时要含完整的问与答,绝不把两个人的半句拼一起。",
+    criteriaPt:
+      "Esta é uma entrevista ou um podcast de conversa. Prioridade dos destaques: (1) uma pergunta incisiva e uma resposta que não foge dela (2) o choque de visões, a discordância assumida ali na hora " +
+      "(3) algo que o convidado deixa escapar ou revela pela primeira vez (4) uma opinião marcante que se sustenta sozinha (5) a experiência pessoal contada com sinceridade. " +
+      "Peso das evidências: o conteúdo é o que manda. " +
+      "**Pergunta e resposta precisam vir em par** — só a resposta, sem a pergunta, deixa o público sem saber do que se trata; ao escolher trechos que atravessam falantes, inclua a pergunta e a resposta completas e nunca junte meia frase de um com meia frase do outro.",
     criteriaEn:
       "Interview / podcast. Priority: (1) a pointed question and an answer that doesn't dodge, (2) genuine disagreement on air, " +
       "(3) something let slip or disclosed for the first time, (4) a standalone quotable take, (5) raw personal story. " +
@@ -366,22 +386,23 @@ export const GENRE_PRESETS: GenrePreset[] = [
   },
   {
     id: "custom",
-    labelZh: "自定义",
+    labelPt: "Personalizado",
     labelEn: "Custom",
-    criteriaZh: "",
+    criteriaPt: "",
     criteriaEn: "",
     evidence: "words",
   },
 ];
 
-/** 按 id 取预设;未知 id 回落到 auto。纯函数。 */
+/** Look a preset up by id; an unknown id falls back to auto. Pure function. */
 export function genrePreset(id: string | undefined): GenrePreset {
   return GENRE_PRESETS.find((g) => g.id === id) ?? GENRE_PRESETS[0];
 }
 
 /**
- * 旧 id → 新 id。分区表按平台真实分类重排过,已经存在本机的偏好不能因此失效。
- * 命中不了就交给 genrePreset 回落 auto。
+ * Old id → new id. The genre table was reordered to follow the platforms' real
+ * categories, and a preference already stored on this machine must not break
+ * because of that. Anything that doesn't match is left to genrePreset's auto fallback.
  */
 const LEGACY_GENRE_IDS: Record<string, GenreId> = {
   "live-sell": "shopping",
@@ -389,56 +410,60 @@ const LEGACY_GENRE_IDS: Record<string, GenreId> = {
   lecture: "knowledge",
 };
 
-/** 兼容旧偏好里存的 genreId(v0.9.4 之前的写法)。 */
+/** Keeps genreId values stored by older preferences working (pre-v0.9.4 spelling). */
 export function normalizeGenreId(id: string | undefined): string | undefined {
   if (!id) return id;
   return LEGACY_GENRE_IDS[id] ?? id;
 }
 
 /**
- * 各品类的跳剪静音阈值(秒):超过该时长的词间空隙才被剪。
- * 2026 调研口径(RESEARCH-2026-08-CLIP-QUALITY.md 第三节):快节奏解说 ~0.3s、
- * 单人口播 0.5-0.7s、双人对谈 0.8-1.2s——对谈的呼吸感被剪光会像机关枪。
- * 未列出的品类走默认 0.6(与历史 GAP_THRESHOLD_SEC 一致,升级不改变成片)。
+ * Per-genre silence threshold for jump cuts (seconds): only gaps between words
+ * longer than this get cut.
+ * Research baseline for 2026 (RESEARCH-2026-08-CLIP-QUALITY.md, section 3):
+ * fast commentary ~0.3s, solo presenting 0.5-0.7s, two-person conversation
+ * 0.8-1.2s — strip a conversation of its breathing room and it sounds like a machine gun.
+ * Genres not listed here use the 0.6 default (matching the historical
+ * GAP_THRESHOLD_SEC, so upgrading changes nothing in existing output).
  */
 const GENRE_PAUSE_GAP_SEC: Partial<Record<GenreId, number>> = {
-  esports: 0.4, // 解说语速最快,空隙就是拖沓
+  esports: 0.4, // commentary is the fastest speech there is; a gap is dead air
   game: 0.45,
   sports: 0.5,
-  shopping: 0.55, // 带货话术密集,停顿多为憋单
-  looks: 0.7, // 连麦一来一回,留一点接话气口
+  shopping: 0.55, // selling patter is dense, and pauses are usually stalling
+  looks: 0.7, // back-and-forth with guests needs a beat to pick up the thread
   vtuber: 0.7,
-  talk: 0.8, // 杂谈/脱口秀:停顿常是节目效果
+  talk: 0.8, // chat/stand-up: the pause is often the joke
   radio: 0.8,
-  outdoor: 0.7, // 户外反应滞后,收音又差
-  knowledge: 0.7, // 教学停顿是留给观众消化的
-  interview: 0.9, // 对谈:问答之间的沉默有信息量
+  outdoor: 0.7, // reactions lag outdoors, and the audio is poor
+  knowledge: 0.7, // a teaching pause is there for the audience to digest
+  interview: 0.9, // conversation: the silence between question and answer carries meaning
 };
 
-/** 跳剪静音阈值的默认档(与 gaps.ts 的历史默认一致)。 */
+/** Default tier for the jump-cut silence threshold (matches the historical default in gaps.ts). */
 export const DEFAULT_PAUSE_GAP_SEC = 0.6;
 
-/** 按品类取跳剪静音阈值;未知/未配置回落默认档。纯函数。 */
+/** Jump-cut silence threshold for a genre; unknown/unconfigured falls back to the default. Pure function. */
 export function genrePauseGapSec(id: string | undefined): number {
   const norm = normalizeGenreId(id) as GenreId | undefined;
   return (norm && GENRE_PAUSE_GAP_SEC[norm]) || DEFAULT_PAUSE_GAP_SEC;
 }
 
-/** 用户自定义判据的长度上限(防止塞爆提示词)。 */
+/** Length cap for user-written criteria (keeps the prompt from being blown out). */
 export const GENRE_CUSTOM_MAX_CHARS = 1200;
 
 /**
- * 生成注入 system prompt 的品类段。
- * `customCriteria` 非空时一律优先——用户写的永远盖过内置预设,
- * 这样"选个最接近的预设再改两句"是顺手的用法。返回 "" 表示不注入。纯函数。
+ * Build the genre block injected into the system prompt.
+ * A non-empty `customCriteria` always wins — what the user wrote always overrides
+ * the built-in preset, which makes "pick the closest preset and tweak a line or
+ * two" the natural way to use it. Returns "" for no injection. Pure function.
  */
 export function genreSection(
   id: string | undefined,
-  zh: boolean,
+  pt: boolean,
   customCriteria?: string
 ): string {
   const custom = (customCriteria ?? "").trim().slice(0, GENRE_CUSTOM_MAX_CHARS);
-  const body = custom || (zh ? genrePreset(normalizeGenreId(id)).criteriaZh : genrePreset(normalizeGenreId(id)).criteriaEn);
+  const body = custom || (pt ? genrePreset(normalizeGenreId(id)).criteriaPt : genrePreset(normalizeGenreId(id)).criteriaEn);
   if (!body) return "";
-  return zh ? `\n\n【本场类型与判据】${body}` : `\n\n[Stream type & criteria] ${body}`;
+  return pt ? `\n\n[Tipo desta transmissão e critérios] ${body}` : `\n\n[Stream type & criteria] ${body}`;
 }

@@ -55,14 +55,14 @@ export function LogoMark({ size = 32 }: { size?: number }): React.JSX.Element {
   );
 }
 
-/** Wordmark: brand name with a flame-gradient accent. */
-export function LogoWordmark({ zh }: { zh?: boolean }): React.JSX.Element {
+/** Marca nominal: o nome do produto com o realce em gradiente de chama. */
+export function LogoWordmark({ tagline }: { tagline?: boolean }): React.JSX.Element {
   return (
     <span className="flex items-baseline gap-1.5 select-none">
       <span className="text-[16px] font-extrabold tracking-tight">
         Hot<span className="flame-text">Clip</span>
       </span>
-      {zh && <span className="text-[11px] font-semibold text-mut">爆款切片</span>}
+      {tagline && <span className="text-[11px] font-semibold text-mut">cortes virais</span>}
     </span>
   );
 }

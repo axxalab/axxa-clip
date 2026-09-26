@@ -309,7 +309,7 @@ export function ExportPanel({
                     <button
                       key={p.id}
                       type="button"
-                      title={p.noteZh}
+                      title={p.notePt}
                       onClick={() =>
                         setPref({ packPlatforms: on ? prefs.packPlatforms.filter((x) => x !== p.id) : [...prefs.packPlatforms, p.id] })
                       }
@@ -317,7 +317,7 @@ export function ExportPanel({
                         on ? "border-ember/60 bg-ember/10 text-fg" : "text-mut hover:text-fg"
                       }`}
                     >
-                      {lang === "zh" ? p.name.zh : p.name.en}
+                      {lang === "en" ? p.name.en : p.name.pt}
                     </button>
                   );
                 })}

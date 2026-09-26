@@ -77,7 +77,7 @@ function formatBytes(bytes: number): string {
 }
 
 function formatMetric(value: number, locale: string): string {
-  return new Intl.NumberFormat(locale === "zh" ? "zh-CN" : "en-US", {
+  return new Intl.NumberFormat(locale === "en" ? "en-US" : "pt-BR", {
     notation: value >= 10_000 ? "compact" : "standard",
     maximumFractionDigits: 1,
   }).format(value);

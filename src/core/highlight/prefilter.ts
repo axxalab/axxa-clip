@@ -1,28 +1,32 @@
 /**
- * 端侧两级漏斗·第一级:本地小模型(Ollama 等 OpenAI 兼容端点)先通读全文,
- * 圈出「可能有爆点」的句子区间;云端大模型只精读入围部分(第二级)。
- * 长视频的云端 token 花费降一个量级。铁律 fail-open:本地端点不可达、
- * 超时、输出不可解析,一律静默回退全文直发——漏斗只省钱,不背锅。
+ * Funil local de dois níveis · primeiro nível: um modelo pequeno rodando na
+ * máquina (Ollama e outros endpoints compatíveis com OpenAI) lê o texto inteiro
+ * primeiro e delimita os intervalos de frases que "podem ter um destaque"; o
+ * modelo grande na nuvem só lê com atenção a parte selecionada (segundo nível).
+ * Em vídeos longos, o gasto de tokens na nuvem cai uma ordem de grandeza.
+ * Regra de ferro, fail-open: endpoint local inalcançável, tempo esgotado ou
+ * saída impossível de interpretar levam, em silêncio, de volta ao envio do texto
+ * completo — o funil só economiza dinheiro, nunca leva a culpa.
  */
 import type { Transcript, TranscriptSegment } from "../transcribe/types";
 import type { LlmConfig, FunnelStats } from "../../shared/api-types";
-import { isChineseTranscript } from "./prompt";
+import { isPortugueseTranscript } from "./prompt";
 
-/** 全文低于这个字符数不启用漏斗——短稿直发云端反而更准更快。 */
+/** Abaixo desta quantidade de caracteres o funil não é usado — uma transcrição curta enviada direto para a nuvem sai mais precisa e mais rápida. */
 export const PREFILTER_MIN_CHARS = 3000;
-/** 每块喂给小模型的目标字符数(小模型上下文短,块要小)。 */
+/** Quantidade de caracteres que cada bloco enviado ao modelo pequeno deve ter (o contexto de um modelo pequeno é curto, então os blocos precisam ser pequenos). */
 export const CHUNK_TARGET_CHARS = 2600;
-/** 入围窗口每侧扩展的句数(给云端留上下文,防止把钩子的铺垫切没)。 */
+/** Quantas frases a janela selecionada se estende para cada lado (deixa contexto para a nuvem e evita cortar fora a preparação do gancho). */
 export const WINDOW_PAD_SEGMENTS = 2;
-/** 整个初筛的总时限;超时回退全文(本地模型慢不能拖垮整条链路)。 */
+/** Tempo total de toda a pré-seleção; esgotado, volta ao texto completo (um modelo local lento não pode travar a cadeia inteira). */
 export const PREFILTER_TIMEOUT_MS = 120_000;
-/** 本机模型只允许少量在途请求，长稿的其余分段排队。 */
+/** O modelo desta máquina só admite poucas requisições em andamento; em transcrições longas, os demais blocos entram na fila. */
 export const PREFILTER_CONCURRENCY = 2;
 
-/** 与 chatComplete 同形的注入点(避免与 detect.ts 循环依赖,也方便测试)。 */
+/** Ponto de injeção com o mesmo formato de chatComplete (evita dependência circular com detect.ts e facilita o teste). */
 export type ChatFn = (llm: LlmConfig, system: string, user: string, signal?: AbortSignal) => Promise<string>;
 
-/** 按累计字符数把逐句稿切块(整句为单位,不拆句)。 */
+/** Divide a transcrição frase a frase em blocos por contagem de caracteres (a unidade é a frase inteira, que nunca é partida). */
 export function chunkSegments(segments: TranscriptSegment[], targetChars = CHUNK_TARGET_CHARS): TranscriptSegment[][] {
   const chunks: TranscriptSegment[][] = [];
   let cur: TranscriptSegment[] = [];
@@ -40,7 +44,7 @@ export function chunkSegments(segments: TranscriptSegment[], targetChars = CHUNK
   return chunks;
 }
 
-/** 剥掉思考块(qwen3 等推理小模型会先输出 <think>…</think> 再给 JSON)。 */
+/** Remove os blocos de raciocínio (modelos pequenos de raciocínio como o qwen3 imprimem <think>…</think> antes de entregar o JSON). */
 export function stripThinkBlocks(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
@@ -50,7 +54,7 @@ export interface IdWindow {
   end: number;
 }
 
-/** 解析小模型输出的入围区间;只留两端 id 都真实存在的窗口。 */
+/** Interpreta os intervalos selecionados que o modelo pequeno devolveu; mantém apenas as janelas cujos dois ids realmente existem. */
 export function parseWindows(content: string, validIds: Set<number>): IdWindow[] {
   let parsed: unknown;
   try {
@@ -77,8 +81,10 @@ export function parseWindows(content: string, validIds: Set<number>): IdWindow[]
 }
 
 /**
- * 窗口整理:按全稿句序每侧外扩 pad 句(id 可能不连续,按位置扩),
- * 然后合并重叠/相邻窗口,输出入围句 id 集合。
+ * Organização das janelas: expande pad frases para cada lado seguindo a ordem
+ * das frases no texto completo (os ids podem não ser contínuos, então a expansão
+ * é feita por posição) e depois funde as janelas sobrepostas ou vizinhas,
+ * devolvendo o conjunto de ids das frases selecionadas.
  */
 export function expandAndMergeWindows(
   windows: IdWindow[],
@@ -98,7 +104,7 @@ export function expandAndMergeWindows(
   return kept;
 }
 
-/** 只保留入围句的转写(id 原样保留——云端引用的 id 仍能在全稿反查)。 */
+/** Mantém apenas a transcrição das frases selecionadas (os ids são preservados como estão — um id citado pela nuvem continua localizável no texto completo). */
 export function filterTranscriptByIds(transcript: Transcript, keptIds: Set<number>): Transcript {
   return { ...transcript, segments: transcript.segments.filter((s) => keptIds.has(s.id)) };
 }
@@ -113,18 +119,18 @@ export function funnelStats(full: Transcript, filtered: Transcript): FunnelStats
   };
 }
 
-/** 初筛系统提示:任务窄、输出形状极简——小模型才啃得动。 */
-export function prefilterSystemPrompt(zh: boolean): string {
-  return zh
-    ? `你是短视频切片的初筛员。给你长视频逐句稿的一部分,格式每行 [句id] 内容。找出「可能剪成爆款切片」的句子区间:有冲突/悬念/金句/情绪爆发/反转/干货的地方。宁多勿漏——你圈出的区间会交给更强的模型精挑,漏掉的永远消失。每个区间 2~10 句。严格只输出 JSON:{"windows":[{"start":起始句id,"end":结束句id}]}。没有值得圈的就输出 {"windows":[]}。不要输出任何其他文字。`
+/** Prompt de sistema da pré-seleção: tarefa estreita e formato de saída mínimo — só assim um modelo pequeno dá conta. */
+export function prefilterSystemPrompt(pt: boolean): string {
+  return pt
+    ? `Você é o responsável pela primeira triagem de cortes para vídeo curto. Você recebe parte da transcrição frase a frase de um vídeo longo, uma linha por frase, no formato [id] conteúdo. Marque os intervalos de frases que PODERIAM virar um corte viral: conflito, suspense, frase marcante, explosão de emoção, reviravolta, conteúdo denso e útil. É melhor incluir demais do que deixar passar — os intervalos que você marcar vão para um modelo mais forte fazer a escolha final, e o que você pular some para sempre. Cada intervalo tem de 2 a 10 frases. Responda com JSON estrito e nada mais: {"windows":[{"start":id_da_primeira,"end":id_da_ultima}]}. Se nada se qualificar, responda {"windows":[]}. Nenhum outro texto.`
     : `You are a first-pass screener for short-video clipping. You get part of a long-video transcript, one line per sentence: [id] text. Mark sentence ranges that COULD become viral clips: conflict, suspense, quotable lines, emotional peaks, twists, dense insight. Over-include rather than miss — your ranges go to a stronger model for final picking; anything you skip is gone forever. Each range spans 2-10 sentences. Output STRICT JSON only: {"windows":[{"start":firstId,"end":lastId}]}. If nothing qualifies output {"windows":[]}. No other text.`;
 }
 
-/** 每块的用户提示。qwen3 系列附加 /no_think 关闭思考流(其他模型不加)。 */
-export function prefilterUserPrompt(chunk: TranscriptSegment[], zh: boolean, model: string): string {
+/** Prompt de usuário de cada bloco. A família qwen3 recebe /no_think no final para desligar o fluxo de raciocínio (os demais modelos não recebem). */
+export function prefilterUserPrompt(chunk: TranscriptSegment[], pt: boolean, model: string): string {
   const lines = chunk.map((s) => `[${s.id}] ${s.text}`).join("\n");
   const noThink = /qwen3/i.test(model) ? "\n/no_think" : "";
-  return (zh ? `逐句稿如下:\n${lines}` : `Transcript chunk:\n${lines}`) + noThink;
+  return (pt ? `A transcrição frase a frase é esta:\n${lines}` : `Transcript chunk:\n${lines}`) + noThink;
 }
 
 export interface PrefilterOutcome {
@@ -133,9 +139,13 @@ export interface PrefilterOutcome {
 }
 
 /**
- * 跑完整个第一级漏斗。返回 null 表示「不启用/不可信,请用全文」:
- * 稿太短、端点全挂、超时、或小模型声称全文毫无爆点(不可信,宁可花钱不漏)。
- * 单块失败不致命——那一块整块入围(fail-open 到「多花点钱」而不是「漏内容」)。
+ * Executa o primeiro nível inteiro do funil. Devolver null significa "não use o
+ * funil / não é confiável, use o texto completo": transcrição curta demais,
+ * todos os endpoints fora do ar, tempo esgotado, ou o modelo pequeno afirmando
+ * que o texto inteiro não tem destaque nenhum (o que não é confiável: melhor
+ * gastar do que deixar passar).
+ * A falha de um bloco não é fatal — aquele bloco inteiro entra na seleção
+ * (fail-open para "gastar um pouco mais", e não para "perder conteúdo").
  */
 export async function prefilterTranscript(
   transcript: Transcript,
@@ -147,19 +157,19 @@ export async function prefilterTranscript(
   const totalChars = transcript.segments.reduce((n, s) => n + s.text.length, 0);
   if (totalChars < PREFILTER_MIN_CHARS) return null;
 
-  const zh = isChineseTranscript(transcript);
+  const pt = isPortugueseTranscript(transcript);
   const chunks = chunkSegments(transcript.segments);
   const orderedIds = transcript.segments.map((s) => s.id);
   const validIds = new Set(orderedIds);
-  const system = prefilterSystemPrompt(zh);
+  const system = prefilterSystemPrompt(pt);
 
-  // 总时限 + 上游取消信号合成;超时让所有在途请求一起终止
+  // Tempo total combinado com o sinal de cancelamento vindo de cima; esgotado o tempo, todas as requisições em andamento são encerradas juntas
   const timeout = AbortSignal.timeout(PREFILTER_TIMEOUT_MS);
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
   let anySucceeded = false;
   const windows: IdWindow[] = [];
-  // 未开始或失败的块默认全部保留；超时停止派发，不能把未看过的内容筛掉。
+  // Blocos que não começaram ou que falharam são mantidos por inteiro; quando o tempo se esgota o despacho para, e nada que não foi lido pode ser descartado.
   const results = chunks.map((chunk) => ({
     windows: [{ start: chunk[0].id, end: chunk[chunk.length - 1].id }], failed: true,
   }));
@@ -170,10 +180,10 @@ export async function prefilterTranscript(
         const index = nextChunk++;
         const chunk = chunks[index];
         try {
-          const content = await chat(local, system, prefilterUserPrompt(chunk, zh, local.model), combined);
+          const content = await chat(local, system, prefilterUserPrompt(chunk, pt, local.model), combined);
           if (!combined.aborted) results[index] = { windows: parseWindows(content, validIds), failed: false };
         } catch {
-          // 保留整块，交由下一阶段处理。
+          // Mantém o bloco inteiro e deixa para a etapa seguinte.
         }
       }
     })
@@ -182,14 +192,14 @@ export async function prefilterTranscript(
     if (!r.failed) anySucceeded = true;
     windows.push(...r.windows);
   }
-  // 上游主动取消要往外抛,不能吞成"回退全文"
+  // Um cancelamento pedido de cima precisa ser propagado, e não engolido como "volta ao texto completo"
   signal?.throwIfAborted();
-  if (!anySucceeded) return null; // 端点整体不可用 → 漏斗不生效
-  if (windows.length === 0) return null; // 小模型判"全无爆点"不可信 → 全文直发
+  if (!anySucceeded) return null; // nenhum endpoint disponível → o funil não entra em ação
+  if (windows.length === 0) return null; // o modelo pequeno dizer "não há destaque nenhum" não é confiável → envia o texto completo
 
   const keptIds = expandAndMergeWindows(windows, orderedIds);
   const filtered = filterTranscriptByIds(transcript, keptIds);
-  // 没筛掉多少(≥85% 保留)就不值得走漏斗,直接全文——统计上也诚实
+  // Se pouca coisa foi filtrada (85% ou mais preservado), não compensa usar o funil: vai o texto completo — o que também é honesto na estatística
   if (filtered.segments.length >= transcript.segments.length * 0.85) return null;
   return { transcript: filtered, funnel: funnelStats(transcript, filtered) };
 }

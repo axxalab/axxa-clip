@@ -5,7 +5,7 @@
 import { copyFile, link, mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-export const SERIES_DIR_NAME = "系列";
+export const SERIES_DIR_NAME = "series";
 
 export interface SeriesClipInput {
   file: string;

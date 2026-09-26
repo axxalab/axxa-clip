@@ -55,7 +55,7 @@ export function publishSystemPrompt(zh: boolean): string {
       "每条输出:title=发布标题(≤30字,别用片名原文照抄)。下笔前先从钩子角度菜单里挑最贴合内容的一个,整批切片换着用,别全走同一个套路:",
       hookAngleMenu(true),
       // 2026 算法对齐:收藏率与搜索权重最高——标题埋观众会搜的词,干货片 CTA 转收藏/合集
-      "【2026 算法要点】平台现在收藏率与搜索权重最高:标题优先写成「观众会在搜索框里打的问题/关键词句式」(把片内的具体名词/数字埋进标题,不要只写情绪词);标了[可收藏]的干货片,ctaType 必须选 save,CTA 引导「收藏起来」或「更多同场内容看主页合集」,标题走干货句式。",
+      "[2026 算法要点]平台现在收藏率与搜索权重最高:标题优先写成「观众会在搜索框里打的问题/关键词句式」(把片内的具体名词/数字埋进标题,不要只写情绪词);标了[可收藏]的干货片,ctaType 必须选 save,CTA 引导「收藏起来」或「更多同场内容看主页合集」,标题走干货句式。",
       "hashtags=3-6 个话题标签(带#,垂类词优先,泛词最多1个);",
       "description=一两句简介(补充钩子或语境,≤60字,不要堆表情);",
       "cta=一句收尾行动号召(≤20字),类型从菜单里挑与内容匹配的:",
@@ -169,6 +169,6 @@ export function postTextFile(copy: PublishCopy, aigc = false): string {
   const body = [copy.description, copy.cta ?? ""].filter(Boolean).join("\n");
   if (body) parts.push(body);
   // 开了 AIGC 标识:通用提醒(各平台的具体操作提示在发布包 manifest/文案里)
-  if (aigc) parts.push("【AIGC 标注】发布时按平台要求勾选 AI 生成内容声明(未标注最高罚则为封号)");
+  if (aigc) parts.push("[AIGC 标注]发布时按平台要求勾选 AI 生成内容声明(未标注最高罚则为封号)");
   return parts.join("\n\n") + "\n";
 }

@@ -1,46 +1,60 @@
 /**
- * 参考视频驱动(借鉴 OpenMontage 的 reference-driven 创作):用户丢进一条
- * 想对标的爆款切片,本地实测它的节奏——时长/语速/句长/镜头切换频率/开场
- * 钩子——生成「风格画像」,注入找爆点提示词,让选段向对标的节奏靠拢。
- * 画像是偏好不是硬约束:优质内容仍以爆点潜质为先,避免为凑节奏选废片。
+ * Seleção guiada por vídeo de referência (ideia emprestada da criação
+ * reference-driven do OpenMontage): a pessoa entrega um corte viral que quer
+ * usar como espelho, o ritmo dele é medido aqui mesmo na máquina — duração,
+ * velocidade da fala, tamanho das frases, frequência de troca de plano, gancho
+ * de abertura — e vira um "perfil de estilo" que é injetado no prompt de busca
+ * de destaques, fazendo a escolha dos trechos pender para aquele ritmo.
+ * O perfil é uma preferência, não uma restrição rígida: conteúdo bom continua
+ * vindo primeiro pelo potencial de viralizar, para não acabar escolhendo trecho
+ * ruim só para bater o ritmo.
  *
- * 本模块只有纯函数(画像计算/提示词段落),可单测;转写与镜头检测由
- * pipeline 层复用现有设施(transcribeCached / detectShotBoundaries)后把
- * 结果喂进来——素材照旧不出电脑。
+ * Este módulo tem apenas funções puras (cálculo do perfil e montagem do bloco
+ * do prompt), que são testáveis; a transcrição e a detecção de planos são feitas
+ * pela camada de pipeline, reaproveitando a infraestrutura que já existe
+ * (transcribeCached / detectShotBoundaries), e só então o resultado é entregue
+ * aqui — o material continua, como sempre, sem sair do computador.
  */
 import type { Transcript } from "../shared/api-types";
 
-/** 参考爆款的风格画像(全部来自实测,不猜)。 */
+/** Perfil de estilo do corte de referência (tudo medido, nada chutado). */
 export interface ReferenceProfile {
-  /** 参考片时长(秒)。 */
+  /** Duração do vídeo de referência (segundos). */
   durationSec: number;
-  /** 语速:中文按字/秒,英文按词/秒。 */
+  /** Velocidade da fala: caracteres por segundo em idiomas ideográficos, palavras por segundo nos demais. */
   speechRate: number;
-  /** 平均句长(中文字/英文词)。 */
+  /** Tamanho médio da frase (em caracteres ou em palavras, conforme o idioma). */
   avgSentenceLen: number;
-  /** 镜头切换频率(次/分钟);检测失败或纯音频为 null。 */
+  /** Frequência de troca de plano (por minuto); null quando a detecção falha ou o material é só áudio. */
   cutsPerMin: number | null;
-  /** 开场钩子句(第一句原文,截断保底)。 */
+  /** Frase de gancho da abertura (o texto original da primeira frase, truncado por segurança). */
   hookLine: string;
-  /** 参考片逐句稿是否中文(决定单位口径)。 */
-  zh: boolean;
+  /** Se a transcrição da referência é contada por caracteres (escritas ideográficas) em vez de palavras. */
+  charUnits: boolean;
 }
 
+// Faixa de ideogramas unificados CJK. Escrita como escapes Unicode de propósito:
+// o código-fonte deste projeto não carrega nenhum caractere ideográfico, mas a
+// contagem precisa continuar correta para material gravado nesses idiomas.
 const CJK_RE = /[一-鿿]/;
 
-/** 中文按字、英文按词的口径判断(与 highlight 的判定同思路,独立实现防环依赖)。 */
-function isChinese(transcript: Transcript): boolean {
+/**
+ * Decide a unidade de contagem: escritas ideográficas contam caracteres, as
+ * demais contam palavras. (Mesma ideia da verificação feita em highlight, mas
+ * implementada à parte para evitar dependência circular.)
+ */
+function usesCharUnits(transcript: Transcript): boolean {
   const lang = transcript.language.toLowerCase();
-  if (lang.startsWith("zh") || lang.startsWith("yue")) return true;
+  if (lang.startsWith("zh") || lang.startsWith("yue") || lang.startsWith("ja")) return true;
   if (lang && lang !== "auto") return false;
   const sample = transcript.segments.slice(0, 10).map((s) => s.text).join("");
   const cjk = (sample.match(/[一-鿿]/g) ?? []).length;
   return sample.length > 0 && cjk / sample.length > 0.3;
 }
 
-/** 一段文本的计数单位:中文数 CJK 字,英文数空白分隔的词。 */
-function countUnits(text: string, zh: boolean): number {
-  if (zh) {
+/** Unidade de contagem de um texto: caracteres ideográficos, ou palavras separadas por espaço. */
+function countUnits(text: string, charUnits: boolean): number {
+  if (charUnits) {
     let n = 0;
     for (const ch of text) if (CJK_RE.test(ch)) n++;
     return n;
@@ -49,15 +63,18 @@ function countUnits(text: string, zh: boolean): number {
 }
 
 /**
- * 从参考片逐句稿 + 镜头边界实测风格画像(纯函数)。
- * 语速用「说话时段」而不是全片时长——参考片若有留白,语速不该被稀释。
+ * Mede o perfil de estilo a partir da transcrição da referência e dos limites de
+ * plano (função pura).
+ * A velocidade da fala usa o "tempo em que alguém fala", e não a duração total
+ * do vídeo — se a referência tiver trechos de silêncio, a velocidade não deve
+ * ser diluída por causa disso.
  */
 export function buildReferenceProfile(transcript: Transcript, shotBoundaries: number[] | null): ReferenceProfile {
-  const zh = isChinese(transcript);
+  const charUnits = usesCharUnits(transcript);
   const segs = transcript.segments;
   const durationSec =
     transcript.durationSec > 0 ? transcript.durationSec : segs.length > 0 ? segs[segs.length - 1].endSec : 0;
-  const units = segs.reduce((a, s) => a + countUnits(s.text, zh), 0);
+  const units = segs.reduce((a, s) => a + countUnits(s.text, charUnits), 0);
   const speakingSec = segs.reduce((a, s) => a + Math.max(0, s.endSec - s.startSec), 0);
   const speechRate = speakingSec > 0 ? Number((units / speakingSec).toFixed(1)) : 0;
   const avgSentenceLen = segs.length > 0 ? Math.round(units / segs.length) : 0;
@@ -71,30 +88,32 @@ export function buildReferenceProfile(transcript: Transcript, shotBoundaries: nu
     avgSentenceLen,
     cutsPerMin,
     hookLine: (segs[0]?.text ?? "").trim().slice(0, 50),
-    zh,
+    charUnits,
   };
 }
 
 /**
- * 画像 → 找爆点 system prompt 的追加段落(纯函数)。zh 取主素材逐句稿的
- * 语言(提示词整体语言),画像单位口径跟参考片自己(profile.zh)。
+ * Perfil → bloco extra do system prompt de busca de destaques (função pura).
+ * `pt` segue o idioma da transcrição do material principal (o idioma do prompt
+ * como um todo), enquanto a unidade do perfil segue a própria referência
+ * (profile.charUnits).
  */
-export function referencePromptSection(profile: ReferenceProfile, zh: boolean): string {
+export function referencePromptSection(profile: ReferenceProfile, pt: boolean): string {
   const lo = Math.round(profile.durationSec * 0.7);
   const hi = Math.round(profile.durationSec * 1.3);
-  const unit = profile.zh ? (zh ? "字" : "chars") : (zh ? "词" : "words");
-  if (zh) {
+  const unit = profile.charUnits ? (pt ? "caracteres" : "chars") : (pt ? "palavras" : "words");
+  if (pt) {
     const facts = [
-      `时长 ${Math.round(profile.durationSec)} 秒`,
-      `语速 ${profile.speechRate} ${unit}/秒`,
-      `平均句长 ${profile.avgSentenceLen} ${unit}`,
-      ...(profile.cutsPerMin !== null ? [`镜头切换 ${profile.cutsPerMin} 次/分钟`] : []),
-      ...(profile.hookLine ? [`开场钩子「${profile.hookLine}」`] : []),
-    ].join("、");
+      `duração de ${Math.round(profile.durationSec)} segundos`,
+      `velocidade de fala de ${profile.speechRate} ${unit}/segundo`,
+      `frase com ${profile.avgSentenceLen} ${unit} em média`,
+      ...(profile.cutsPerMin !== null ? [`${profile.cutsPerMin} trocas de plano por minuto`] : []),
+      ...(profile.hookLine ? [`gancho de abertura "${profile.hookLine}"`] : []),
+    ].join(", ");
     return (
-      `\n\n【参考爆款画像】用户提供了一条想对标的爆款切片,实测:${facts}。` +
-      `选段时向这个节奏靠拢:优先选目标时长 ${lo}~${hi} 秒、语速与信息密度相近、开场钩子形态类似(同为提问/冲突/悬念式)的片段;` +
-      `这是偏好不是硬约束——内容本身的爆点潜质永远优先,不要为凑节奏选平庸段落。`
+      `\n\n[Perfil do corte de referência] A pessoa forneceu um corte viral para servir de espelho; o que foi medido nele: ${facts}. ` +
+      `Puxe a escolha dos trechos para esse ritmo: prefira candidatos com duração alvo de ${lo} a ${hi} segundos, velocidade e densidade de informação parecidas e um gancho de abertura do mesmo formato (pergunta, conflito ou suspense). ` +
+      `Isso é uma preferência, não uma restrição rígida — o potencial de viralizar do próprio conteúdo vem sempre antes, e nunca se deve escolher um trecho medíocre só para bater o ritmo.`
     );
   }
   const facts = [

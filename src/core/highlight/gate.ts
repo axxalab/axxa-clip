@@ -1,74 +1,99 @@
 /**
- * 质量门规则层(v0.13):在 LLM 复评之外,用确定性规则抓「一眼硬伤」——
- * 开头悬空接续词(所以/但是……=半截话)、结尾没收住(逗号/顿号收尾)、
- * 多人抢话密集(说话人切换频率超阈值,AI 选段在对谈场景命中率只有 4/10)。
+ * Camada de regras da porta de qualidade (v0.13): além da reavaliação feita
+ * pelo LLM, regras determinísticas pegam os "defeitos que saltam aos olhos" —
+ * conectivo solto na abertura (então/mas… = meia frase), final que não fecha
+ * (termina em vírgula ou ponto e vírgula) e disputa densa pela fala (frequência
+ * de troca de falante acima do limite; em conversa, a taxa de acerto da IA ao
+ * escolher trechos é de apenas 4 em 10).
  *
- * 三轮调研结论:AI 出片 30-45% 是废片,而 2026 年发废片的代价是账号级的
- * (慢推流 7 天评估/频道分发上限)。质量门的职责是把「选出」和「选完」分开:
- * publish=建议发 / review=需人审 / drop=不建议发。
+ * Conclusão de três rodadas de pesquisa: de 30% a 45% do que a IA entrega é
+ * descartável, e em 2026 o preço de publicar clipe ruim é pago pela conta
+ * inteira (avaliação lenta de 7 dias, teto de distribuição do canal). O papel da
+ * porta de qualidade é separar "escolher" de "terminar de escolher":
+ * publish = recomendado publicar / review = precisa de revisão humana /
+ * drop = não recomendado publicar.
  *
- * 规则层只降档不升档、只到 review 不到 drop(fail-open:规则误判的代价
- * 必须小)。drop 只能由 LLM 复评给出。纯函数,可单测。
+ * A camada de regras só rebaixa, nunca promove, e vai no máximo até review,
+ * nunca até drop (fail-open: o custo de um falso positivo das regras precisa ser
+ * pequeno). Só a reavaliação do LLM pode dar drop. Funções puras, testáveis.
  */
 import type { Transcript } from "../transcribe/types";
 import type { HighlightCandidate } from "../../shared/api-types";
 import { clipDurationSec } from "../../shared/pieces";
 
-/** 质量门档位:建议发 / 需人审 / 不建议发。 */
+/** Níveis da porta de qualidade: recomendado publicar / precisa de revisão / não recomendado. */
 export type GateTier = "publish" | "review" | "drop";
 
 /**
- * 悬空接续词:出现在片段第一句开头,说明上一句被切掉了、观众听着像半截话。
- * 只收「几乎不可能是完整开场」的词——「其实/说白了」这类反而是常见的
- * 金句开头,不能进清单。
+ * Conectivos soltos: quando aparecem no começo da primeira frase do trecho,
+ * indicam que a frase anterior foi cortada fora e que o público vai ouvir uma
+ * meia frase. A lista só recebe palavras que quase nunca abrem uma fala
+ * completa — termos como "na verdade" ou "resumindo" costumam justamente abrir
+ * uma boa frase e não podem entrar aqui.
  */
-const DANGLING_OPENERS_ZH = [
-  "所以说",
-  "所以",
-  "但是",
-  "但就是",
-  "然后呢",
-  "然后",
-  "而且",
-  "并且",
-  "不过",
-  "可是",
-  "否则",
-  "要不然",
-  "于是",
-  "接着",
-  "还有就是",
-  "另外",
-  "总之",
-  "综上",
+const DANGLING_OPENERS_PT = [
+  "por isso",
+  "portanto",
+  "então",
+  "entao",
+  "e aí",
+  "e ai",
+  "mas",
+  "porém",
+  "porem",
+  "contudo",
+  "todavia",
+  "no entanto",
+  "entretanto",
+  "aí",
+  "daí",
+  "dai",
+  "além disso",
+  "alem disso",
+  "e também",
+  "e tambem",
+  "senão",
+  "senao",
+  "caso contrário",
+  "caso contrario",
+  "em seguida",
+  "logo depois",
+  "outra coisa",
+  "enfim",
 ];
 
 const DANGLING_OPENER_EN = /^(?:so|but|and|then|also|because|however|anyway|therefore)\b/i;
 
-/** 开头是不是悬空的半截话。 */
+/** Diz se a abertura é uma meia frase solta. */
 export function openingDangles(text: string): boolean {
-  const t = text.trim().replace(/^[「『"'“‘(\(\[]+/, "");
+  const t = text.trim().replace(/^["'“‘(\(\[]+/, "");
   if (!t) return false;
   if (DANGLING_OPENER_EN.test(t)) return true;
-  return DANGLING_OPENERS_ZH.some((w) => t.startsWith(w));
+  const lower = t.toLowerCase();
+  return DANGLING_OPENERS_PT.some((w) => lower.startsWith(w));
 }
 
 /**
- * 结尾没收住:以逗号/顿号/冒号/分号/破折号结尾 = 明显话没说完。
- * 只抓硬伤——「无标点结尾」不算(ASR 丢句尾标点太常见,误报会刷屏)。
+ * Final que não fecha: terminar em vírgula, dois-pontos, ponto e vírgula ou
+ * travessão indica claramente que a fala não acabou.
+ * Só os defeitos evidentes contam — "terminar sem nenhuma pontuação" não entra
+ * (o reconhecimento de fala perde pontuação final com muita frequência, e o
+ * falso positivo inundaria a lista).
  */
 export function endingUnfinished(text: string): boolean {
-  const t = text.trim().replace(/[」』"'”’)\)\]]+$/, "");
+  const t = text.trim().replace(/["'”’)\)\]]+$/, "");
   if (!t) return false;
-  return /[，,、：:;；—–-]$/.test(t);
+  return /[,:;—–-]$/.test(t);
 }
 
-/** 说话人切换密度阈值(次/分钟):超过就是抢话/碎片对谈,单独看大概率听不懂。 */
+/** Limite de densidade de troca de falante (por minuto): acima disso é disputa pela fala ou conversa picotada, que sozinha o público provavelmente não entende. */
 export const SPEAKER_TANGLE_PER_MIN = 10;
 
 /**
- * 多人抢话密集:候选范围内说话人切换次数按分钟折算超阈值。
- * 只在真的做过说话人分离(≥2 人)时才有意义;单说话人/未分离一律 false。
+ * Disputa densa pela fala: o número de trocas de falante dentro do candidato,
+ * convertido para minutos, passa do limite.
+ * Só faz sentido quando a separação de falantes foi realmente feita (2 ou mais
+ * pessoas); com um único falante ou sem separação, o resultado é sempre false.
  */
 export function speakerTangled(
   transcript: Transcript,
@@ -97,47 +122,52 @@ export function speakerTangled(
   return switches / durMin > SPEAKER_TANGLE_PER_MIN;
 }
 
-/** 单条候选的规则层检查结果(zh 决定给用户看的原因文案语言)。 */
+/** Resultado da checagem por regras de um candidato (pt define o idioma do texto de motivo mostrado ao usuário). */
 export function ruleGateIssues(
   transcript: Transcript,
   candidate: HighlightCandidate,
-  zh: boolean
+  pt: boolean
 ): string[] {
-  // 信号候选(跳舞/萌宠等)不是按原话切的,文本规则对它没有意义
+  // Candidatos vindos de sinal (dança, pets etc.) não são cortados a partir da
+  // fala, então as regras de texto não dizem nada sobre eles
   if (candidate.boundary === "signal") return [];
   const issues: string[] = [];
   if (openingDangles(candidate.text)) {
-    issues.push(zh ? "开头像半截话(悬空接续词)" : "opens mid-thought (dangling connective)");
+    issues.push(pt ? "abre como meia frase (conectivo solto)" : "opens mid-thought (dangling connective)");
   }
   if (endingUnfinished(candidate.text)) {
-    issues.push(zh ? "结尾没收住(截在逗号上)" : "ends unfinished (cut on a comma)");
+    issues.push(pt ? "final não fecha (cortado numa vírgula)" : "ends unfinished (cut on a comma)");
   }
   if (speakerTangled(transcript, candidate)) {
-    issues.push(zh ? "多人抢话密集,单独看可能听不懂" : "dense speaker overlap, may not stand alone");
+    issues.push(pt ? "muita disputa pela fala; sozinho pode não se entender" : "dense speaker overlap, may not stand alone");
   }
   return issues;
 }
 
 /**
- * 把规则层结论并进候选:
- * - 有硬伤且当前是 publish(或 LLM 复评没跑,gate 缺省)→ 降为 review;
- * - 绝不升档、绝不给 drop(drop 只能由 LLM 复评判);
- * - 原因追加进 gateNotes(证据链给人看)。
+ * Funde a conclusão da camada de regras no candidato:
+ * - havendo defeito e estando em publish (ou com a reavaliação do LLM não
+ *   executada, deixando gate indefinido) → rebaixa para review;
+ * - nunca promove e nunca dá drop (só a reavaliação do LLM pode julgar drop);
+ * - os motivos são acrescentados em gateNotes (a cadeia de evidências que a
+ *   pessoa lê).
  */
 export function applyRuleGate(
   transcript: Transcript,
   candidates: HighlightCandidate[],
-  zh: boolean
+  pt: boolean
 ): HighlightCandidate[] {
   return candidates.map((c) => {
-    const issues = ruleGateIssues(transcript, c, zh);
+    const issues = ruleGateIssues(transcript, c, pt);
     if (issues.length === 0) return c;
     const demote = c.gate === "publish" || c.gate === undefined;
     return {
       ...c,
       gate: demote ? "review" : c.gate,
-      // 需人审不等于不推荐导出;recommended 只跟 LLM 的 keep/verdict 走,
-      // 规则降档只影响 UI 档位与提示,不静默改变选中状态之外的行为
+      // Precisar de revisão não é o mesmo que não recomendar a exportação;
+      // recommended segue apenas o keep/verdict do LLM, e o rebaixamento por
+      // regra só afeta o nível exibido e o aviso na interface, sem alterar em
+      // silêncio nada além do estado de seleção
       gateNotes: [...(c.gateNotes ?? []), ...issues],
     };
   });

@@ -336,7 +336,7 @@ function ParamsTab({ onRedetect }: { onRedetect: () => void }): React.JSX.Elemen
         >
           {GENRE_PRESETS.map((g) => (
             <option key={g.id} value={g.id}>
-              {lang === "zh" ? g.labelZh : g.labelEn}
+              {lang === "en" ? g.labelEn : g.labelPt}
             </option>
           ))}
         </select>

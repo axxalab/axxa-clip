@@ -6,7 +6,7 @@ describe("SAFE_ZONE_PLATFORMS 数据合法性", () => {
     expect(SAFE_ZONE_PLATFORMS.length).toBeGreaterThan(0);
     for (const p of SAFE_ZONE_PLATFORMS) {
       expect(p.id).toBeTruthy();
-      expect(p.name.zh).toBeTruthy();
+      expect(p.name.pt).toBeTruthy();
       expect(p.name.en).toBeTruthy();
       expect(p.zones.length).toBeGreaterThan(0);
       for (const z of p.zones) {

@@ -590,16 +590,17 @@ export interface DetectHighlightsResult {
   referenceError?: string;
 }
 
-/** 参考爆款画像(桌面端「参考爆款」入口;与 core/reference 的 ReferenceProfile 同构)。 */
+/** Perfil do corte de referência (entrada "Clipe de referência" no aplicativo de desktop; mesmo formato do ReferenceProfile de core/reference). */
 export interface ReferenceInfo {
   durationSec: number;
-  /** 语速:中文按字/秒,英文按词/秒。 */
+  /** Velocidade da fala: caracteres por segundo em idiomas ideográficos, palavras por segundo nos demais. */
   speechRate: number;
   avgSentenceLen: number;
-  /** 镜头切换频率(次/分钟);检测失败或纯音频为 null。 */
+  /** Frequência de troca de plano (por minuto); null quando a detecção falha ou o material é só áudio. */
   cutsPerMin: number | null;
   hookLine: string;
-  zh: boolean;
+  /** Se a contagem é feita por caracteres (escritas ideográficas) em vez de palavras. */
+  charUnits: boolean;
 }
 
 /** One reversible human edit. AI detection/transcription results establish a new baseline instead. */
@@ -926,13 +927,13 @@ export interface HotClipApi {
   /** 清空真实发布表现记忆;不影响主观审阅偏好。 */
   performanceClear: () => Promise<void>;
   /** 运行只读环境健康检查。 */
-  diagnosticsRun: (llm: LlmConfig | null, locale?: "zh" | "en") => Promise<DiagnosticsReport>;
+  diagnosticsRun: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
   /** Clear only generated base renders, then return a refreshed health report. */
-  diagnosticsClearRenderCache: (llm: LlmConfig | null, locale?: "zh" | "en") => Promise<DiagnosticsReport>;
+  diagnosticsClearRenderCache: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
   /** Clear only regenerable source-analysis evidence, then return a refreshed health report. */
-  diagnosticsClearEvidenceIndex: (llm: LlmConfig | null, locale?: "zh" | "en") => Promise<DiagnosticsReport>;
+  diagnosticsClearEvidenceIndex: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
   /** 显式预下载缺失的默认管线模型;支持断点续传。 */
-  diagnosticsPrepareModels: (llm: LlmConfig | null, locale?: "zh" | "en") => Promise<DiagnosticsReport>;
+  diagnosticsPrepareModels: (llm: LlmConfig | null, locale?: "pt" | "en") => Promise<DiagnosticsReport>;
   onDiagnosticsProgress: (cb: (p: DiagnosticsProgressEvent) => void) => () => void;
   diagnosticsCancelRepair: () => void;
   /** 选择一个文件夹(录播监听用);取消返回 null。 */

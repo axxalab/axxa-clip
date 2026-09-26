@@ -512,7 +512,7 @@ export function ClipReviewModal({
             >
               {SAFE_ZONE_PLATFORMS.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name[locale === "zh" ? "zh" : "en"]}
+                  {p.name[locale === "en" ? "en" : "pt"]}
                 </option>
               ))}
             </select>

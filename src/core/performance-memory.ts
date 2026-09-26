@@ -1,7 +1,11 @@
 /**
- * 发布表现反馈回路:从平台导出的 CSV/JSON 导入真实播放与互动数据,本地持久化,
- * 下一轮找爆点时把强/弱样例注入提示词。与 review-memory 的主观采用/否决
- * 互补:前者回答「我喜欢什么」,这里回答「观众真的看了什么」。
+ * Ciclo de retorno do desempenho das publicações: os dados reais de
+ * visualização e engajamento são importados do CSV/JSON exportado pelas
+ * plataformas, ficam guardados localmente e, na rodada seguinte de busca de
+ * destaques, os exemplos fortes e fracos são injetados no prompt.
+ * É o complemento do aprovar/descartar subjetivo do review-memory: lá se
+ * responde "do que eu gosto", e aqui se responde "o que o público assistiu de
+ * verdade".
  */
 import { mkdir, readFile, rename, rm, writeFile } from "fs/promises";
 import { basename, dirname, extname, join } from "path";
@@ -14,20 +18,23 @@ const MAX_ENTRIES = 500;
 const MAX_PROMPT_EXAMPLES = 5;
 const memoryPath = (userDataDir: string): string => join(userDataDir, "performance-memory.json");
 
+// Cabeçalhos aceitos na importação. Cada campo lista os nomes usados nos
+// painéis em português e os equivalentes em inglês, porque o mesmo arquivo pode
+// vir de plataformas diferentes.
 const FIELD_ALIASES = {
-  contentId: ["content_id", "contentid", "hotclip_id", "内容id", "内容编号"],
-  id: ["id", "video_id", "bvid", "aweme_id", "作品id", "视频id"],
-  title: ["title", "name", "video_title", "标题", "作品标题", "视频标题"],
-  hook: ["hook", "opening_hook", "钩子", "开场钩子"],
-  platform: ["platform", "source", "平台"],
-  views: ["views", "view", "plays", "play", "播放", "播放量", "观看量"],
-  likes: ["likes", "like", "点赞", "点赞量"],
-  comments: ["comments", "comment", "评论", "评论量"],
-  shares: ["shares", "share", "转发", "分享", "分享量"],
-  saves: ["saves", "save", "favorites", "favs", "收藏", "收藏量"],
-  durationSec: ["duration_sec", "duration", "时长", "时长秒"],
-  keywords: ["keywords", "tags", "关键词", "标签"],
-  publishedAt: ["published_at", "publish_time", "date", "发布时间", "发布日期"],
+  contentId: ["content_id", "contentid", "hotclip_id", "id_do_conteudo", "id do conteúdo", "id do conteudo"],
+  id: ["id", "video_id", "bvid", "aweme_id", "id_do_video", "id do vídeo", "id do video"],
+  title: ["title", "name", "video_title", "titulo", "título", "titulo do video", "título do vídeo"],
+  hook: ["hook", "opening_hook", "gancho", "gancho de abertura"],
+  platform: ["platform", "source", "plataforma", "origem"],
+  views: ["views", "view", "plays", "play", "visualizacoes", "visualizações", "exibicoes", "exibições", "reproducoes", "reproduções"],
+  likes: ["likes", "like", "curtidas", "curtida"],
+  comments: ["comments", "comment", "comentarios", "comentários"],
+  shares: ["shares", "share", "compartilhamentos", "compartilhamento"],
+  saves: ["saves", "save", "favorites", "favs", "salvos", "salvamentos", "favoritos"],
+  durationSec: ["duration_sec", "duration", "duracao", "duração", "duracao_seg", "duração em segundos"],
+  keywords: ["keywords", "tags", "palavras-chave", "palavras chave", "etiquetas"],
+  publishedAt: ["published_at", "publish_time", "date", "data", "data de publicacao", "data de publicação", "publicado em"],
 } as const;
 
 type Row = Record<string, unknown>;
@@ -43,19 +50,23 @@ function field(row: Map<string, unknown>, aliases: readonly string[]): unknown {
   return undefined;
 }
 
-/** 平台导出常见的 `1.2万` / `3,456` / `7.8k` 都可读。 */
+/** Lê os formatos abreviados comuns nas exportações das plataformas: `7,8 mil`, `1,2 mi`, `3.456` e `7.8k`. */
 export function metricNumber(value: unknown): number {
   if (typeof value === "number") return Number.isFinite(value) ? Math.max(0, value) : 0;
-  const raw = String(value ?? "").trim().toLowerCase().replace(/,/g, "");
+  // A vírgula é separador decimal em português e separador de milhar em
+  // inglês: um número com vírgula e exatamente uma casa vira decimal (7,8 mil),
+  // e nos demais casos a vírgula é apenas separador de milhar (3,456).
+  let raw = String(value ?? "").trim().toLowerCase();
+  raw = /^-?\d{1,3},\d(?!\d)/.test(raw) ? raw.replace(",", ".") : raw.replace(/,/g, "");
   if (!raw) return 0;
-  const m = raw.match(/^(-?\d+(?:\.\d+)?)\s*(万|亿|k|m)?/i);
+  const m = raw.match(/^(-?\d+(?:\.\d+)?)\s*(mil|mi|mm|k|m|b)?/i);
   if (!m) return 0;
   const base = Math.max(0, Number(m[1]));
-  const mul = { 万: 10_000, 亿: 100_000_000, k: 1_000, m: 1_000_000 }[m[2] ?? ""] ?? 1;
+  const mul = { mil: 1_000, mi: 1_000_000, mm: 1_000_000, k: 1_000, m: 1_000_000, b: 1_000_000_000 }[m[2] ?? ""] ?? 1;
   return Math.round(base * mul);
 }
 
-/** RFC4180 子集:支持引号、逗号、CRLF 与引号内换行。 */
+/** Subconjunto da RFC4180: aceita aspas, vírgulas, CRLF e quebra de linha dentro das aspas. */
 export function parseCsv(text: string): Row[] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -86,7 +97,7 @@ export function parseCsv(text: string): Row[] {
 }
 
 function keywords(value: unknown): string[] | undefined {
-  const values = Array.isArray(value) ? value : String(value ?? "").split(/[#,，、;；|]/);
+  const values = Array.isArray(value) ? value : String(value ?? "").split(/[#,;|]/);
   const out = values.map((v) => String(v).trim()).filter(Boolean).slice(0, 12);
   return out.length > 0 ? out : undefined;
 }
@@ -180,7 +191,7 @@ export async function importPerformanceFile(
         ? ((parsed as { data?: unknown; items?: unknown; videos?: unknown }).data ??
           (parsed as { items?: unknown }).items ?? (parsed as { videos?: unknown }).videos)
         : null;
-    if (!Array.isArray(value)) throw new Error("JSON 需要是数组,或包含 data/items/videos 数组");
+    if (!Array.isArray(value)) throw new Error("O JSON precisa ser um array, ou conter um array em data/items/videos");
     rows = value as Row[];
   }
   const defaultPlatform = basename(inputPath, ext).split(/[-_.]/)[0] || "unknown";
@@ -197,8 +208,10 @@ export async function importPerformanceFile(
 }
 
 /**
- * 互动质量分:分享/收藏权重高于轻互动,并用 200 播放先验抑制小样本虚高;
- * 对播放量加很轻的对数项,避免只奖励互动率而忽略真实触达。
+ * Nota de qualidade do engajamento: compartilhamento e salvamento pesam mais do
+ * que as interações leves, e um a priori de 200 visualizações contém a inflação
+ * das amostras pequenas; um termo logarítmico bem leve sobre as visualizações
+ * evita premiar só a taxa de engajamento e ignorar o alcance real.
  */
 export function performanceScore(e: PerformanceEntry): number {
   const weighted = e.likes + e.comments * 2 + e.shares * 3 + e.saves * 3;
@@ -207,7 +220,7 @@ export function performanceScore(e: PerformanceEntry): number {
 
 export function performanceExamples(entries: PerformanceEntry[]): { winners: PerformanceEntry[]; laggards: PerformanceEntry[] } {
   const sorted = [...entries].sort((a, b) => performanceScore(b) - performanceScore(a));
-  // Small imports still need contrast: reserve the lower half for laggards.
+  // Importações pequenas também precisam de contraste: a metade de baixo fica reservada para os de baixo desempenho.
   const winnerCount = Math.min(MAX_PROMPT_EXAMPLES, Math.max(1, Math.floor(sorted.length / 2)));
   const winners = sorted.slice(0, winnerCount);
   const winnerKeys = new Set(winners.map(entryKey));
@@ -233,32 +246,35 @@ export function summarizePerformance(
   };
 }
 
-const compactMetric = (n: number, zh: boolean): string => {
-  if (zh) return n >= 100_000_000 ? `${(n / 100_000_000).toFixed(1)}亿` : n >= 10_000 ? `${(n / 10_000).toFixed(1)}万` : String(n);
+const compactMetric = (n: number, pt: boolean): string => {
+  if (pt) {
+    const br = (v: number): string => v.toFixed(1).replace(".", ",");
+    return n >= 1_000_000 ? `${br(n / 1_000_000)} mi` : n >= 1_000 ? `${br(n / 1_000)} mil` : String(n);
+  }
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n);
 };
 
-const exampleLine = (e: PerformanceEntry, zh: boolean): string => {
+const exampleLine = (e: PerformanceEntry, pt: boolean): string => {
   const engagement = e.likes + e.comments + e.shares + e.saves;
   const rate = ((engagement / Math.max(1, e.views)) * 100).toFixed(2);
   const extra = [
-    e.hook ? (zh ? `钩子「${e.hook}」` : `hook "${e.hook}"`) : "",
+    e.hook ? (pt ? `gancho "${e.hook}"` : `hook "${e.hook}"`) : "",
     e.durationSec ? `${Math.round(e.durationSec)}s` : "",
-    e.keywords?.slice(0, 4).join(zh ? "、" : ", ") ?? "",
+    e.keywords?.slice(0, 4).join(", ") ?? "",
   ]
-    .filter(Boolean).join(zh ? "," : ", ");
-  return zh
-    ? `- [${e.platform}]《${e.title}》播放 ${compactMetric(e.views, true)},总互动率 ${rate}%${extra ? `,${extra}` : ""}`
+    .filter(Boolean).join(", ");
+  return pt
+    ? `- [${e.platform}] "${e.title}" — ${compactMetric(e.views, true)} visualizações, ${rate}% de engajamento total${extra ? `, ${extra}` : ""}`
     : `- [${e.platform}] "${e.title}" ${compactMetric(e.views, false)} views, ${rate}% total engagement${extra ? `, ${extra}` : ""}`;
 };
 
-/** 只把聚合后的有限样例送给 LLM,不携带账号 cookie/目录等敏感信息。 */
-export function performanceMemorySection(entries: PerformanceEntry[], zh: boolean): string {
+/** Só os poucos exemplos já agregados vão para o LLM; nada de cookie de conta, caminho de pasta ou outra informação sensível. */
+export function performanceMemorySection(entries: PerformanceEntry[], pt: boolean): string {
   const { winners, laggards } = performanceExamples(entries);
   if (winners.length === 0) return "";
-  if (zh) {
-    let out = `\n\n【真实发布表现】(来自用户本机导入的平台数据。请总结题材/钩子/时长的共性,把它当趋势证据而非硬规则;不要照抄历史标题。)\n高表现样例(同类优先):\n${winners.map((e) => exampleLine(e, true)).join("\n")}`;
-    if (laggards.length > 0) out += `\n低表现样例(同类谨慎):\n${laggards.map((e) => exampleLine(e, true)).join("\n")}`;
+  if (pt) {
+    let out = `\n\n[Desempenho real das publicações] (dados de plataforma importados na máquina do usuário. Generalize o padrão de tema, gancho e duração e trate isso como evidência de tendência, não como regra rígida; nunca copie os títulos antigos.)\nExemplos de alto desempenho (prefira parecidos):\n${winners.map((e) => exampleLine(e, true)).join("\n")}`;
+    if (laggards.length > 0) out += `\nExemplos de baixo desempenho (cuidado com parecidos):\n${laggards.map((e) => exampleLine(e, true)).join("\n")}`;
     return out;
   }
   let out = `\n\n[Real post performance] (locally imported platform data. Generalize topic/hook/duration patterns as trend evidence, not hard rules; never copy old titles.)\nHigh performers (prefer similar):\n${winners.map((e) => exampleLine(e, false)).join("\n")}`;
@@ -266,13 +282,13 @@ export function performanceMemorySection(entries: PerformanceEntry[], zh: boolea
   return out;
 }
 
-export function performanceReport(entries: PerformanceEntry[], zh = true): string {
-  if (entries.length === 0) return zh ? "还没有发布表现数据。" : "No post-performance data yet.";
+export function performanceReport(entries: PerformanceEntry[], pt = true): string {
+  if (entries.length === 0) return pt ? "Ainda não há dados de desempenho das publicações." : "No post-performance data yet.";
   const { winners, laggards } = performanceExamples(entries);
   const platforms = [...new Set(entries.map((e) => e.platform))].join(", ");
-  const lines = zh
-    ? [`已学习 ${entries.length} 条发布记录 · 平台: ${platforms}`, "", "高表现:", ...winners.map((e) => exampleLine(e, true))]
+  const lines = pt
+    ? [`${entries.length} publicações aprendidas · Plataformas: ${platforms}`, "", "Alto desempenho:", ...winners.map((e) => exampleLine(e, true))]
     : [`Learned from ${entries.length} posts · Platforms: ${platforms}`, "", "High performers:", ...winners.map((e) => exampleLine(e, false))];
-  if (laggards.length > 0) lines.push("", zh ? "低表现:" : "Low performers:", ...laggards.map((e) => exampleLine(e, zh)));
+  if (laggards.length > 0) lines.push("", pt ? "Baixo desempenho:" : "Low performers:", ...laggards.map((e) => exampleLine(e, pt)));
   return lines.join("\n");
 }

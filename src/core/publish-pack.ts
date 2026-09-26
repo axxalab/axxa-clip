@@ -23,7 +23,7 @@ function safeDirName(name: string, fallback: string): string {
 }
 
 /** 发布包根目录名(落在导出目录下)。 */
-export const PACK_DIR_NAME = "发布包";
+export const PACK_DIR_NAME = "pacotes-publicacao";
 
 /** 打包输入:一条已导出的成片。 */
 export interface PackClipInput {
@@ -96,7 +96,7 @@ export function adaptPost(
   if (hashtags.length > 0) parts.push(hashtags.join(" "));
   const body = [copy?.description ?? "", copy?.cta ?? ""].filter(Boolean).join("\n");
   if (body) parts.push(body);
-  if (aigc) parts.push(`【AIGC 标注】${spec.aigcNoteZh}`);
+  if (aigc) parts.push(`[Sinalização de conteúdo por IA] ${spec.aigcNotePt}`);
   return { text: parts.join("\n\n") + "\n", title, titleTruncated, hashtags };
 }
 
@@ -126,7 +126,7 @@ export async function buildPublishPacks(
   for (const id of validPlatformIds(platformIds)) {
     const spec = platformSpec(id)!;
     try {
-      const dir = join(outDir, PACK_DIR_NAME, safeDirName(spec.name.zh, spec.id));
+      const dir = join(outDir, PACK_DIR_NAME, safeDirName(spec.name.pt, spec.id));
       await mkdir(dir, { recursive: true });
       let truncated = 0;
       const rows: Array<Record<string, unknown>> = [];
@@ -159,13 +159,13 @@ export async function buildPublishPacks(
         JSON.stringify(
           {
             platform: spec.id,
-            name: spec.name.zh,
+            name: spec.name.pt,
             coverSize: `${spec.cover.w}x${spec.cover.h}`,
             titleMax: spec.titleMax,
             tagsMax: spec.tagsMax,
-            note: spec.noteZh,
+            note: spec.notePt,
             // AIGC 标注提醒:开了标识才写(发布前扫 manifest 就知道该在平台点哪个开关)
-            aigcNote: aigc ? spec.aigcNoteZh : null,
+            aigcNote: aigc ? spec.aigcNotePt : null,
             clips: rows,
           },
           null,
@@ -173,7 +173,7 @@ export async function buildPublishPacks(
         ),
         "utf8"
       ).catch(() => {});
-      summaries.push({ platform: spec.id, name: spec.name.zh, dir, clipCount: clips.length, truncatedTitles: truncated });
+      summaries.push({ platform: spec.id, name: spec.name.pt, dir, clipCount: clips.length, truncatedTitles: truncated });
     } catch {
       // 单平台失败不拖垮其余平台
     }

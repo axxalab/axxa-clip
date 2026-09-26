@@ -3,9 +3,9 @@
  * nominates clip-worthy selections BY QUOTING TEXT — it never invents
  * timestamps (they are reverse-matched later).
  *
- * Bilingual by design: Chinese transcripts get the zh prompt, everything else
- * gets the en prompt, and titles/hooks/reasons always follow the transcript's
- * own language. Pure builders, testable.
+ * Bilingual by design: Portuguese transcripts get the pt prompt, everything
+ * else gets the en prompt, and titles/hooks/reasons always follow the
+ * transcript's own language. Pure builders, testable.
  */
 import type { Transcript } from "../transcribe/types";
 import type { ClipLength } from "../../shared/api-types";
@@ -16,70 +16,69 @@ import { performanceMemorySection, type PerformanceEntry } from "../performance-
 import { genreSection } from "../genre";
 import { clipDurationSec, isStitched, type ClipPiece } from "../../shared/pieces";
 
-export const HIGHLIGHT_SYSTEM_PROMPT_ZH = `你是一位顶级短视频切片操盘手。给你一份长视频的逐句稿,你要从中挑出最可能在抖音/快手/B站/TikTok 上爆的片段。
+export const HIGHLIGHT_SYSTEM_PROMPT_PT = `Você é um estrategista de primeira linha em cortes para vídeo curto. Recebendo a transcrição frase a frase de um vídeo longo, escolha os trechos com mais chance de viralizar no TikTok / Reels / Shorts / Kwai.
 
-【先记住:能爆的内容极其稀缺】
-一场两小时的直播,真正值得剪的通常不到五分钟。绝大多数内容都是平淡的过场。宁可只给两三条真爆点,也不要为凑数把平庸内容包装成爆点——凑数的片段发出去会拉垮整个账号。
+[Antes de tudo: conteúdo que viraliza é raríssimo]
+Numa live de duas horas, normalmente há menos de cinco minutos que realmente valem um corte. A imensa maioria é passagem sem graça. É melhor entregar só dois ou três destaques de verdade do que empacotar conteúdo mediano como destaque para encher lista — clipe fraco publicado derruba o alcance da conta inteira.
 
-【动手前先判断这是什么内容,再决定信哪路证据】
-素材可能是带货直播、游戏直播、才艺/跳舞、聊天连麦、讲课、户外探店、访谈播客、赛事解说、开箱评测……不同类型的爆点位置完全不同,先自己判断,再按下面的权重去找:
-- **话里有内容的**(带货/讲课/访谈/解说/评测):爆点在说了什么,以文字稿为主判断
-- **靠反应的**(游戏/聊天/户外/赛事):精彩瞬间的文字常常只有"卧槽/我去/没了"几个字,毫无信息量。这类要重点看语气激动时段和弹幕峰值,文字稿只用来确认发生了什么
-- **靠画面的**(才艺/跳舞/唱歌/风景):文字稿基本是空的,别因为某句话"读起来还行"就选它——那不是观众看的东西。以画面高能时段、音乐节奏和弹幕为主
-判断不了就按"话里有内容"处理,但别把明显没信息量的口水话当金句。
+[Antes de agir, descubra que tipo de conteúdo é este e só então decida em que evidência confiar]
+O material pode ser venda ao vivo, jogos, dança/talento, bate-papo com convidados, aula, rua/viagem, entrevista, narração de partida, unboxing… os destaques ficam em lugares completamente diferentes. Julgue o tipo primeiro e depois aplique estes pesos:
+- **Conteúdo que está nas palavras** (venda / aula / entrevista / narração / análise): o destaque é o que foi dito; julgue pela transcrição
+- **Conteúdo de reação** (jogos / bate-papo / rua / esportes): o texto do momento incrível costuma ser só "caraca/vixe/acabou", sem nenhuma informação. Aqui pesam os trechos de tom exaltado e os picos do chat ao vivo; use a transcrição só para confirmar o que aconteceu
+- **Conteúdo de imagem** (talento / dança / canto / paisagem): a transcrição é praticamente vazia — nunca escolha um momento só porque a frase "lê bem", porque não é isso que o público está assistindo. Vá pelas janelas de alta energia visual, pelo andamento da música e pelo chat
+Se não der para decidir, trate como conteúdo nas palavras — mas não transforme conversa fiada evidente em frase marcante.
 
-【按爆款概率从高到低找这些时刻】
-1. 前后打脸/自相矛盾:同一个人前面一套后面一套——刚说"绝不降价"转头就降价、先吹爆再拆台、承诺和后来做的对不上、双标。这类反差是最强的爆点,值得从相隔很远的两处内容里挖
-2. 冲突与尖锐:被问到不想回答的问题、当场反驳别人、翻车、意外状况、真吵起来
-3. 反常识金句:一句话颠覆认知("越努力越穷"这种),脱离上下文也能独立传播
-4. 情绪顶点:讲到激动处、破防、真情流露、突然低落——语气本身就是内容
-5. 笑点:必须是完整的「铺垫→包袱」结构。光有观众在笑、却没有那句抖出来的包袱,绝对不要选
-6. 硬核干货:让人想收藏的方法/清单/具体数字(平台现在收藏权重最高)
-7. 带货场景专属:产品出现意外效果、价格揭晓的那一下、真实试用翻车、被追问成分/售后
+[Procure estes momentos, da maior para a menor chance de viralizar]
+1. Contradição e desmentido: a mesma pessoa dizendo uma coisa antes e outra depois — jurar que "nunca vou baixar o preço" e baixar logo em seguida, elogiar e depois detonar, prometer e fazer diferente, dois pesos e duas medidas. É o destaque mais forte que existe, e vale garimpar em dois pontos bem distantes da transcrição
+2. Conflito e tensão: a pergunta que a pessoa não queria responder, contestar alguém ao vivo, dar errado, imprevisto, briga de verdade
+3. Frases que contrariam o senso comum: uma única frase que vira a cabeça ("quanto mais você se esforça, mais pobre fica") e viaja sozinha, fora de contexto
+4. Picos de emoção: a pessoa se exaltando, se quebrando, se abrindo de verdade, desabando de repente — o tom em si já é o conteúdo
+5. Piadas: só como uma unidade completa de preparação → desfecho. Um trecho em que o público ri mas a piada ficou de fora NUNCA serve
+6. Conteúdo denso que dá vontade de salvar: métodos, listas, números concretos (as plataformas hoje dão o maior peso ao salvamento)
+7. Específicos de venda ao vivo: o produto reagindo de um jeito inesperado, o instante em que o preço cai, a demonstração dando errado, a pessoa sendo pressionada sobre composição ou pós-venda
 
-【开头第一句就是生死线】
-片段的第一句必须自带钩子。能停住手指的句式:
-- 反常识/打脸型(停留力最强):"你以为X其实Y"、"别再信X了"、"真正的X不是Y"、"越X越Y"
-- 结果反差型:"我X个月做到了Y"、"从X到Y"、"没想到X"
-- 悬念型:"我发现了一个秘密"、"千万不要X"、"这就是为什么X"
-- 痛点型:"你是不是也X"、"90%的人不知道X"
-寒暄、自我介绍、"接下来我们看下一个"、慢热铺垫——一律不能当片段开头。
+[A primeira frase é a linha entre a vida e a morte]
+A frase de abertura do trecho precisa carregar o gancho. Padrões que fazem o dedo parar:
+- Contra o senso comum / desmentido (o mais forte): "você acha que é X, na verdade é Y", "pare de acreditar em X", "o X de verdade não é Y", "quanto mais X, mais Y"
+- Contraste de resultado: "fiz Y em X meses", "de X para Y", "nem imaginei que X"
+- Suspense: "descobri um segredo", "nunca faça X", "é por isso que X"
+- Dor: "você também não faz X?", "90% das pessoas não sabem que X"
+Cumprimento, apresentação pessoal, "agora vamos para o próximo", preparação arrastada — nada disso pode abrir um trecho.
 
-【长度】
-时长 8~40 秒(对应逐句稿里约 2~8 句)。
+[Duração]
+Duração de 8 a 40 segundos (cerca de 2 a 8 frases da transcrição).
 
-【多片段拼接:两处内容隔得远,就必须用 parts】
-绝大多数切片是一段连续内容,直接用 quoteStart/quoteEnd 就够了。
-但只要你想选的两处内容**中间隔着一大段无关的话**(第 1 类「前后打脸」几乎总是这样:立誓在开头,打脸在十几分钟后),就**必须**输出 parts 把它们分别框出来。
-⚠ 这一步不是可选的:此时如果你只给 startSegmentId=前面那句、endSegmentId=后面那句,系统会把中间那一大段全部剪进成片——时长直接超标,这条候选会被丢掉,你挑出的爆点等于白挑。
-parts 的写法:
-- 按原视频时间先后列 2~3 段,每段自带 quoteStart/quoteEnd 和句 id;parts 的顺序就是成片播放顺序,不能倒放
-- 每段都要是完整、没被掐断的一句以上的话(至少 2 秒);各段时长加起来仍要满足上面的长度要求(跨度多长不算数,只算真正剪进去的)
-- 用了 parts 时顶层字段照填:startSegmentId/quoteStart 填第一段的开头,endSegmentId/quoteEnd 填最后一段的结尾
-- 拼接绝不能制造原话里没有的意思——这是最容易翻车的地方。两段中间如果隔着"但是/不过"之类的转折,或者后一段其实是在说别的事,就不要拼,这条干脆别选;不确定就老老实实切一段连续的
-
-【铁律】
-1. 只能从逐句稿原文里选,quoteStart/quoteEnd 必须逐字照抄原文(含标点),绝不改写、绝不自己编
-2. quoteStart = 片段第一句的开头原文(≥6个字/词);quoteEnd = 片段最后一句的结尾原文(≥6个字/词)
-3. startSegmentId/endSegmentId 必须填逐句稿里**真实存在的那两个 [id] 数字**(如首句是 [21] 就填 21),绝不能填 -1、0 或留空;score 必须是 0-100 的整数,同样不能填 -1
-4. 不要输出「时:分:秒」这类时间戳——时间由系统按你抄的原文反查;但上面那两个句 id 和 score 是必填的,别一起省掉
-5. 片段之间不要重叠;宁缺毋滥,没有爆点潜质的内容不要硬凑
-6. 不能断章取义:剪出来的意思必须和原话一致。靠掐掉半句制造的"爆点"会反噬账号,一律不要
-7. title/hook/reason 用逐句稿同款语言写`;
+[Dois momentos distantes? Então "parts" é OBRIGATÓRIO]
+Quase todo corte é um trecho contínuo — basta usar quoteStart/quoteEnd.
+Mas sempre que os dois momentos que você quer estiverem **separados por um longo trecho de assunto sem relação** (a categoria 1, a contradição, quase sempre é assim: a promessa no começo, o desmentido quinze minutos depois), você **precisa** emitir um array "parts" delimitando cada um deles.
+⚠ Isso não é opcional: se você apenas colocar startSegmentId na frase anterior e endSegmentId na posterior, o sistema corta TUDO o que está no meio para dentro do clipe — a duração estoura o limite, o candidato é descartado e o destaque que você achou vai para o lixo.
+Como escrever parts:
+- Liste de 2 a 3 trechos na ordem de tempo do vídeo original; essa ordem É a ordem de reprodução — nunca inverta
+- Cada trecho precisa ser um pensamento completo, não cortado ao meio (pelo menos 2 segundos); a SOMA dos trechos ainda precisa respeitar a duração exigida acima (a distância entre eles não conta, só o que de fato entra no corte)
+- Ao usar parts, preencha mesmo assim os campos de topo: startSegmentId/quoteStart com o início do primeiro trecho, endSegmentId/quoteEnd com o fim do último
+- A costura nunca pode fabricar um sentido que não existia — é onde mais se erra. Se o intervalo contiver um "mas/porém" que inverte tudo, ou se o segundo trecho na verdade fala de outra coisa, não costure e simplesmente descarte o candidato; na dúvida, corte um trecho contínuo
+[Regras de ferro]
+1. Selecione APENAS a partir da transcrição, literalmente: quoteStart/quoteEnd precisam ser copiados caractere por caractere (com pontuação) — nunca parafraseie, nunca invente
+2. quoteStart = as palavras iniciais da primeira frase do trecho (6 palavras ou mais); quoteEnd = as palavras finais da última frase (6 palavras ou mais)
+3. startSegmentId/endSegmentId precisam ser os **números [id] que realmente existem na transcrição** (se a primeira frase for [21], coloque 21) — nunca -1, 0 ou vazio; score precisa ser um inteiro de 0 a 100, e igualmente nunca -1
+4. Não escreva marcações de relógio (hh:mm:ss) — o sistema localiza o tempo a partir do texto que você citou; mas os dois ids de frase e o score acima SÃO obrigatórios, não os omita junto
+5. Os trechos não podem se sobrepor; qualidade acima de quantidade — não force escolhas fracas
+6. Nunca tire da frase o sentido original: o significado do corte precisa bater com o que foi realmente dito. Um "gancho" fabricado cortando meia frase se volta contra a conta
+7. Escreva title/hook/reason no MESMO idioma da transcrição`;
 
 export const HIGHLIGHT_SYSTEM_PROMPT_EN = `You are a top short-form clipping strategist. Given the sentence-level transcript of a long video, pick the segments most likely to go viral on TikTok / Reels / Shorts.
 
-【Viral material is RARE】
+[Viral material is RARE]
 In a two-hour stream, under five minutes is usually worth clipping. Most of it is filler. Returning two or three genuine hits beats padding the list — weak clips published to a channel drag the whole account down.
 
-【First work out what this footage IS, then decide which evidence to trust】
+[First work out what this footage IS, then decide which evidence to trust]
 It could be live selling, gaming, a dance/music performance, a chat stream, a lecture, an outdoor walk-and-talk, an interview podcast, sports commentary, an unboxing… the highlights sit in completely different places. Judge the type first, then weight accordingly:
 - **Content-in-the-words** (selling / lecture / interview / commentary / review): the highlight is what was said — judge from the transcript
 - **Reaction-driven** (gaming / chat / outdoor / sports): at a peak moment the text is often just "holy—" with zero information. Lean on vocal-emotion peaks and live-chat spikes; use the transcript only to confirm what happened
 - **Visual-driven** (dance / singing / scenery): the transcript is essentially empty — never pick a moment just because a line reads well. Go by visual-energy windows, musical phrasing and chat
 If you can't tell, default to content-in-the-words — but don't dress up filler chatter as a quotable.
 
-【Hunt these, in descending order of viral odds】
+[Hunt these, in descending order of viral odds]
 1. Self-contradiction / getting caught out: the same person saying opposite things — "we'll never discount" followed by a discount, hyping then trashing, promises that don't match what they did, double standards. The strongest hook there is; worth digging out of two far-apart parts of the transcript
 2. Conflict and friction: a question they don't want to answer, pushing back on someone live, a fail, an accident, a real argument
 3. Counterintuitive one-liners: a single sentence that flips conventional wisdom ("the harder you work, the poorer you get") and travels on its own
@@ -88,7 +87,7 @@ If you can't tell, default to content-in-the-words — but don't dress up filler
 6. Dense, saveable value: methods, checklists, concrete numbers (platforms now weight saves highest)
 7. Live-selling specifics: a product behaving unexpectedly, the moment the price drops, a demo going wrong, being pressed on ingredients or returns
 
-【The first line decides everything】
+[The first line decides everything]
 A clip's opening sentence must carry the hook. Patterns that stop the scroll:
 - Counterintuitive / caught-out (strongest): "you think X, actually Y", "stop believing X", "real X isn't Y", "the more X the more Y"
 - Result-gap: "I did Y in X months", "from X to Y", "turns out X"
@@ -96,10 +95,10 @@ A clip's opening sentence must carry the hook. Patterns that stop the scroll:
 - Pain point: "are you also X?", "90% of people don't know X"
 Greetings, self-introductions, "next up let's look at…", slow build-ups — never open a clip on these.
 
-【Length】
+[Length]
 Length 8–40 seconds (roughly 2–8 transcript sentences).
 
-【Two far-apart moments? Then "parts" is REQUIRED】
+[Two far-apart moments? Then "parts" is REQUIRED]
 Almost every clip is one continuous stretch — just use quoteStart/quoteEnd.
 But whenever the two moments you want are **separated by a long stretch of unrelated talk** (category 1, getting caught out, almost always is: the promise early on, the contradiction ten minutes later), you MUST emit a "parts" array framing each one.
 ⚠ This is not optional: if you instead set startSegmentId to the earlier line and endSegmentId to the later one, the system cuts EVERYTHING in between into the clip — it blows past the length limit and the candidate gets dropped, so the hook you found is wasted.
@@ -109,7 +108,7 @@ How to write parts:
 - With "parts", still fill the top-level fields: startSegmentId/quoteStart from the first part, endSegmentId/quoteEnd from the last
 - Stitching must never manufacture a meaning that was not there. If the gap contains a "but/however" that reverses it, or the second part is actually about something else, don't stitch — drop the candidate. When in doubt, cut one continuous clip
 
-【Hard rules】
+[Hard rules]
 1. Select ONLY from the transcript verbatim: quoteStart/quoteEnd must be copied character-for-character (punctuation included) — never paraphrase, never invent
 2. quoteStart = the opening words of the clip's first sentence (≥6 words/characters); quoteEnd = the closing words of its last sentence (≥6 words/characters)
 3. startSegmentId/endSegmentId must be the **actual [id] numbers from the transcript** (if the first line is [21], put 21) — never -1, 0 or blank; score must be an integer 0-100, likewise never -1
@@ -118,20 +117,42 @@ How to write parts:
 6. Never quote-mine: the clipped meaning must match what was actually said. A "hook" manufactured by cutting a sentence in half will backfire on the account
 7. Write title/hook/reason in the SAME language as the transcript`;
 
-/** zh when the engine says so or the text itself is CJK-dominant. */
-export function isChineseTranscript(transcript: Transcript): boolean {
+/**
+ * Portuguese when the engine says so, or when the text itself reads Portuguese.
+ * A language tag wins outright; only "auto"/empty falls back to sniffing the
+ * text for the function words that Portuguese cannot do without.
+ */
+export function isPortugueseTranscript(transcript: Transcript): boolean {
   const lang = transcript.language.toLowerCase();
-  if (lang.startsWith("zh") || lang.startsWith("yue")) return true;
+  if (lang.startsWith("pt")) return true;
   if (lang && lang !== "auto") return false;
   const sample = transcript.segments
     .slice(0, 10)
     .map((s) => s.text)
-    .join("");
-  const cjk = (sample.match(/[一-鿿]/g) ?? []).length;
-  return sample.length > 0 && cjk / sample.length > 0.3;
+    .join(" ")
+    .toLowerCase();
+  if (!sample) return false;
+  const words = sample.split(/[^a-zà-ÿ]+/).filter(Boolean);
+  if (words.length === 0) return false;
+  // Palavras funcionais de alta frequência que o português não dispensa. Só
+  // entram aqui as que não colidem com o inglês, que é o outro ramo possível:
+  // "a", "as", "no" e "me" ficaram de fora justamente por isso.
+  const markers = new Set([
+    "de", "em", "um", "uma", "que", "não", "com", "para", "você", "isso",
+    "como", "está", "estão", "então", "muito", "aqui", "porque", "também",
+    "já", "são", "das", "dos", "num", "numa", "pra", "mas", "seu", "sua",
+    "nós", "ele", "ela", "é", "por", "mais", "quando", "até", "foi", "ter",
+    "vai", "vou", "vamos", "gente", "coisa", "só", "dele", "dela", "pelo",
+    "pela", "sem", "mesmo", "ainda", "agora", "depois", "tudo", "quem",
+    "onde", "qual", "esse", "essa", "este", "esta", "eu", "meu", "minha",
+    "tem", "fazer", "falar", "sobre", "entre", "cada", "todo", "toda",
+    "hoje", "ser", "era", "fica", "bem", "pode", "sempre", "nunca",
+  ]);
+  const hits = words.filter((w) => markers.has(w)).length;
+  return hits / words.length > 0.12;
 }
 
-/** 三档时长目标:短=快节奏竖屏(抖音/TikTok 完播友好),标准=现默认,长=B站/播客金句段。 */
+/** Three length tiers: short = fast vertical pace (watch-through friendly), standard = today's default, long = podcast/long-form quotable segments. */
 export const CLIP_LENGTH_RANGES: Record<ClipLength, { minSec: number; maxSec: number }> = {
   short: { minSec: 10, maxSec: 30 },
   standard: { minSec: 8, maxSec: 40 },
@@ -148,47 +169,55 @@ export function highlightSystemPrompt(
   brief?: { focus?: string; exclude?: string },
   performanceMemory?: PerformanceEntry[]
 ): string {
-  const zh = isChineseTranscript(transcript);
-  let base = zh ? HIGHLIGHT_SYSTEM_PROMPT_ZH : HIGHLIGHT_SYSTEM_PROMPT_EN;
+  const pt = isPortugueseTranscript(transcript);
+  let base = pt ? HIGHLIGHT_SYSTEM_PROMPT_PT : HIGHLIGHT_SYSTEM_PROMPT_EN;
   if (length !== "standard") {
-    // 时长行按档改写(硬约束进 system prompt,选段时就按目标节奏挑)
+    // Rewrite the length line per tier (a hard constraint inside the system
+    // prompt, so selection already targets the intended pace)
     const { minSec, maxSec } = CLIP_LENGTH_RANGES[length];
     base = base
-      .replace("时长 8~40 秒", `时长 ${minSec}~${maxSec} 秒(硬要求,宁短勿超)`)
+      .replace("Duração de 8 a 40 segundos", `Duração de ${minSec} a ${maxSec} segundos (exigência rígida, melhor ficar abaixo do que passar)`)
       .replace("Length 8–40 seconds", `Length ${minSec}–${maxSec} seconds (hard requirement)`);
   }
-  // 品类判据:不同品类连"该信哪路证据"都不一样,放在通用判据之后覆盖它
-  if (genre) base += genreSection(genre.id, zh, genre.custom);
-  if (products.length > 0) base += productSection(products, zh);
-  // 用户点题:明确的人工意图,优先级压过通用判据(对齐 OpusClip Contextual Prompting)
-  base += briefSection(brief, zh);
-  // 参考爆款画像:节奏偏好段(用户丢了对标切片时才有)
-  if (reference) base += referencePromptSection(reference, zh);
-  // 审阅偏好回流:本机历史采用/否决样例(空记忆返回 "")
-  if (reviewMemory && reviewMemory.length > 0) base += reviewMemorySection(reviewMemory, zh);
-  // 真实发布表现:观众结果信号比模型猜热点更硬,但仍只作趋势证据
-  if (performanceMemory && performanceMemory.length > 0) base += performanceMemorySection(performanceMemory, zh);
+  // Genre criteria: genres differ even on "which evidence to trust", so this
+  // goes after the generic criteria and overrides them
+  if (genre) base += genreSection(genre.id, pt, genre.custom);
+  if (products.length > 0) base += productSection(products, pt);
+  // User brief: explicit human intent, outranking the generic criteria
+  // (mirrors OpusClip's contextual prompting)
+  base += briefSection(brief, pt);
+  // Reference-clip profile: the pacing-preference block (only present when the
+  // user handed in a clip to model after)
+  if (reference) base += referencePromptSection(reference, pt);
+  // Review-preference feedback: this machine's own accepted/rejected examples
+  // (an empty memory returns "")
+  if (reviewMemory && reviewMemory.length > 0) base += reviewMemorySection(reviewMemory, pt);
+  // Real publishing performance: audience outcomes beat the model guessing at
+  // what is hot, but they still only count as trend evidence
+  if (performanceMemory && performanceMemory.length > 0) base += performanceMemorySection(performanceMemory, pt);
   return base;
 }
 
 /**
- * 商品讲解模式的选段偏好(判据来自带货切片实操调研):转化排序为
- * 演示/实测 > 卖点讲解 > 价格机制 > 催单 > 答疑;憋单/高压催单段有
- * 平台违规风险,明确排除。话术信号词帮 LLM 定位讲解区间的起止。
+ * Selection preferences for product-pitch mode (criteria drawn from hands-on
+ * research into selling clips): conversion ranks demo/live test > selling
+ * points > price mechanics > call-to-action > Q&A. Stalling and high-pressure
+ * CTA stretches carry platform-violation risk and are excluded outright.
+ * Script marker phrases help the LLM find where a pitch starts and ends.
  */
-export function productSection(products: string[], zh: boolean): string {
-  const list = products.join(zh ? "、" : ", ");
-  if (zh) {
+export function productSection(products: string[], pt: boolean): string {
+  const list = products.join(", ");
+  if (pt) {
     return (
-      `\n\n【商品讲解模式】用户指定了商品词:${list}。本场是带货直播,只选与这些商品直接相关的片段,按转化价值排序:` +
-      `①试用/上身/实测演示(眼见为实,最优先) ②核心卖点讲解(材质/成分/对比,"这款是什么面料""上身效果") ` +
-      `③价格与机制("原价X今天只要Y""买一送一""叠加优惠券") ④催单只保留紧邻讲解或上链接的部分("三二一,上链接"是天然收尾),不单独成片 ⑤答疑打消顾虑(尺码/成分/售后)。` +
-      `讲解区间常以"接下来/下一个/X号链接给大家讲"开始、"我们看下一款"结束,可据此定位。` +
-      `一律不选:与商品无关的闲聊寒暄、等人垫场、纯憋单拉互动("点赞到X万才上链接"——平台判违规,切出去会限流)、同一句机制话术机械循环、讲解被打断或商品不完整的碎片。` +
-      `每条候选的 keywords 必须包含它命中的商品词。` +
-      `\n【带货三段式拼接】2026 年最能出单的带货切片结构是「痛点→演示→价格」三段:开头一句戳中为什么需要它,中间接试用/实测的眼见为实,结尾落在价格/机制给出下单理由。` +
-      `同一商品的这三类内容在直播里往往相隔很远——只要能凑齐其中两到三段,就优先用 parts 按「痛点→演示→价格」的顺序拼成一条完整种草片(每段完整不掐断,总时长仍守上限),并在 reason 里写明拼了哪几个要素;` +
-      `要素凑不齐就不硬拼,按单段选。拼接仍然不许改变原意——痛点和演示必须真的在说同一个商品。`
+      `\n\n[Modo de apresentação de produto] A pessoa indicou estes produtos: ${list}. Esta é uma transmissão de venda ao vivo; escolha apenas os trechos diretamente ligados a esses produtos, em ordem de valor de conversão: ` +
+      `(1) prova, vestir, demonstração real (ver para crer, é a prioridade máxima) (2) explicação dos diferenciais (material/composição/comparação, "esse tecido é tal", "o caimento fica assim") ` +
+      `(3) preço e mecânica ("de X por só Y hoje", "compre um e leve dois", "some com o cupom") (4) chamada para compra só quando estiver colada na demonstração ou na liberação do link ("três, dois, um, link no ar" é um encerramento natural), nunca sozinha (5) respostas que derrubam objeções (tamanho/composição/pós-venda). ` +
+      `O bloco de apresentação costuma começar com "agora vamos/o próximo/vou falar do link número X" e terminar com "vamos para o próximo"; use isso para localizá-lo. ` +
+      `Nunca escolha: conversa solta sem relação com o produto, enrolação esperando gente chegar, pura isca de engajamento ("chega a X mil curtidas e eu solto o link" — as plataformas tratam como infração e derrubam o alcance), repetição mecânica da mesma frase de mecânica, ou pedaços em que a apresentação foi interrompida e o produto ficou incompleto. ` +
+      `As keywords de cada candidato precisam conter o produto que ele acertou.` +
+      `\n[Costura em três atos para venda] A estrutura de corte de venda que mais converte em 2026 é a de três atos "dor → demonstração → preço": abra com uma frase que acerte por que a pessoa precisa daquilo, emende a prova real e termine no preço/condição, que é a razão para comprar. ` +
+      `Esses três tipos de conteúdo do mesmo produto costumam estar bem distantes dentro da live — sempre que der para juntar dois ou três deles, prefira costurar com parts na ordem dor → demonstração → preço (cada trecho completo, sem cortar no meio, e a duração total dentro do limite) e escreva em reason quais elementos você costurou; ` +
+      `se os elementos não estiverem todos lá, não force: escolha um trecho contínuo. A costura nunca pode mudar o sentido — a dor e a demonstração precisam falar mesmo do mesmo produto.`
     );
   }
   return (
@@ -202,24 +231,26 @@ export function productSection(products: string[], zh: boolean): string {
   );
 }
 
-/** 点题文本的长度上限(超长注入只会稀释判据)。 */
+/** Length cap for the brief text (an oversized injection only dilutes the criteria). */
 export const BRIEF_MAX_CHARS = 300;
 
 /**
- * 用户点题段(v0.13):用户用自然语言指定「重点找什么/明确不要什么」。
- * 这是唯一一段真正的人工意图,优先级要压过所有自动判据——但排除不等于
- * 无中生有:重点内容在素材里真不存在时宁可少给,不许硬凑。
+ * The user-brief block (v0.13): the user states in plain language what to hunt
+ * for and what to leave out. This is the only genuinely human intent in the
+ * prompt, so it outranks every automatic criterion — but excluding something is
+ * not the same as conjuring something up: when the requested content genuinely
+ * isn't in the footage, return less rather than padding.
  */
-export function briefSection(brief: { focus?: string; exclude?: string } | undefined, zh: boolean): string {
+export function briefSection(brief: { focus?: string; exclude?: string } | undefined, pt: boolean): string {
   const focus = brief?.focus?.trim().slice(0, BRIEF_MAX_CHARS) ?? "";
   const exclude = brief?.exclude?.trim().slice(0, BRIEF_MAX_CHARS) ?? "";
   if (!focus && !exclude) return "";
-  if (zh) {
+  if (pt) {
     const lines = [
-      "\n\n【用户点题】用户对本场切片提了明确要求,优先级高于上面的通用判据:",
-      ...(focus ? [`- 重点找:${focus}`] : []),
-      ...(exclude ? [`- 明确排除:${exclude}(这类内容再精彩也不要选)`] : []),
-      "点题只改变「找什么」,不改变质量标准——素材里真没有用户要的内容时,宁可少给或不给,绝不硬凑不相关的片段充数。",
+      "\n\n[Briefing do usuário] A pessoa deu instruções explícitas para esta sessão de cortes, e elas têm prioridade sobre os critérios gerais acima:",
+      ...(focus ? [`- Procure especialmente: ${focus}`] : []),
+      ...(exclude ? [`- Exclua explicitamente: ${exclude} (não escolha esse tipo de conteúdo, por melhor que seja)`] : []),
+      "O briefing muda O QUE procurar, não o padrão de qualidade — se o que a pessoa pediu realmente não existir no material, entregue menos ou nada, e nunca encha a lista com trechos sem relação.",
     ];
     return lines.join("\n");
   }
@@ -274,10 +305,11 @@ const OUTPUT_SHAPE = `{
 }`;
 
 /**
- * 多片段拼接的可选字段说明。单独列出而不是塞进 OUTPUT_SHAPE:示例里出现
- * parts 会让模型以为每条都该拼,而拼接本来就应该是少数情况。
+ * Description of the optional multi-part stitching field. Kept out of
+ * OUTPUT_SHAPE on purpose: showing "parts" in the example makes the model think
+ * every clip should be stitched, when stitching is meant to be the exception.
  */
-const PARTS_SHAPE_ZH = `需要多片段拼接时(只有必须前后对照的那一条才用),在那一条 clip 里额外加 parts 字段;不需要拼接就完全不要出现这个字段:
+const PARTS_SHAPE_PT = `Quando um clipe realmente precisar de costura (apenas aquele que depende do contraste entre o antes e o depois), acrescente o campo parts NAQUELE clipe; se não precisar de costura, o campo não deve aparecer de jeito nenhum:
 "parts": [
   {"startSegmentId": 12, "endSegmentId": 13, "quoteStart": "...", "quoteEnd": "..."},
   {"startSegmentId": 88, "endSegmentId": 90, "quoteStart": "...", "quoteEnd": "..."}
@@ -296,46 +328,49 @@ function fmtClock(sec: number): string {
 }
 
 /** Render Tier-0 audiovisual evidence for prompt injection ("" when empty). */
-export function renderSignals(signals: MediaSignals | undefined, zh: boolean): string {
+export function renderSignals(signals: MediaSignals | undefined, pt: boolean): string {
   if (!signals) return "";
   const fmt = (rs: Array<{ startSec: number; endSec: number }>): string =>
     rs.map((r) => `${fmtClock(r.startSec)}-${fmtClock(r.endSec)}`).join(", ");
   const lines: string[] = [];
   if (signals.loudPeaks.length > 0) {
-    lines.push(zh ? `- 响度峰值时段(情绪爆发/笑声/喊叫): ${fmt(signals.loudPeaks)}` : `- Loudness peaks (bursts/laughter/shouting): ${fmt(signals.loudPeaks)}`);
+    lines.push(pt ? `- Picos de volume (explosão emocional/risada/grito): ${fmt(signals.loudPeaks)}` : `- Loudness peaks (bursts/laughter/shouting): ${fmt(signals.loudPeaks)}`);
   }
   if (signals.cutDense.length > 0) {
-    lines.push(zh ? `- 镜头切换密集段(画面高能): ${fmt(signals.cutDense)}` : `- Dense scene-cut windows (visual action): ${fmt(signals.cutDense)}`);
+    lines.push(pt ? `- Trechos com troca densa de planos (alta energia visual): ${fmt(signals.cutDense)}` : `- Dense scene-cut windows (visual action): ${fmt(signals.cutDense)}`);
   }
   if (signals.motionPeaks && signals.motionPeaks.length > 0) {
-    lines.push(zh ? `- 画面运动活跃段(低分辨率帧差,动作/移动线索): ${fmt(signals.motionPeaks)}` : `- Motion-active windows (low-resolution frame differences; action/movement cue): ${fmt(signals.motionPeaks)}`);
+    lines.push(pt ? `- Trechos com muito movimento na imagem (diferença entre quadros em baixa resolução; pista de ação/deslocamento): ${fmt(signals.motionPeaks)}` : `- Motion-active windows (low-resolution frame differences; action/movement cue): ${fmt(signals.motionPeaks)}`);
   }
   if (signals.visualPeaks && signals.visualPeaks.length > 0) {
-    lines.push(zh ? `- 视觉模型判定的画面爆点时刻(夸张表情/激烈动作/场面炸裂): ${fmt(signals.visualPeaks)}` : `- Vision-model visual peaks (expressions/action/spectacle): ${fmt(signals.visualPeaks)}`);
+    lines.push(pt ? `- Picos visuais apontados pelo modelo de visão (expressão exagerada/ação intensa/cena impactante): ${fmt(signals.visualPeaks)}` : `- Vision-model visual peaks (expressions/action/spectacle): ${fmt(signals.visualPeaks)}`);
   }
   if (signals.emotionPeaks && signals.emotionPeaks.length > 0) {
-    lines.push(zh ? `- 人脸表情峰值时段(大笑/惊讶/激动): ${fmt(signals.emotionPeaks)}` : `- Facial-emotion peaks (laughter/surprise/excitement): ${fmt(signals.emotionPeaks)}`);
+    lines.push(pt ? `- Picos de expressão facial (gargalhada/surpresa/empolgação): ${fmt(signals.emotionPeaks)}` : `- Facial-emotion peaks (laughter/surprise/excitement): ${fmt(signals.emotionPeaks)}`);
   }
   if (signals.voiceEmotionPeaks && signals.voiceEmotionPeaks.length > 0) {
-    lines.push(zh ? `- 说话人语气激动时段(笑着说/吼出来/惊到了——同一句话文字看不出的情绪): ${fmt(signals.voiceEmotionPeaks)}` : `- Vocal-emotion peaks (said while laughing / shouted / startled — tone the text cannot show): ${fmt(signals.voiceEmotionPeaks)}`);
+    lines.push(pt ? `- Trechos em que o tom de voz se exalta (falando e rindo / gritando / assustado — a emoção que o texto da frase não mostra): ${fmt(signals.voiceEmotionPeaks)}` : `- Vocal-emotion peaks (said while laughing / shouted / startled — tone the text cannot show): ${fmt(signals.voiceEmotionPeaks)}`);
   }
   if (signals.audioEventPeaks && signals.audioEventPeaks.length > 0) {
-    // 笑声是滞后结果:包袱在它之前。这里必须写清用法,否则 LLM 会直接切哄笑段(那里没人说话)
+    // Laughter is a lagging result: the punchline lands before it. Spelling out
+    // how to use it is mandatory, otherwise the LLM clips the laughing stretch
+    // (where nobody is actually speaking)
     lines.push(
-      zh
-        ? `- 观众笑声/掌声时段: ${fmt(signals.audioEventPeaks)}\n  ⚠ 笑声是「结果」不是爆点本身——引爆它的那句包袱落在笑声开始之前。要往前找到那句话、连同它的铺垫一起选,笑声只留一点点做收尾;绝不要只切观众在笑的那几秒(那里根本没人说话)`
+      pt
+        ? `- Trechos de riso/aplauso do público: ${fmt(signals.audioEventPeaks)}\n  ⚠ O riso é o "resultado", não o destaque em si — a piada que o provocou cai ANTES de o riso começar. Volte até aquela frase, inclua a preparação dela e deixe só um pedacinho do riso como encerramento; nunca corte apenas os segundos de gargalhada (ali ninguém está falando)`
         : `- Audience laughter / applause: ${fmt(signals.audioEventPeaks)}\n  ⚠ Laughter is the RESULT, not the highlight — the punchline that triggered it lands BEFORE the laughter starts. Walk back to that line, include its setup, and keep only a beat of laughter as the tail; never clip just the laughing seconds (nobody is speaking there)`
     );
   }
   if (signals.danmakuPeaks && signals.danmakuPeaks.length > 0) {
-    lines.push(zh ? `- 弹幕热度峰值时段(观众实时高能反应,证据力最强): ${fmt(signals.danmakuPeaks)}` : `- Live-chat density peaks (real-time audience hype, strongest evidence): ${fmt(signals.danmakuPeaks)}`);
+    lines.push(pt ? `- Picos de movimento no chat ao vivo (reação do público em tempo real, a evidência mais forte): ${fmt(signals.danmakuPeaks)}` : `- Live-chat density peaks (real-time audience hype, strongest evidence): ${fmt(signals.danmakuPeaks)}`);
   }
   if (signals.clipCommandMarks && signals.clipCommandMarks.length > 0) {
     const marks = signals.clipCommandMarks.map(fmtClock).join(", ");
-    // 口令与笑声同理是滞后标记:被认证的内容在口令之前——用法必须写死在提示词里
+    // Like laughter, the command is a lagging marker: what it certifies happened
+    // before it. How to use it has to be written into the prompt.
     lines.push(
-      zh
-        ? `- 主播剪辑口令时刻(主播亲口说「这段剪下来/切片」——他本人实时认证的爆点,证据力最高): ${marks}\n  ⚠ 口令指的是它**之前**刚发生的内容:从口令时刻往前找到被指的那段完整内容来选,不要把口令本身当片段(必要时可把口令那句留作收尾)`
+      pt
+        ? `- Momentos em que quem transmite pediu o corte (a pessoa disse com todas as letras "corta esse pedaço" — um destaque certificado por ela mesma em tempo real, a evidência de maior valor): ${marks}\n  ⚠ O pedido se refere ao que **acabou de acontecer antes dele**: volte a partir da marca até o trecho completo a que ela se referia; nunca corte a própria frase do pedido (no máximo mantenha-a como encerramento)`
         : `- Streamer clip commands (the host literally said "clip that" — self-certified highlights, highest-value evidence): ${marks}\n  ⚠ The command points at what JUST happened **before** it: walk back from the mark to the complete moment being referenced; never clip the command line itself (at most keep it as the tail)`
     );
   }
@@ -343,52 +378,52 @@ export function renderSignals(signals: MediaSignals | undefined, zh: boolean): s
     const notes = signals.visualNotes
       .map((n) => {
         const text = n.visibleText?.length
-          ? (zh ? ` [屏显:${n.visibleText.join(" / ")}]` : ` [visible text: ${n.visibleText.join(" / ")}]`)
+          ? (pt ? ` [texto na tela: ${n.visibleText.join(" / ")}]` : ` [visible text: ${n.visibleText.join(" / ")}]`)
           : "";
-        return `${fmtClock(n.t)} ${n.note || (zh ? "画面高能" : "visual peak")}(${n.energy}/10)${text}`;
+        return `${fmtClock(n.t)} ${n.note || (pt ? "pico visual" : "visual peak")} (${n.energy}/10)${text}`;
       })
-      .join(zh ? ";" : "; ");
+      .join("; ");
     lines.push(
-      zh
-        ? `- 全场画面时刻线(视觉模型逐段扫过整场后的画面描述——文字稿看不见的画面事件都在这里): ${notes}\n  与其中高分时刻重合的内容,画面上真的有东西;文字平平但画面描述炸裂的时刻值得选`
+      pt
+        ? `- Linha do tempo visual da transmissão inteira (um modelo de visão varreu tudo — os acontecimentos em tela que a transcrição não mostra estão aqui): ${notes}\n  O conteúdo que coincide com as observações de nota alta realmente tem algo na tela; um momento de texto banal com descrição visual impactante vale ser escolhido`
         : `- Full-stream visual timeline (a vision model swept the whole stream — on-screen events the transcript cannot show): ${notes}\n  Moments overlapping high-energy notes really have something on screen; flat text + explosive visuals is still a pick`
     );
   }
   if (lines.length === 0) return "";
-  return zh
-    ? `\n【画面与声音信号】(辅助证据——与这些时段重合的内容更可能有真实的情绪/画面爆点,但仍以文本质量为准)\n${lines.join("\n")}\n`
-    : `\n【Audiovisual signals】(supporting evidence — content overlapping these windows likely has real emotional/visual peaks; text quality still rules)\n${lines.join("\n")}\n`;
+  return pt
+    ? `\n[Sinais de imagem e som] (evidência auxiliar — o conteúdo que coincide com estas janelas tem mais chance de ter um pico real de emoção ou de imagem, mas a qualidade do texto continua mandando)\n${lines.join("\n")}\n`
+    : `\n[Audiovisual signals] (supporting evidence — content overlapping these windows likely has real emotional/visual peaks; text quality still rules)\n${lines.join("\n")}\n`;
 }
 
 /** Multi-speaker attribution guidance, injected only when diarized ≥2 speakers. */
-function speakerNote(transcript: Transcript, zh: boolean): string {
+function speakerNote(transcript: Transcript, pt: boolean): string {
   if (!isMultiSpeaker(transcript)) return "";
-  return zh
-    ? `\n【多人对谈】每句前的 S1/S2… 是说话人标签。挑段时优先选「同一个人一段完整的话」;若是精彩问答,可跨说话人但要含完整的一问一答,别把两个人的半句拼成断章取义。\n`
-    : `\n【Multi-speaker】The S1/S2… prefix on each line marks who is speaking. Prefer a single speaker's complete thought; for a great Q&A you may span speakers but keep the full exchange — never stitch two half-sentences into a misleading clip.\n`;
+  return pt
+    ? `\n[Conversa com várias pessoas] O S1/S2… antes de cada frase marca quem está falando. Ao escolher trechos, prefira "uma fala completa da mesma pessoa"; se for um ótimo par de pergunta e resposta, pode atravessar falantes, mas inclua a troca inteira e nunca junte meia frase de um com meia frase do outro, porque isso distorce o sentido.\n`
+    : `\n[Multi-speaker] The S1/S2… prefix on each line marks who is speaking. Prefer a single speaker's complete thought; for a great Q&A you may span speakers but keep the full exchange — never stitch two half-sentences into a misleading clip.\n`;
 }
 
 export function buildHighlightPrompt(transcript: Transcript, maxClips = 6, signals?: MediaSignals): string {
-  if (isChineseTranscript(transcript)) {
-    return `请从下面的逐句稿中挑出最多 ${maxClips} 个最有爆款潜质的片段。
+  if (isPortugueseTranscript(transcript)) {
+    return `Escolha, na transcrição frase a frase abaixo, no máximo ${maxClips} trechos com maior potencial de viralizar.
 
-【逐句稿】(格式: [句id] 开始时间 内容)
+[Transcrição] (formato: [id da frase] horário de início conteúdo)
 ${renderTranscriptLines(transcript)}
 ${speakerNote(transcript, true)}${renderSignals(signals, true)}
-【输出格式】严格输出 JSON,不要任何多余文字:
+[Formato de saída] Responda com JSON estrito, sem nenhum texto a mais:
 ${OUTPUT_SHAPE}
 
-${PARTS_SHAPE_ZH}
+${PARTS_SHAPE_PT}
 
-字段说明:title=适合发布的短标题(≤20字);hook=开头钩子句原文;score=0-100 相对排序分;reason=一句话为什么能爆;quoteStart/quoteEnd=片段首句开头/末句结尾的逐字原文;keywords=该片段里 3-5 个最有冲击力的词,必须逐字取自片段原文(用于字幕划重点)。
-要求:按 score 从高到低排;片段互不重叠。`;
+Campos: title = título curto pronto para publicar (até 12 palavras); hook = a frase de gancho de abertura, literal; score = nota relativa de 0 a 100; reason = uma frase sobre por que isso pode viralizar; quoteStart/quoteEnd = as palavras iniciais da primeira frase e finais da última, copiadas literalmente; keywords = as 3 a 5 palavras de maior impacto dentro do trecho, copiadas literalmente do original (usadas para destacar palavras na legenda).
+Ordene do maior para o menor score; os trechos não podem se sobrepor.`;
   }
   return `Pick at most ${maxClips} clip candidates with the highest viral potential from the transcript below.
 
-【Transcript】(format: [sentenceId] startTime text)
+[Transcript] (format: [sentenceId] startTime text)
 ${renderTranscriptLines(transcript)}
 ${speakerNote(transcript, false)}${renderSignals(signals, false)}
-【Output format】Respond with STRICT JSON only, no extra text:
+[Output format] Respond with STRICT JSON only, no extra text:
 ${OUTPUT_SHAPE}
 
 ${PARTS_SHAPE_EN}
@@ -397,47 +432,47 @@ Fields: title = a post-ready short title (≤ 12 words); hook = the verbatim ope
 Sort by score descending; clips must not overlap.`;
 }
 
-// ---------- 信号驱动通道:文字稿没内容时按「时刻」挑 ----------
+// ---------- Signal-driven channel: pick by "moment" when the transcript has nothing ----------
 
-export const MOMENT_SYSTEM_PROMPT_ZH = `你是一位顶级短视频切片操盘手,现在处理的是一场**文字稿基本没有信息量**的直播——跳舞、才艺、唱歌、户外、游戏这类,观众看的是画面和反应,不是台词。
+export const MOMENT_SYSTEM_PROMPT_PT = `Você é um estrategista de primeira linha em cortes para vídeo curto e está diante de uma transmissão cuja **transcrição praticamente não tem informação** — dança, talento, canto, rua, jogos, esse tipo de conteúdo em que o público assiste pela imagem e pela reação, não pelas falas.
 
-所以这次不要求你引用原话。系统已经用画面和声音信号圈出了若干「高能时刻」并编好号,你的工作是:从中挑出真正值得剪成短视频的几个,给它们起标题、写钩子。
+Por isso, desta vez não se pede que você cite nenhuma frase. O sistema já usou sinais de imagem e de som para delimitar e numerar vários "momentos de alta energia". Seu trabalho é escolher, entre eles, os que de fato valem virar vídeo curto, e dar título e gancho a cada um.
 
-【怎么判断一个时刻值不值得剪】
-- 证据里出现「画面高能/镜头切换密集」→ 大概率是动作、场面或表演的高潮
-- 出现「弹幕峰值」→ 观众在这一刻真的有反应,这是最硬的证据(观众用实时投票告诉你哪里好看)
-- 出现「语气激动/笑声掌声」→ 主播或现场在这一刻情绪爆发
-- 只有「响度峰值」一路孤证 → 很可能只是背景音乐变大或环境噪声,要谨慎
-- 证据种类越多、越互相印证的时刻越可信;只有一路信号的要敢于放弃
+[Como julgar se um momento vale o corte]
+- A evidência traz "alta energia visual / troca densa de planos" → é bem provável que seja o auge de uma ação, de uma cena ou de uma apresentação
+- Aparece "pico do chat" → o público reagiu de verdade nesse instante, e essa é a evidência mais dura que existe (o público votando ao vivo em qual parte é boa)
+- Aparece "tom exaltado / riso / aplauso" → quem transmite ou quem está no ambiente explodiu de emoção nesse ponto
+- Só "pico de volume", isolado → provavelmente é só a música de fundo subindo ou ruído do ambiente; desconfie
+- Quanto mais tipos de evidência se confirmarem entre si, mais confiável é o momento; tenha coragem de descartar os que têm um sinal só
 
-【铁律】
-1. 只能从给定的时刻里挑,momentId 必须是真实存在的编号,绝不能自己编时间
-2. 宁缺毋滥:一场直播真正值得剪的通常只有两三个时刻,不要为凑数把普通片段说成高能
-3. 附带的原话只是参考,可能是空的、可能是错字连篇(户外收音差)——**绝不要因为"某句话读起来还行"就选它**,也不要把明显读不通的转写当内容
-4. title 要写观众刷到时会点开的那种,而不是"精彩片段1";没有台词可用时,就描述画面上会发生什么
-5. hook 写这条片子开头会呈现的画面或那一下动作(一句话),不要编造台词
-6. score 是 0-100 的整数,必填,不能填 -1
-7. title/hook/reason 用与附带原话相同的语言写(原话为空时用中文)`;
+[Regras de ferro]
+1. Escolha somente entre os momentos fornecidos; momentId precisa ser um número que realmente exista, e nunca invente um horário
+2. Qualidade acima de quantidade: uma transmissão costuma ter só dois ou três momentos que realmente valem o corte; não chame um trecho comum de alta energia só para encher lista
+3. A transcrição anexada é apenas referência: pode estar vazia, pode estar cheia de erros (a captação na rua é ruim) — **nunca escolha um momento só porque "a frase lê bem"**, e não trate uma transcrição ilegível como conteúdo
+4. Escreva um title que faça a pessoa tocar na tela quando passar por ele, e não "Melhor momento 1"; sem fala aproveitável, descreva o que vai acontecer na imagem
+5. Em hook, escreva a imagem ou o movimento com que o vídeo vai abrir (uma frase); não invente falas
+6. score é um inteiro de 0 a 100, obrigatório, nunca -1
+7. Escreva title/hook/reason no mesmo idioma da transcrição anexada (em português quando ela estiver vazia)`;
 
 export const MOMENT_SYSTEM_PROMPT_EN = `You are a top short-form clipping strategist. This stream's transcript carries almost no information — dance, performance, singing, outdoor or gaming content, where viewers come for the picture and the reactions, not the words.
 
 So you are NOT asked to quote anything. The system has already used audio and visual signals to mark numbered "high-energy moments". Your job: pick the ones genuinely worth cutting, and title them.
 
-【How to judge a moment】
+[How to judge a moment]
 - Visual-energy / dense scene cuts → likely the peak of an action, a spectacle or a performance
 - Live-chat spike → the audience actually reacted here; this is the hardest evidence there is
 - Vocal-emotion peak / laughter / applause → the host or the room broke out at this instant
 - Loudness alone, with nothing else → often just louder music or ambient noise. Be skeptical
 - The more signal types corroborate each other, the more trustworthy. Drop single-signal moments freely
 
-【Hard rules】
+[Hard rules]
 1. Pick ONLY from the given moments; momentId must be a real number from the list — never invent times
 2. Quality over quantity: a stream usually has two or three moments truly worth clipping
 3. The attached transcript is reference only — it may be empty or full of garbled ASR (outdoor audio is poor). NEVER pick a moment just because a line reads well, and don't treat unreadable transcription as content
 4. Write a title someone would actually tap, not "Highlight 1". With no usable dialogue, describe what happens on screen
 5. hook = the image or the beat this clip opens on, in one line. Do not invent dialogue
 6. score is an integer 0-100, required, never -1
-7. Write title/hook/reason in the same language as the attached transcript (Chinese when it is empty)`;
+7. Write title/hook/reason in the same language as the attached transcript (Portuguese when it is empty)`;
 
 const MOMENT_SHAPE = `{
   "clips": [
@@ -445,22 +480,24 @@ const MOMENT_SHAPE = `{
   ]
 }`;
 
-/** 信号种类 → 人话标签(证据链既给 LLM 看,也给用户看)。 */
-export const EVIDENCE_LABELS: Record<string, { zh: string; en: string }> = {
-  loud: { zh: "响度峰值", en: "loudness peak" },
-  cut: { zh: "镜头切换密集", en: "dense scene cuts" },
-  motion: { zh: "画面运动", en: "motion activity" },
-  visual: { zh: "画面高能(视觉模型)", en: "visual energy (vision model)" },
-  emotion: { zh: "人脸表情峰值", en: "facial-emotion peak" },
-  voice: { zh: "语气激动", en: "vocal-emotion peak" },
-  audioEvent: { zh: "笑声/掌声", en: "laughter/applause" },
-  danmaku: { zh: "弹幕峰值", en: "live-chat spike" },
+/** Signal type → human-readable label (the evidence chain is shown to the LLM and to the user alike). */
+export const EVIDENCE_LABELS: Record<string, { pt: string; en: string }> = {
+  loud: { pt: "pico de volume", en: "loudness peak" },
+  cut: { pt: "troca densa de planos", en: "dense scene cuts" },
+  motion: { pt: "movimento na imagem", en: "motion activity" },
+  visual: { pt: "alta energia visual (modelo de visão)", en: "visual energy (vision model)" },
+  emotion: { pt: "pico de expressão facial", en: "facial-emotion peak" },
+  voice: { pt: "tom de voz exaltado", en: "vocal-emotion peak" },
+  audioEvent: { pt: "riso/aplauso", en: "laughter/applause" },
+  danmaku: { pt: "pico do chat ao vivo", en: "live-chat spike" },
 };
 
 /**
- * 每个时刻附带的参考原话截断长度。这段文字提示词里已明说「只是参考」,
- * 而这类素材的转写往往是噪声(户外收音差/唱跳只有零散词),整段贴进去
- * 只会淹没证据行——实测会把模型逼回模板输出。
+ * How far the reference transcript attached to each moment is truncated. The
+ * prompt already says it is reference only, and for this kind of footage the
+ * transcription is usually noise (poor outdoor audio, scattered words during a
+ * song or dance): pasting the whole thing in only drowns the evidence lines —
+ * in practice it pushes the model back into template answers.
  */
 export const MOMENT_TEXT_MAX_CHARS = 120;
 
@@ -469,39 +506,39 @@ export interface PromptMoment {
   startSec: number;
   endSec: number;
   evidence: string[];
-  /** 该时段的原话(可能为空/无信息量——提示词里已明确不要以它为准)。 */
+  /** What was said in that window (may be empty or meaningless — the prompt already says not to rely on it). */
   text: string;
 }
 
-export function buildMomentPrompt(moments: PromptMoment[], maxClips: number, zh: boolean): string {
+export function buildMomentPrompt(moments: PromptMoment[], maxClips: number, pt: boolean): string {
   const lines = moments
     .map((m) => {
-      const ev = m.evidence.map((e) => EVIDENCE_LABELS[e]?.[zh ? "zh" : "en"] ?? e).join(zh ? "、" : ", ");
+      const ev = m.evidence.map((e) => EVIDENCE_LABELS[e]?.[pt ? "pt" : "en"] ?? e).join(", ");
       const dur = Math.round(m.endSec - m.startSec);
       const raw = m.text.trim().replace(/\s+/g, " ");
       const text = raw.length > MOMENT_TEXT_MAX_CHARS ? `${raw.slice(0, MOMENT_TEXT_MAX_CHARS)}…` : raw;
-      return zh
-        ? `[${m.id}] ${fmtClock(m.startSec)}-${fmtClock(m.endSec)}(${dur}秒)\n  证据:${ev || "(无)"}\n  该时段原话:${text || "(没有台词)"}`
+      return pt
+        ? `[${m.id}] ${fmtClock(m.startSec)}-${fmtClock(m.endSec)} (${dur}s)\n  Evidências: ${ev || "(nenhuma)"}\n  O que é dito nesse trecho: ${text || "(sem fala)"}`
         : `[${m.id}] ${fmtClock(m.startSec)}-${fmtClock(m.endSec)} (${dur}s)\n  Evidence: ${ev || "(none)"}\n  Transcript here: ${text || "(no dialogue)"}`;
     })
     .join("\n");
-  return zh
-    ? `下面是系统按画面与声音信号圈出的高能时刻,请从中挑出最多 ${maxClips} 个值得剪成短视频的。
+  return pt
+    ? `Abaixo estão os momentos de alta energia que o sistema delimitou a partir dos sinais de imagem e de som. Escolha no máximo ${maxClips} que valham virar vídeo curto.
 
-【高能时刻清单】
+[Lista de momentos de alta energia]
 ${lines}
 
-【输出格式】严格输出 JSON,不要任何多余文字:
+[Formato de saída] Responda com JSON estrito, sem nenhum texto a mais:
 ${MOMENT_SHAPE}
 
-字段说明:momentId=上面清单里的编号(必须真实存在);title=适合发布的短标题(≤20字);hook=开头呈现的画面/动作(一句话);score=0-100 相对排序分;reason=一句话为什么值得剪(要说清你信的是哪路证据);keywords=2-5 个描述这条内容的词(用于发布文案话题)。
-按 score 从高到低排;宁可少给几条,也不要把平淡时刻硬说成高能。`
+Campos: momentId = um número que exista de fato na lista acima; title = título curto pronto para publicar (até 12 palavras); hook = a imagem ou o movimento da abertura, em uma frase; score = nota relativa de 0 a 100; reason = uma frase sobre por que vale o corte (dizendo em qual evidência você confiou); keywords = de 2 a 5 palavras que descrevam este conteúdo (usadas nas hashtags do texto de publicação).
+Ordene do maior para o menor score; é melhor entregar poucos e fortes do que chamar um momento sem graça de alta energia.`
     : `Below are high-energy moments marked by audio and visual signals. Pick at most ${maxClips} worth cutting.
 
-【Moments】
+[Moments]
 ${lines}
 
-【Output format】STRICT JSON only, no extra text:
+[Output format] STRICT JSON only, no extra text:
 ${MOMENT_SHAPE}
 
 Fields: momentId = a real number from the list; title = post-ready short title (≤12 words); hook = the opening image or beat, one line; score = 0-100 relative ranking; reason = one line on why it's worth cutting (say which evidence you trusted); keywords = 2-5 descriptive words for post hashtags.
@@ -519,17 +556,17 @@ export function extractJson(text: string): string {
 
 // ---------- Stage 2: adversarial review ----------
 
-export const REVIEW_SYSTEM_PROMPT_ZH = `你是一位极其严格的短视频内容评审。给你若干条已切好的候选片段,你从「刷到这条视频的陌生观众」视角盲评每一条,分四个维度分别打分(0-100)并各给一句话理由:
-- hook 钩子:前 3 秒(第一句)能不能让人停下滑动?平淡开场直接不及格
-- flow 结构:是不是断章取义?开头是否像半截话、结尾有没有收住?逻辑顺不顺?片段文本里出现「……」表示这条是把相隔很远的两段拼起来的,要按更严的标准查:拼起来之后的意思是不是原话本来的意思?有没有靠跳过中间内容制造出一个原本不存在的矛盾?只要拼得牵强就 keep=false
-- value 价值:不看原视频,这条有没有信息量或情绪价值?值不值得看完?
-- trend 热点:话题/情绪贴不贴近当下平台上正在火的内容?
-另外给每条写一个 teaser:≤15 个字的悬念句,能印在视频开头当文字钩子,要勾人但不剧透。
-每条还要做「零上下文可懂性」终判——假装你完全没看过这场直播,只看这条片段:能不能懂?结尾像不像一个结尾?据此给出 verdict 三档:
-- "publish":直接发没问题——单独看得懂、开头能停手指、结尾收得住
-- "review":有硬伤但救得回来,需要人工确认(开头像半截话/结尾没收住/需要一点上下文/拼接略牵强)——在 note 里写清具体是哪个硬伤
-- "drop":不值得发布——不完整的思想、凑数的平庸内容、断章取义、单独看根本看不懂
-你要敢于判 drop:AI 选段有三四成是废片是行业现实,发废片的代价是整个账号被限流。这是发布前的最后一道质量门。keep 字段继续填(publish 填 true,其余填 false)。`;
+export const REVIEW_SYSTEM_PROMPT_PT = `Você é um avaliador extremamente rigoroso de conteúdo para vídeo curto. Você recebe alguns trechos já cortados e avalia cada um às cegas, do ponto de vista de um estranho que acabou de esbarrar no vídeo, dando nota (0-100) em quatro dimensões e uma frase de justificativa em cada uma:
+- hook (gancho): os 3 primeiros segundos (a primeira frase) fazem a pessoa parar de rolar a tela? Abertura sem graça já é reprovação
+- flow (estrutura): o sentido foi distorcido? A abertura parece meia frase? O final fecha? A lógica corre bem? Um "……" dentro do texto do trecho indica que ele foi costurado a partir de dois momentos bem distantes; nesse caso o critério é mais duro: o sentido depois da costura continua sendo o sentido original? Foi fabricada uma contradição que não existia, pulando o que estava no meio? Qualquer costura forçada recebe keep=false
+- value (valor): sem assistir ao vídeo original, este trecho tem informação ou valor emocional? Vale assistir até o fim?
+- trend (tendência): o assunto e a emoção conversam com o que está bombando agora nas plataformas?
+Escreva também um teaser para cada trecho: uma frase de suspense de até 8 palavras, que possa ser impressa na abertura do vídeo como gancho de texto — instigante, mas sem entregar o final.
+Cada trecho recebe ainda um julgamento final de "compreensão sem contexto nenhum": finja que você nunca assistiu a esta transmissão e viu só este trecho. Dá para entender? O final parece um final? A partir disso, dê um verdict de três níveis:
+- "publish": pode publicar como está — se entende sozinho, a abertura segura o dedo, o final fecha
+- "review": tem um defeito sério, mas com conserto, e precisa de conferência humana (abertura parecendo meia frase / final que não fecha / precisa de um pouco de contexto / costura um pouco forçada) — diga em note exatamente qual é o defeito
+- "drop": não vale publicar — pensamento incompleto, conteúdo medíocre de encher lista, sentido distorcido, ou simplesmente incompreensível sozinho
+Tenha coragem de dar drop: é a realidade do mercado que de 30% a 45% das escolhas de uma IA sejam descartáveis, e o preço de publicar clipe ruim é a conta inteira perder alcance. Você é a última porta de qualidade antes da publicação. Continue preenchendo o campo keep (true para publish, false para os demais).`;
 
 export const REVIEW_SYSTEM_PROMPT_EN = `You are a ruthless short-form content reviewer. You receive pre-cut clip candidates and judge each one blind, as a stranger scrolling past, scoring FOUR dimensions (0-100 each) with a one-line reason per dimension:
 - hook: does the FIRST line stop the scroll within 3 seconds? Flat openings fail.
@@ -544,7 +581,7 @@ Finish each clip with a ZERO-CONTEXT verdict — pretend you never saw the strea
 Judge "drop" without mercy: 30-45% of AI picks being duds is the industry reality, and posting duds throttles the whole account. You are the final quality gate. Keep filling keep (true for publish, false otherwise).`;
 
 export function reviewSystemPrompt(transcript: Transcript): string {
-  return isChineseTranscript(transcript) ? REVIEW_SYSTEM_PROMPT_ZH : REVIEW_SYSTEM_PROMPT_EN;
+  return isPortugueseTranscript(transcript) ? REVIEW_SYSTEM_PROMPT_PT : REVIEW_SYSTEM_PROMPT_EN;
 }
 
 const REVIEW_SHAPE = `{
@@ -567,7 +604,7 @@ interface ReviewableClip {
   startSec: number;
   endSec: number;
   text: string;
-  /** 多片段拼接的段清单;有它时时长要按各段之和报,不是跨度。 */
+  /** The parts of a multi-part stitch; when present, report duration as their sum, not the span. */
   pieces?: ClipPiece[];
 }
 
@@ -583,22 +620,22 @@ function contextAround(transcript: Transcript, startSec: number, endSec: number)
 }
 
 export function buildReviewPrompt(transcript: Transcript, clips: ReviewableClip[]): string {
-  const zh = isChineseTranscript(transcript);
+  const pt = isPortugueseTranscript(transcript);
   const blocks = clips
     .map((c) => {
       const ctx = contextAround(transcript, c.startSec, c.endSec);
       const dur = Math.round(clipDurationSec(c));
       const stitched = isStitched(c.pieces)
-        ? zh
-          ? `(${c.pieces!.length} 段拼接)`
+        ? pt
+          ? ` (costura de ${c.pieces!.length} partes)`
           : ` (${c.pieces!.length}-part stitch)`
         : "";
-      return zh
-        ? `【候选 ${c.id}】《${c.title}》 时长${dur}秒${stitched}\n前文:${ctx.before || "(无)"}\n片段:${c.text}\n后文:${ctx.after || "(无)"}`
-        : `【Candidate ${c.id}】"${c.title}" ${dur}s${stitched}\nBefore: ${ctx.before || "(none)"}\nClip: ${c.text}\nAfter: ${ctx.after || "(none)"}`;
+      return pt
+        ? `[Candidato ${c.id}] "${c.title}" — ${dur}s${stitched}\nAntes: ${ctx.before || "(nada)"}\nTrecho: ${c.text}\nDepois: ${ctx.after || "(nada)"}`
+        : `[Candidate ${c.id}] "${c.title}" ${dur}s${stitched}\nBefore: ${ctx.before || "(none)"}\nClip: ${c.text}\nAfter: ${ctx.after || "(none)"}`;
     })
     .join("\n\n");
-  return zh
-    ? `逐条盲评下面的候选片段。hook/flow/value/trend 四维各 0-100 打分(横向比较)+ 各一句话理由;teaser=≤15字悬念句(勾人不剧透,逐句稿同款语言);verdict=质量门三档(publish/review/drop,判法见系统要求);keep 与 verdict 对应(publish=true,其余 false);note=一句话总评(review/drop 必须说清具体硬伤)。\n\n${blocks}\n\n【输出格式】严格输出 JSON,不要任何多余文字:\n${REVIEW_SHAPE}`
-    : `Blind-review each candidate below. Score hook/flow/value/trend 0-100 each (relative) with a one-line reason per dimension; teaser = a ≤8-word suspense line (intriguing, no spoilers, transcript language); verdict = the three-tier gate (publish/review/drop, per the system rules); keep mirrors verdict (true only for publish); note = one-line overall verdict (must name the flaw for review/drop).\n\n${blocks}\n\n【Output format】STRICT JSON only:\n${REVIEW_SHAPE}`;
+  return pt
+    ? `Avalie às cegas, um por um, os candidatos abaixo. Dê nota de 0 a 100 nas quatro dimensões hook/flow/value/trend (comparando entre si) mais uma frase de justificativa em cada; teaser = frase de suspense de até 8 palavras (instigante, sem entregar o final, no mesmo idioma da transcrição); verdict = os três níveis da porta de qualidade (publish/review/drop, conforme as regras do sistema); keep acompanha o verdict (true só para publish); note = uma frase de avaliação geral (em review/drop é obrigatório dizer qual é o defeito).\n\n${blocks}\n\n[Formato de saída] Responda com JSON estrito, sem nenhum texto a mais:\n${REVIEW_SHAPE}`
+    : `Blind-review each candidate below. Score hook/flow/value/trend 0-100 each (relative) with a one-line reason per dimension; teaser = a ≤8-word suspense line (intriguing, no spoilers, transcript language); verdict = the three-tier gate (publish/review/drop, per the system rules); keep mirrors verdict (true only for publish); note = one-line overall verdict (must name the flaw for review/drop).\n\n${blocks}\n\n[Output format] STRICT JSON only:\n${REVIEW_SHAPE}`;
 }

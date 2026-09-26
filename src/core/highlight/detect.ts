@@ -15,8 +15,8 @@ import {
   buildReviewPrompt,
   extractJson,
   CLIP_LENGTH_RANGES,
-  isChineseTranscript,
-  MOMENT_SYSTEM_PROMPT_ZH,
+  isPortugueseTranscript,
+  MOMENT_SYSTEM_PROMPT_PT,
   MOMENT_SYSTEM_PROMPT_EN,
   buildMomentPrompt,
 } from "./prompt";
@@ -586,7 +586,7 @@ export async function detectHighlights(
   performanceMemory?: PerformanceEntry[]
 ): Promise<DetectOutcome> {
   if (transcript.segments.length === 0) return { candidates: [] };
-  const zh = isChineseTranscript(transcript);
+  const pt = isPortugueseTranscript(transcript);
 
   // 主播口令打点(v0.13):「这段剪下来/clip that」是主播自证的爆点,纯文本
   // 扫描零成本,所有调用方(桌面/watch/MCP)自动获得。滞后标记的用法交给
@@ -683,7 +683,7 @@ export async function detectHighlights(
   // (只降档到 review、不 drop,fail-open 见 gate.ts)。
   // 实用密度在复评之后加分(复评会覆写 score),在归一化之前(要影响排序)。
   const finish = (list: HighlightCandidate[]): HighlightCandidate[] =>
-    applyRuleGate(transcript, normalizeScores(applyUtilitySignal(list, zh)), zh);
+    applyRuleGate(transcript, normalizeScores(applyUtilitySignal(list, pt)), pt);
   const reviewable = kept.filter((c) => c.boundary !== "signal");
   if (reviewable.length === 0) return { candidates: finish(kept), funnel };
   try {
@@ -707,12 +707,12 @@ export async function detectHighlights(
  * 「精彩」不同的维度——密度只做加分项,不推翻爆点排序。信号候选跳过
  * (它们不是按文本立身的)。
  */
-export function applyUtilitySignal(candidates: HighlightCandidate[], zh: boolean): HighlightCandidate[] {
+export function applyUtilitySignal(candidates: HighlightCandidate[], pt: boolean): HighlightCandidate[] {
   return candidates.map((c) => {
     if (c.boundary === "signal") return c;
     const u = utilityDensity(c.text);
     if (u.score < UTILITY_SAVE_WORTHY) return c;
-    const note = zh
+    const note = pt
       ? `实用密度 ${u.score}/10(${u.hits.slice(0, 3).join("/")}),可收藏内容`
       : `utility density ${u.score}/10 (${u.hits.slice(0, 3).join("/")}), save-worthy`;
     return {
@@ -749,10 +749,10 @@ export async function detectMoments(
   );
   if (moments.length === 0) return [];
 
-  const zh = isChineseTranscript(transcript);
+  const pt = isPortugueseTranscript(transcript);
   const picks = await chatCompleteJson(
     llm,
-    zh ? MOMENT_SYSTEM_PROMPT_ZH : MOMENT_SYSTEM_PROMPT_EN,
+    pt ? MOMENT_SYSTEM_PROMPT_PT : MOMENT_SYSTEM_PROMPT_EN,
     buildMomentPrompt(
       moments.map((m) => ({
         id: m.id,
@@ -762,7 +762,7 @@ export async function detectMoments(
         text: textInRange(transcript, m.startSec, m.endSec),
       })),
       4,
-      zh
+      pt
     ),
     parseMomentPicks,
     signal

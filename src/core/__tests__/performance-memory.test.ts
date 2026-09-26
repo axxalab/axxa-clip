@@ -24,70 +24,71 @@ afterEach(async () => {
 });
 const freshDir = async (): Promise<string> => (root = await mkdtemp(join(tmpdir(), "hotclip-perf-")));
 const entry = (title: string, views: number, likes: number): PerformanceEntry => ({
-  title, platform: "bilibili", views, likes, comments: 0, shares: 0, saves: 0,
+  title, platform: "youtube", views, likes, comments: 0, shares: 0, saves: 0,
   importedAt: "2026-08-24T00:00:00.000Z",
 });
 
-describe("performance metric import", () => {
-  it("parses localized compact numbers", () => {
-    expect(metricNumber("1.2万")).toBe(12_000);
+describe("importação das métricas de desempenho", () => {
+  it("lê os números abreviados de cada idioma", () => {
+    expect(metricNumber("12 mil")).toBe(12_000);
+    expect(metricNumber("1,2 mi")).toBe(1_200_000);
     expect(metricNumber("3,456")).toBe(3_456);
     expect(metricNumber("7.8k")).toBe(7_800);
   });
 
-  it("parses quoted CSV and Chinese field aliases", () => {
-    const rows = parseCsv('标题,播放量,点赞,标签\r\n"逗号,也在标题里",1.2万,600,"效率,工具"\r\n');
-    const result = normalizePerformanceRows(rows, "bilibili", "now");
+  it("lê CSV com aspas e os nomes de coluna em português", () => {
+    const rows = parseCsv('titulo,visualizacoes,curtidas,etiquetas\r\n"tem vírgula, no título também",12 mil,600,"eficiência;ferramenta"\r\n');
+    const result = normalizePerformanceRows(rows, "youtube", "now");
     expect(result.skipped).toBe(0);
-    expect(result.entries[0]).toMatchObject({ title: "逗号,也在标题里", views: 12_000, likes: 600, keywords: ["效率", "工具"] });
+    expect(result.entries[0]).toMatchObject({ title: "tem vírgula, no título também", views: 12_000, likes: 600, keywords: ["eficiência", "ferramenta"] });
   });
 
-  it("skips rows without title or positive views", () => {
-    const out = normalizePerformanceRows([{ title: "", views: 10 }, { title: "无播放", views: 0 }]);
+  it("descarta as linhas sem título ou sem visualizações", () => {
+    const out = normalizePerformanceRows([{ title: "", views: 10 }, { title: "sem visualizações", views: 0 }]);
     expect(out).toEqual({ entries: [], skipped: 2 });
   });
 
-  it("imports JSON, merges by platform/id, and survives reload", async () => {
+  it("importa JSON, funde por plataforma e id, e sobrevive a uma nova leitura", async () => {
     const dir = await freshDir();
-    const file = join(dir, "bilibili.json");
-    await writeFile(file, JSON.stringify([{ id: "BV1", title: "第一版", views: 100, likes: 3 }]), "utf8");
+    const file = join(dir, "youtube.json");
+    await writeFile(file, JSON.stringify([{ id: "VID1", title: "primeira versão", views: 100, likes: 3 }]), "utf8");
     expect((await importPerformanceFile(dir, file)).imported).toBe(1);
-    await writeFile(file, JSON.stringify([{ id: "BV1", title: "更新标题", views: 200, likes: 20 }]), "utf8");
+    await writeFile(file, JSON.stringify([{ id: "VID1", title: "título atualizado", views: 200, likes: 20 }]), "utf8");
     const result = await importPerformanceFile(dir, file);
     expect(result.total).toBe(1);
-    expect((await loadPerformanceMemory(dir))[0]).toMatchObject({ title: "更新标题", views: 200 });
+    expect((await loadPerformanceMemory(dir))[0]).toMatchObject({ title: "título atualizado", views: 200 });
   });
 });
 
-describe("performance prompt feedback", () => {
-  it("ranks high-quality outcomes and includes winners/laggards", async () => {
-    const rows = [entry("弱片", 10_000, 5), entry("强片", 10_000, 900), entry("中1", 1000, 20), entry("中2", 2000, 30)];
+describe("retorno de desempenho no prompt", () => {
+  it("ordena pelos melhores resultados e inclui alto e baixo desempenho", async () => {
+    const rows = [entry("clipe fraco", 10_000, 5), entry("clipe forte", 10_000, 900), entry("mediano 1", 1000, 20), entry("mediano 2", 2000, 30)];
     const examples = performanceExamples(rows);
-    expect(examples.winners[0].title).toBe("强片");
-    expect(examples.laggards.map((e) => e.title)).toContain("弱片");
+    expect(examples.winners[0].title).toBe("clipe forte");
+    expect(examples.laggards.map((e) => e.title)).toContain("clipe fraco");
     const prompt = performanceMemorySection(rows, true);
-    expect(prompt).toContain("【真实发布表现】");
-    expect(prompt).toContain("高表现样例");
-    expect(prompt).toContain("低表现样例");
+    expect(prompt).toContain("[Desempenho real das publicações]");
+    expect(prompt).toContain("Exemplos de alto desempenho");
+    expect(prompt).toContain("Exemplos de baixo desempenho");
     const dir = await freshDir();
     await savePerformanceMemory(dir, rows);
     expect(await loadPerformanceMemory(dir)).toHaveLength(4);
     expect(summarizePerformance(rows)).toMatchObject({
       total: 4,
-      platforms: ["bilibili"],
+      platforms: ["youtube"],
     });
     await clearPerformanceMemory(dir);
     expect(await loadPerformanceMemory(dir)).toEqual([]);
   });
 
-  it("is wired into the highlight system prompt", () => {
+  it("está ligado ao system prompt de busca de destaques", () => {
     const transcript: Transcript = {
-      language: "zh",
+      language: "pt",
       durationSec: 10,
-      segments: [{ id: 1, startSec: 0, endSec: 10, text: "这是一次完整的产品实测。" }],
+      segments: [{ id: 1, startSec: 0, endSec: 10, text: "Esta é uma demonstração completa do produto." }],
     } as Transcript;
-    const rows = [entry("实测强片", 20_000, 1_000)];
+    const rows = [entry("demonstração que foi forte", 20_000, 1_000)];
     expect(highlightSystemPrompt(transcript, "standard", [], undefined, undefined, undefined, undefined, rows))
-      .toContain("【真实发布表现】");
+      .toContain("[Desempenho real das publicações]");
   });
 });

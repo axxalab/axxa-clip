@@ -108,7 +108,7 @@ describe("buildPublishPacks", () => {
       }
     );
     expect(summaries).toHaveLength(2);
-    const xhsDir = join(dir, PACK_DIR_NAME, "小红书");
+    const xhsDir = join(dir, PACK_DIR_NAME, "RedNote");
     const files = await readdir(xhsDir);
     expect(files).toContain("01-测试片.mp4");
     expect(files).toContain("01-测试片.jpg");
@@ -133,10 +133,10 @@ describe("buildPublishPacks", () => {
       async () => false // 裁切全部失败
     );
     expect(summaries).toHaveLength(1);
-    const files = await readdir(join(dir, PACK_DIR_NAME, "抖音"));
+    const files = await readdir(join(dir, PACK_DIR_NAME, "Douyin"));
     expect(files).toContain("01-测试片.mp4");
     expect(files).not.toContain("01-测试片.jpg");
-    const manifest = JSON.parse(await readFile(join(dir, PACK_DIR_NAME, "抖音", "manifest.json"), "utf8"));
+    const manifest = JSON.parse(await readFile(join(dir, PACK_DIR_NAME, "Douyin", "manifest.json"), "utf8"));
     expect(manifest.clips[0].cover).toBeNull();
   });
 

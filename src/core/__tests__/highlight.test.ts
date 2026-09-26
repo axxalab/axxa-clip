@@ -5,7 +5,7 @@ import {
   buildHighlightPrompt,
   renderTranscriptLines,
   extractJson,
-  isChineseTranscript,
+  isPortugueseTranscript,
   isMultiSpeaker,
   highlightSystemPrompt,
   renderSignals,
@@ -13,7 +13,7 @@ import {
 import type { Transcript, TranscriptWord } from "../transcribe/types";
 import type { HighlightCandidate } from "../../shared/api-types";
 
-/** Build a transcript from sentences: each char = one 0.2s token (zh-style). */
+/** Monta uma transcrição a partir de frases: cada caractere vira um token de 0,2s. */
 function makeTranscript(sentences: string[]): Transcript {
   let t = 0;
   let id = 0;
@@ -28,21 +28,24 @@ function makeTranscript(sentences: string[]): Transcript {
     t = seg.endSec + 0.5;
     return seg;
   });
-  return { language: "zh", segments, engine: "test", durationSec: t };
+  return { language: "pt", segments, engine: "test", durationSec: t };
 }
 
 describe("normalizeText", () => {
-  it("drops punctuation/whitespace, lowercases latin, keeps CJK", () => {
-    expect(normalizeText("你好，世界！ Hello, World!")).toBe("你好世界helloworld");
+  it("remove pontuação e espaços, deixa o latim em minúsculas e preserva a escrita ideográfica", () => {
+    expect(normalizeText("Olá, mundo! Hello, World!")).toBe("olámundohelloworld");
+    // A escrita ideográfica é preservada para o material gravado nesses idiomas
+    // (escrito com escapes: o código-fonte não carrega ideogramas).
+    expect(normalizeText("\u4f60\u597d\uff0c\u4e16\u754c\uff01 Hi!")).toBe("\u4f60\u597d\u4e16\u754chi");
   });
 });
 
 describe("matchQuote", () => {
-  const tx = makeTranscript(["今天天气真好。", "我们来聊聊赚钱这件事。", "记住这三个字:别上头。"]);
+  const tx = makeTranscript(["O tempo está ótimo hoje.", "Vamos falar sobre ganhar dinheiro.", "Lembre desta frase: não se empolgue."]);
   const index = buildTokenIndex(tx.segments.flatMap((s) => s.words));
 
   it("exact contiguous match returns precise token times", () => {
-    const m = matchQuote(index, "我们来聊聊", "赚钱这件事。");
+    const m = matchQuote(index, "Vamos falar sobre", " ganhar dinheiro.");
     expect(m).not.toBeNull();
     expect(m!.boundary).toBe("exact");
     expect(m!.startSec).toBeCloseTo(tx.segments[1].startSec, 3);
@@ -50,7 +53,7 @@ describe("matchQuote", () => {
   });
 
   it("anchored match spans head→tail across sentences", () => {
-    const m = matchQuote(index, "我们来聊聊赚钱", "别上头。");
+    const m = matchQuote(index, "Vamos falar sobre ganhar", "não se empolgue.");
     expect(m).not.toBeNull();
     expect(m!.boundary).toBe("anchored");
     expect(m!.startSec).toBeCloseTo(tx.segments[1].startSec, 3);
@@ -58,36 +61,36 @@ describe("matchQuote", () => {
   });
 
   it("quote punctuation differences do not break matching", () => {
-    const m = matchQuote(index, "记住这三个字", "别上头");
+    const m = matchQuote(index, "Lembre desta frase", "não se empolgue");
     expect(m).not.toBeNull();
   });
 
   it("returns null when text is absent", () => {
-    expect(matchQuote(index, "根本不存在的话", "也不存在")).toBeNull();
+    expect(matchQuote(index, "uma frase que não existe", "e esta também não")).toBeNull();
   });
 });
 
 describe("resolveSelection", () => {
-  const tx = makeTranscript(["开场白很平淡。", "但是接下来这句话炸了。", "这就是全网疯传的那个观点。", "后面又归于平静。"]);
+  const tx = makeTranscript(["A abertura foi bem sem graça.", "Mas a próxima frase explodiu.", "É essa a opinião que viralizou em todo lugar.", "Depois tudo voltou à calma."]);
 
   it("resolves via quotes scoped to declared segments", () => {
     const r = resolveSelection(tx, {
       title: "t", hook: "h", score: 90, reason: "r", keywords: [],
       startSegmentId: 2, endSegmentId: 3,
-      quoteStart: "但是接下来", quoteEnd: "那个观点。",
+      quoteStart: "Mas a próxima", quoteEnd: "viralizou em todo lugar.",
     });
     expect(r).not.toBeNull();
     expect(r!.boundary).toBe("anchored");
     expect(r!.startSec).toBeCloseTo(tx.segments[1].startSec, 3);
     expect(r!.endSec).toBeCloseTo(tx.segments[2].endSec, 3);
-    expect(r!.text).toContain("炸了");
+    expect(r!.text).toContain("explodiu");
   });
 
   it("falls back to segment boundaries when quotes are hallucinated", () => {
     const r = resolveSelection(tx, {
       title: "t", hook: "h", score: 50, reason: "r", keywords: [],
       startSegmentId: 2, endSegmentId: 3,
-      quoteStart: "LLM自己编的话", quoteEnd: "完全对不上",
+      quoteStart: "uma frase inventada pelo LLM", quoteEnd: "que não bate com nada",
     });
     expect(r).not.toBeNull();
     expect(r!.boundary).toBe("segment");
@@ -98,7 +101,7 @@ describe("resolveSelection", () => {
     const r = resolveSelection(tx, {
       title: "t", hook: "h", score: 50, reason: "r", keywords: [],
       startSegmentId: 99, endSegmentId: 98,
-      quoteStart: "不存在", quoteEnd: "也不存在",
+      quoteStart: "não existe", quoteEnd: "também não existe",
     });
     expect(r).toBeNull();
   });
@@ -106,38 +109,40 @@ describe("resolveSelection", () => {
 
 describe("parseSelections", () => {
   it("parses fenced JSON and clamps score", () => {
-    const out = parseSelections('```json\n{"clips":[{"title":"钩子","score":150,"startSegmentId":1,"endSegmentId":2,"quoteStart":"开头","quoteEnd":"结尾"}]}\n```');
+    const out = parseSelections('```json\n{"clips":[{"title":"gancho","score":150,"startSegmentId":1,"endSegmentId":2,"quoteStart":"abertura","quoteEnd":"encerramento"}]}\n```');
     expect(out).toHaveLength(1);
     expect(out[0].score).toBe(100);
   });
 
   it("drops rows without any locator and throws on non-JSON", () => {
-    const out = parseSelections('{"clips":[{"title":"没定位"},{"quoteStart":"有引文","startSegmentId":1,"endSegmentId":1,"quoteEnd":"x"}]}');
+    const out = parseSelections('{"clips":[{"title":"sem localizador"},{"quoteStart":"tem citação","startSegmentId":1,"endSegmentId":1,"quoteEnd":"x"}]}');
     expect(out).toHaveLength(1);
-    expect(() => parseSelections("总之就是不输出JSON")).toThrow();
+    expect(() => parseSelections("resumindo, não vou devolver JSON nenhum")).toThrow();
   });
 });
 
 describe("parseReviews / applyReviews", () => {
   it("parses verdicts and tolerates fenced JSON", () => {
-    const out = parseReviews('```json\n{"reviews":[{"id":1,"keep":false,"score":30,"note":"平淡"},{"id":2,"keep":true,"score":88}]}\n```');
+    const out = parseReviews('```json\n{"reviews":[{"id":1,"keep":false,"score":30,"note":"sem graça"},{"id":2,"keep":true,"score":88}]}\n```');
     expect(out).toEqual([
-      // 老输出没有 verdict:keep=false 推导为保守的 review 档(不是 drop)
-      { id: 1, keep: false, gate: "review", score: 30, note: "平淡" },
+      // A saída antiga não tem verdict: keep=false é deduzido como o nível
+      // conservador review (e não drop)
+      { id: 1, keep: false, gate: "review", score: 30, note: "sem graça" },
       { id: 2, keep: true, gate: "publish", score: 88, note: "" },
     ]);
   });
 
   it("parses the three-tier verdict field and keep follows it", () => {
     const out = parseReviews(
-      '{"reviews":[{"id":1,"verdict":"publish","score":90},{"id":2,"verdict":"review","keep":true,"score":70,"note":"结尾没收住"},{"id":3,"verdict":"drop","score":20,"note":"凑数"},{"id":4,"verdict":"胡说","keep":true,"score":50}]}'
+      '{"reviews":[{"id":1,"verdict":"publish","score":90},{"id":2,"verdict":"review","keep":true,"score":70,"note":"o final não fecha"},{"id":3,"verdict":"drop","score":20,"note":"só enchendo lista"},{"id":4,"verdict":"besteira","keep":true,"score":50}]}'
     );
-    // keep 一律由 verdict 推导(publish 才 true),模型把 keep 填错也不影响档位
+    // keep é sempre deduzido do verdict (só publish vira true), então o modelo
+    // preencher keep errado não muda o nível
     expect(out.map((r) => [r.gate, r.keep])).toEqual([
       ["publish", true],
       ["review", false],
       ["drop", false],
-      ["publish", true], // 非法 verdict 回退 keep 推导
+      ["publish", true], // verdict inválido volta a deduzir pelo keep
     ]);
   });
 
@@ -150,25 +155,25 @@ describe("parseReviews / applyReviews", () => {
       { ...base, id: 1, score: 90 },
       { ...base, id: 2, score: 80 },
     ];
-    const out = applyReviews(cands, [{ id: 1, keep: false, gate: "drop", score: 35, note: "弱钩子" }]);
-    expect(out[0]).toMatchObject({ recommended: false, score: 35, reviewNote: "弱钩子", gate: "drop", gateNotes: ["弱钩子"] });
+    const out = applyReviews(cands, [{ id: 1, keep: false, gate: "drop", score: 35, note: "gancho fraco" }]);
+    expect(out[0]).toMatchObject({ recommended: false, score: 35, reviewNote: "gancho fraco", gate: "drop", gateNotes: ["gancho fraco"] });
     expect(out[1]).toMatchObject({ recommended: true, score: 80 });
     expect(out[1].gate).toBeUndefined();
   });
 
   it("throws on malformed reviewer output", () => {
-    expect(() => parseReviews("完全不是JSON")).toThrow();
+    expect(() => parseReviews("isso não é JSON de jeito nenhum")).toThrow();
   });
 
   it("parses four-dimension verdicts into a weighted composite", () => {
     const out = parseReviews(
-      '{"reviews":[{"id":1,"keep":true,"hook":80,"hookNote":"强","flow":60,"flowNote":"顺","value":100,"valueNote":"高","trend":40,"trendNote":"一般","teaser":"倒半杯水会怎样?","note":"总评"}]}'
+      '{"reviews":[{"id":1,"keep":true,"hook":80,"hookNote":"forte","flow":60,"flowNote":"corre bem","value":100,"valueNote":"alto","trend":40,"trendNote":"mediano","teaser":"meio copo de água muda tudo?","note":"avaliação geral"}]}'
     );
     expect(out[0].dims).toEqual({ hook: 80, flow: 60, value: 100, trend: 40 });
-    // 80*.35 + 60*.25 + 100*.25 + 40*.15 = 74
+    // 80*0,35 + 60*0,25 + 100*0,25 + 40*0,15 = 74
     expect(out[0].score).toBe(74);
-    expect(out[0].dimNotes?.value).toBe("高");
-    expect(out[0].teaser).toBe("倒半杯水会怎样?");
+    expect(out[0].dimNotes?.value).toBe("alto");
+    expect(out[0].teaser).toBe("meio copo de água muda tudo?");
   });
 
   it("carries dims and teaser onto candidates via applyReviews", () => {
@@ -178,10 +183,10 @@ describe("parseReviews / applyReviews", () => {
     };
     const out = applyReviews(
       [{ ...base, id: 1, score: 90 }],
-      [{ id: 1, keep: true, gate: "publish", score: 74, note: "", dims: { hook: 80, flow: 60, value: 100, trend: 40 }, teaser: "钩子句" }]
+      [{ id: 1, keep: true, gate: "publish", score: 74, note: "", dims: { hook: 80, flow: 60, value: 100, trend: 40 }, teaser: "frase de gancho" }]
     );
     expect(out[0].scoreDims).toEqual({ hook: 80, flow: 60, value: 100, trend: 40 });
-    expect(out[0].teaser).toBe("钩子句");
+    expect(out[0].teaser).toBe("frase de gancho");
   });
 });
 
@@ -227,49 +232,49 @@ describe("dropOverlaps", () => {
 });
 
 describe("prompt builders", () => {
-  const tx = makeTranscript(["第一句。", "第二句。"]);
+  const tx = makeTranscript(["Primeira frase.", "Segunda frase."]);
 
   it("renders [id] MM:SS lines", () => {
     const lines = renderTranscriptLines(tx).split("\n");
-    expect(lines[0]).toMatch(/^\[1\] 00:00 第一句。$/);
-    expect(lines[1]).toMatch(/^\[2\] 00:0\d 第二句。$/);
+    expect(lines[0]).toMatch(/^\[1\] 00:00 Primeira frase\.$/);
+    expect(lines[1]).toMatch(/^\[2\] 00:0\d Segunda frase\.$/);
   });
 
   it("prompt forbids timestamps and demands verbatim quotes", () => {
     const p = buildHighlightPrompt(tx);
     expect(p).toContain("quoteStart");
     expect(p).toContain("startSegmentId");
-    expect(p).toContain("逐句稿");
+    expect(p).toContain("Transcrição");
   });
 
   it("extractJson handles fences and prose-wrapped objects", () => {
     expect(extractJson('```json\n{"a":1}\n```')).toBe('{"a":1}');
-    expect(extractJson('好的,结果如下 {"a":1} 请查收')).toBe('{"a":1}');
+    expect(extractJson('claro, o resultado é este {"a":1} confira')).toBe('{"a":1}');
   });
 
   it("prefixes speaker labels and injects attribution guidance when multi-speaker", () => {
-    const multi = makeTranscript(["嘉宾说的。", "主持人问的。"]);
+    const multi = makeTranscript(["Fala do convidado.", "Pergunta de quem apresenta."]);
     multi.segments[0].speaker = 0;
     multi.segments[1].speaker = 1;
     expect(isMultiSpeaker(multi)).toBe(true);
     const lines = renderTranscriptLines(multi).split("\n");
-    expect(lines[0]).toContain("S1: 嘉宾说的。");
-    expect(lines[1]).toContain("S2: 主持人问的。");
-    expect(buildHighlightPrompt(multi)).toContain("多人对谈");
+    expect(lines[0]).toContain("S1: Fala do convidado.");
+    expect(lines[1]).toContain("S2: Pergunta de quem apresenta.");
+    expect(buildHighlightPrompt(multi)).toContain("Conversa com várias pessoas");
   });
 
   it("stays single-speaker (no S-prefix) when only one speaker present", () => {
-    const one = makeTranscript(["只有一个人。", "还是这个人。"]);
+    const one = makeTranscript(["Só tem uma pessoa.", "Continua sendo a mesma pessoa."]);
     one.segments[0].speaker = 0;
     one.segments[1].speaker = 0;
     expect(isMultiSpeaker(one)).toBe(false);
     expect(renderTranscriptLines(one)).not.toContain("S1:");
-    expect(buildHighlightPrompt(one)).not.toContain("多人对谈");
+    expect(buildHighlightPrompt(one)).not.toContain("Conversa com várias pessoas");
   });
 });
 
-describe("prompt language routing（中英分流）", () => {
-  const zhTx = makeTranscript(["今天聊聊怎么把长视频切成爆款。", "关键就三个字。"]);
+describe("escolha do idioma do prompt (português ou inglês)", () => {
+  const ptTx = makeTranscript(["Hoje a gente vai falar de como transformar um vídeo longo em corte viral.", "O segredo é uma coisa só."]);
   const enTx: Transcript = {
     language: "en",
     engine: "test",
@@ -285,43 +290,43 @@ describe("prompt language routing（中英分流）", () => {
     ],
   };
 
-  it("zh transcript → Chinese system + user prompt", () => {
-    expect(isChineseTranscript(zhTx)).toBe(true);
-    expect(highlightSystemPrompt(zhTx)).toContain("切片操盘手");
-    expect(buildHighlightPrompt(zhTx)).toContain("逐句稿");
+  it("transcrição em português → prompt de sistema e de usuário em português", () => {
+    expect(isPortugueseTranscript(ptTx)).toBe(true);
+    expect(highlightSystemPrompt(ptTx)).toContain("estrategista");
+    expect(buildHighlightPrompt(ptTx)).toContain("Transcrição");
   });
 
-  it("en transcript → English system + user prompt, no Chinese leakage", () => {
-    expect(isChineseTranscript(enTx)).toBe(false);
+  it("transcrição em inglês → prompt de sistema e de usuário em inglês, sem vazar português", () => {
+    expect(isPortugueseTranscript(enTx)).toBe(false);
     const sys = highlightSystemPrompt(enTx);
     const user = buildHighlightPrompt(enTx);
     expect(sys).toContain("clipping strategist");
     expect(user).toContain("Transcript");
-    expect(/[一-鿿]/.test(sys)).toBe(false);
-    // user prompt carries only the transcript text itself, which here is English
-    expect(/[一-鿿]/.test(user)).toBe(false);
+    expect(sys).not.toContain("estrategista");
+    // o prompt de usuário carrega só o texto da transcrição, que aqui é inglês
+    expect(user).not.toContain("Transcrição");
   });
 
-  it("auto language falls back to CJK-dominance detection", () => {
-    const autoTx: Transcript = { ...zhTx, language: "auto" };
-    expect(isChineseTranscript(autoTx)).toBe(true);
+  it("com idioma auto, a detecção cai para a análise das palavras do texto", () => {
+    const autoTx: Transcript = { ...ptTx, language: "auto" };
+    expect(isPortugueseTranscript(autoTx)).toBe(true);
     const autoEn: Transcript = { ...enTx, language: "auto" };
-    expect(isChineseTranscript(autoEn)).toBe(false);
+    expect(isPortugueseTranscript(autoEn)).toBe(false);
   });
 });
 
-describe("时长档 (clip length)", () => {
-  it("standard 保持原 system prompt;short/long 改写时长行(中英)", () => {
-    const zh = makeTranscript(["第一句话。", "第二句话。"]);
-    expect(highlightSystemPrompt(zh)).toContain("时长 8~40 秒");
-    expect(highlightSystemPrompt(zh, "short")).toContain("时长 10~30 秒(硬要求,宁短勿超)");
-    expect(highlightSystemPrompt(zh, "long")).toContain("时长 40~90 秒");
+describe("faixas de duração do clipe", () => {
+  it("standard mantém o system prompt original; short e long reescrevem a linha de duração nos dois idiomas", () => {
+    const pt = makeTranscript(["Primeira frase.", "Segunda frase."]);
+    expect(highlightSystemPrompt(pt)).toContain("Duração de 8 a 40 segundos");
+    expect(highlightSystemPrompt(pt, "short")).toContain("Duração de 10 a 30 segundos (exigência rígida, melhor ficar abaixo do que passar)");
+    expect(highlightSystemPrompt(pt, "long")).toContain("Duração de 40 a 90 segundos");
     const en: Transcript = { ...makeTranscript(["First sentence here.", "Second sentence there."]), language: "en" };
     expect(highlightSystemPrompt(en, "short")).toContain("Length 10–30 seconds (hard requirement)");
     expect(highlightSystemPrompt(en, "long")).toContain("Length 40–90 seconds");
   });
 
-  it("clipLengthBounds:目标外放容差,绝对下限 4 秒", () => {
+  it("clipLengthBounds: folga em torno do alvo, com piso absoluto de 4 segundos", () => {
     expect(clipLengthBounds("standard")).toEqual({ lo: 4, hi: 60 });
     expect(clipLengthBounds("short")).toEqual({ lo: 5, hi: 45 });
     expect(clipLengthBounds("long")).toEqual({ lo: 20, hi: 135 });
@@ -336,9 +341,9 @@ describe("renderSignals / signal injection", () => {
   };
 
   it("renders bilingual signal blocks with MM:SS ranges", () => {
-    const zh = renderSignals(signals, true);
-    expect(zh).toContain("画面与声音信号");
-    expect(zh).toContain("03:12-03:18");
+    const pt = renderSignals(signals, true);
+    expect(pt).toContain("Sinais de imagem e som");
+    expect(pt).toContain("03:12-03:18");
     const en = renderSignals(signals, false);
     expect(en).toContain("Audiovisual signals");
     expect(en).toContain("08:20-08:35");
@@ -349,75 +354,75 @@ describe("renderSignals / signal injection", () => {
     expect(renderSignals(undefined, true)).toBe("");
   });
 
-  it("emotionPeaks 存在时渲染表情峰值行", () => {
+  it("a linha de pico de expressão facial só aparece quando emotionPeaks existe", () => {
     const withEmotion = { ...signals, emotionPeaks: [{ startSec: 30, endSec: 42 }] };
-    const zh = renderSignals(withEmotion, true);
-    expect(zh).toContain("人脸表情峰值时段");
-    expect(zh).toContain("00:30-00:42");
+    const pt = renderSignals(withEmotion, true);
+    expect(pt).toContain("Picos de expressão facial");
+    expect(pt).toContain("00:30-00:42");
     expect(renderSignals(withEmotion, false)).toContain("Facial-emotion peaks");
-    expect(renderSignals(signals, true)).not.toContain("表情峰值");
+    expect(renderSignals(signals, true)).not.toContain("expressão facial");
   });
 
-  it("visualPeaks 存在时渲染视觉爆点行", () => {
+  it("a linha de pico visual só aparece quando visualPeaks existe", () => {
     const withVision = { ...signals, visualPeaks: [{ startSec: 60, endSec: 72 }] };
-    const zh = renderSignals(withVision, true);
-    expect(zh).toContain("视觉模型判定的画面爆点时刻");
-    expect(zh).toContain("01:00-01:12");
+    const pt = renderSignals(withVision, true);
+    expect(pt).toContain("Picos visuais apontados pelo modelo de visão");
+    expect(pt).toContain("01:00-01:12");
     expect(renderSignals(withVision, false)).toContain("Vision-model visual peaks");
-    // 不带 visualPeaks 时该行不出现(老调用方零感知)
-    expect(renderSignals(signals, true)).not.toContain("视觉模型");
+    // Sem visualPeaks a linha não aparece (quem já chamava antes não sente nada)
+    expect(renderSignals(signals, true)).not.toContain("modelo de visão");
   });
 
   it("buildHighlightPrompt embeds the signal section when provided", () => {
-    const tx = makeTranscript(["第一句话。", "第二句话。"]);
-    expect(buildHighlightPrompt(tx, 6, signals)).toContain("画面与声音信号");
-    expect(buildHighlightPrompt(tx)).not.toContain("画面与声音信号");
+    const tx = makeTranscript(["Primeira frase.", "Segunda frase."]);
+    expect(buildHighlightPrompt(tx, 6, signals)).toContain("Sinais de imagem e som");
+    expect(buildHighlightPrompt(tx)).not.toContain("Sinais de imagem e som");
   });
 });
 
-describe("商品讲解模式 (product mode)", () => {
-  it("传商品词时 system prompt 追加商品段(中英),不传时不追加", () => {
-    const zh = makeTranscript(["第一句话。", "第二句话。"]);
-    expect(highlightSystemPrompt(zh)).not.toContain("商品讲解模式");
-    const zhSys = highlightSystemPrompt(zh, "standard", ["抽纸", "面霜"]);
-    expect(zhSys).toContain("【商品讲解模式】");
-    expect(zhSys).toContain("抽纸、面霜");
-    expect(zhSys).toContain("憋单");
-    expect(zhSys).toContain("keywords 必须包含");
+describe("modo de apresentação de produto", () => {
+  it("com produtos informados o system prompt ganha o bloco de produto nos dois idiomas; sem eles, nada é acrescentado", () => {
+    const pt = makeTranscript(["Primeira frase.", "Segunda frase."]);
+    expect(highlightSystemPrompt(pt)).not.toContain("Modo de apresentação de produto");
+    const ptSys = highlightSystemPrompt(pt, "standard", ["lenço de papel", "creme facial"]);
+    expect(ptSys).toContain("[Modo de apresentação de produto]");
+    expect(ptSys).toContain("lenço de papel, creme facial");
+    expect(ptSys).toContain("isca de engajamento");
+    expect(ptSys).toContain("keywords de cada candidato precisam conter");
     const en: Transcript = { ...makeTranscript(["First sentence here.", "Second sentence there."]), language: "en" };
     const enSys = highlightSystemPrompt(en, "standard", ["tissue"]);
     expect(enSys).toContain("[Product mode]");
     expect(enSys).toContain("tissue");
-    // 英文稿的商品段不夹带中文
-    expect(/[一-鿿]/.test(enSys)).toBe(false);
+    // O bloco de produto do texto em inglês não carrega português junto
+    expect(enSys).not.toContain("Modo de apresentação");
   });
 
-  it("商品段与时长档改写可叠加", () => {
-    const zh = makeTranscript(["第一句话。", "第二句话。"]);
-    const sys = highlightSystemPrompt(zh, "short", ["抽纸"]);
-    expect(sys).toContain("时长 10~30 秒(硬要求,宁短勿超)");
-    expect(sys).toContain("【商品讲解模式】");
+  it("o bloco de produto e a reescrita da duração se somam", () => {
+    const pt = makeTranscript(["Primeira frase.", "Segunda frase."]);
+    const sys = highlightSystemPrompt(pt, "short", ["lenço de papel"]);
+    expect(sys).toContain("Duração de 10 a 30 segundos (exigência rígida, melhor ficar abaixo do que passar)");
+    expect(sys).toContain("[Modo de apresentação de produto]");
   });
 
-  it("mergeProductKeywords:命中的商品词确定性并入 keywords", () => {
-    expect(mergeProductKeywords(["吸水", "实测"], "这款抽纸的吸水速度你们看", ["抽纸", "面霜"])).toEqual([
-      "吸水",
-      "实测",
-      "抽纸",
+  it("mergeProductKeywords: o produto encontrado entra nas keywords de forma determinística", () => {
+    expect(mergeProductKeywords(["absorção", "teste real"], "olha a velocidade de absorção desse lenço de papel", ["lenço de papel", "creme facial"])).toEqual([
+      "absorção",
+      "teste real",
+      "lenço de papel",
     ]);
   });
 
-  it("mergeProductKeywords:空商品词表原样返回;未命中不并入", () => {
-    expect(mergeProductKeywords(["a"], "任意文本", [])).toEqual(["a"]);
-    expect(mergeProductKeywords(["a"], "没提到商品", ["抽纸"])).toEqual(["a"]);
+  it("mergeProductKeywords: lista de produtos vazia devolve tudo como está, e o que não é encontrado não entra", () => {
+    expect(mergeProductKeywords(["a"], "um texto qualquer", [])).toEqual(["a"]);
+    expect(mergeProductKeywords(["a"], "não citou produto nenhum", ["lenço de papel"])).toEqual(["a"]);
   });
 
-  it("mergeProductKeywords:拉丁词大小写不敏感命中且去重", () => {
-    // 命中匹配大小写不敏感
+  it("mergeProductKeywords: palavras latinas casam sem diferenciar maiúsculas e não são duplicadas", () => {
+    // A busca não diferencia maiúsculas de minúsculas
     expect(mergeProductKeywords([], "The new iPhone case is great", ["iphone"])).toEqual(["iphone"]);
-    // 已在 keywords 里(大小写不同)不重复并入
+    // O que já está em keywords (com outra caixa) não entra de novo
     expect(mergeProductKeywords(["iPhone"], "the iphone case", ["IPHONE"])).toEqual(["iPhone"]);
-    // 空白商品词被忽略
+    // Produto em branco é ignorado
     expect(mergeProductKeywords([], "some text", ["  ", ""])).toEqual([]);
   });
 });

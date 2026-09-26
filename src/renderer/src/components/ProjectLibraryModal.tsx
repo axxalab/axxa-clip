@@ -48,7 +48,7 @@ export function ProjectLibraryModal({ projects, activeProjectId, onClose, onNew,
   const formatTime = (value: string): string => {
     const date = new Date(value);
     return Number.isFinite(date.getTime())
-      ? new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date)
+      ? new Intl.DateTimeFormat(locale === "en" ? "en" : "pt-BR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date)
       : value;
   };
 

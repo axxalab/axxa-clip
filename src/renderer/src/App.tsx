@@ -480,7 +480,7 @@ export default function App(): React.JSX.Element {
       >
         <div className="flex shrink-0 items-center gap-2">
           <LogoMark size={26} />
-          <LogoWordmark zh={locale === "zh"} />
+          <LogoWordmark tagline={locale === "pt"} />
         </div>
         {file && (
           <>
