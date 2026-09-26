@@ -1,13 +1,13 @@
 /**
- * HotClip MCP Server 入口(stdio):
+ * Entrada do servidor MCP do HotClip (stdio):
  *   npx tsx src/mcp/server.ts
- * 在 Claude Code / Claude Desktop 里注册后,Agent 可直接调用本地切片管线
- * (转写/找爆点/出片全在本机,素材不出电脑)。协议逻辑见 protocol.ts,
- * 管线实现与桌面端/录播监听共用 core/pipeline.ts。
+ * Registrado no Claude Code / Claude Desktop, o agente chama a esteira de corte local direto
+ * (transcrição / busca dos estouros / saída, tudo na máquina, e o material não sai do computador).
+ * A lógica do protocolo está em protocol.ts, e a esteira é a mesma core/pipeline.ts do desktop e do vigia de gravações.
  *
- * LLM 配置走环境变量:HOTCLIP_LLM_BASE_URL / HOTCLIP_LLM_MODEL /
- * HOTCLIP_LLM_API_KEY(本地 Ollama 端点可省 key)。
- * 模型与转写缓存目录与桌面 App 共享(下载一次两边都能用)。
+ * O LLM é configurado por variáveis de ambiente: HOTCLIP_LLM_BASE_URL / HOTCLIP_LLM_MODEL /
+ * HOTCLIP_LLM_API_KEY (num endpoint local do Ollama a chave pode ficar de fora).
+ * A pasta de modelos e o cache de transcrição são compartilhados com o app de desktop (baixa uma vez, serve para os dois).
  */
 import { createInterface } from "readline";
 import { join, basename } from "path";
@@ -30,8 +30,10 @@ function clampClips(n: unknown): number | undefined {
 }
 
 /**
- * 参考画像(与 CLI --reference 同一语义):用户显式给的输入,分析失败要在
- * 回执里说清并按无参考继续,不静默丢。note 直接拼进工具回执开头。
+ * Perfil de referência (a mesma semântica do --reference da CLI): é uma entrada dada
+ * explicitamente pelo usuário, então a falha da análise precisa ser dita no recibo e o
+ * trabalho segue como se não houvesse referência — nada é descartado em silêncio.
+ * O note é colado direto no começo do recibo da ferramenta.
  */
 async function loadReference(refPath: unknown): Promise<{ profile?: ReferenceProfile; note: string }> {
   if (typeof refPath !== "string" || !refPath.trim()) return { note: "" };
@@ -42,26 +44,26 @@ async function loadReference(refPath: unknown): Promise<{ profile?: ReferencePro
       evidenceCacheDir: evidenceCacheDir(),
       glossary: await loadGlossary(userDataDir()),
     });
-    const cuts = p.cutsPerMin !== null ? `·镜头 ${p.cutsPerMin} 切/分` : "";
-    const unit = p.zh ? "字" : "词";
+    const cuts = p.cutsPerMin !== null ? ` · ${p.cutsPerMin} cortes/min` : "";
+    const unit = p.charUnits ? "caracteres" : "palavras";
     return {
       profile: p,
-      note: `参考画像:时长 ${Math.round(p.durationSec)}s·语速 ${p.speechRate}${unit}/秒·句长 ${p.avgSentenceLen}${unit}${cuts}·钩子「${p.hookLine.slice(0, 20)}」\n`,
+      note: `Perfil de referência: duração ${Math.round(p.durationSec)}s · fala a ${p.speechRate} ${unit}/s · frases de ${p.avgSentenceLen} ${unit}${cuts} · gancho «${p.hookLine.slice(0, 20)}»\n`,
     };
   } catch (e) {
-    return { note: `⚠ 对标视频分析失败,按无参考继续:${e instanceof Error ? e.message : String(e)}\n` };
+    return { note: `⚠ a análise do vídeo de referência falhou; seguindo sem referência: ${e instanceof Error ? e.message : String(e)}\n` };
   }
 }
 
-/** 工具实现:返回给 Agent 的文本。 */
+/** A implementação das ferramentas: o texto que volta para o agente. */
 async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
   const videoPath = String(args.videoPath);
 
   if (name === "transcribe_video") {
     const t = await transcribeCached(videoPath, modelsRoot(), cacheDir(), await loadGlossary(userDataDir()), undefined, typeof args.subtitlePath === "string" ? args.subtitlePath : undefined, { engineId: typeof args.engineId === "string" ? args.engineId : undefined, localServiceUrl: typeof args.localServiceUrl === "string" ? args.localServiceUrl : undefined, restart: args.restart === true });
     const lines = t.segments.map((s) => `[${fmtClock(s.startSec)}] ${s.text}`).join("\n");
-    const capped = lines.length > 60_000 ? `${lines.slice(0, 60_000)}\n…(截断)` : lines;
-    return `来源:${t.engine} 语言:${t.language} 时长:${fmtClock(t.durationSec)} 共 ${t.segments.length} 句\n${args.subtitlePath ? "已导入字幕;句内字词时间为估算,需复核。\n" : ""}${capped}`;
+    const capped = lines.length > 60_000 ? `${lines.slice(0, 60_000)}\n…(cortado)` : lines;
+    return `Origem: ${t.engine} · idioma: ${t.language} · duração: ${fmtClock(t.durationSec)} · ${t.segments.length} frases\n${args.subtitlePath ? "Legenda importada; o tempo das palavras dentro da frase é estimado e precisa de revisão.\n" : ""}${capped}`;
   }
 
   if (name === "detect_highlights") {
@@ -74,11 +76,11 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
       llm,
       maxClips: clampClips(args.maxClips),
       reference: ref.profile,
-      // 桌面审阅台积累的本机偏好,MCP 检测同享(只读)
+      // As preferências desta máquina, acumuladas na mesa de revisão do desktop, valem também para a detecção via MCP (somente leitura)
       reviewMemory: await loadReviewMemory(userDataDir()),
       performanceMemory: await loadPerformanceMemory(userDataDir()),
     });
-    if (candidates.length === 0) return `${ref.note}没有找到值得切的爆点候选。`;
+    if (candidates.length === 0) return `${ref.note}Nenhum candidato de estouro que valha cortar foi encontrado.`;
     return ref.note + JSON.stringify(
       candidates.map((c) => ({
         id: c.id,
@@ -123,38 +125,38 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
       performanceMemory: await loadPerformanceMemory(userDataDir()),
     });
     if (outcome.exported.length === 0) {
-      return `${ref.note}AI 复评后没有建议发布的切片(候选都被判定为弱钩子)。可用 detect_highlights 查看全部候选与复评意见。`;
+      return `${ref.note}Depois da revisão da IA não sobrou trecho recomendado para publicar (todos os candidatos foram julgados de gancho fraco). Use detect_highlights para ver todos os candidatos e o parecer da revisão.`;
     }
     const list = outcome.exported
       .map((r) => {
         const c = outcome.candidates.find((x) => x.id === r.id);
-        // 出片质检告警直接随条目回给 Agent——Agent 只需复核告警条,不用逐条回放
-        const qaNote = r.qa && r.qa.status === "warn" ? `\n  ⚠ 质检:${r.qa.issues.join(";")}` : "";
-        // 修复循环干过活也要说(裁边/响度重归一,机器改了什么必须可见)
-        const fixNote = r.qa?.repair?.applied ? `\n  🔧 已自动修复:${r.qa.repair.actions.join("、")}` : "";
+        // O aviso da verificação de qualidade volta junto com o item para o agente — ele só precisa revisar o que foi avisado, sem reassistir a tudo
+        const qaNote = r.qa && r.qa.status === "warn" ? `\n  ⚠ verificação: ${r.qa.issues.join("; ")}` : "";
+        // Se o laço de reparo fez algo, isso tem de ser dito (aparar a borda / renormalizar o volume: o que a máquina mudou precisa estar visível)
+        const fixNote = r.qa?.repair?.applied ? `\n  🔧 corrigido sozinho: ${r.qa.repair.actions.join(", ")}` : "";
         const colorNote = r.colorConverted
           ? " · HDR→SDR"
           : r.colorConversionSkipped
-            ? " · HDR 色彩路径不支持,未转换"
+            ? " · o caminho de cor HDR não é suportado, sem conversão"
             : r.colorInspectionFailed
-              ? " · 色彩信息检查失败"
+              ? " · a checagem da informação de cor falhou"
               : "";
-        const audioNote = r.audioEnhancement ? ` · 音频:${r.audioEnhancement}` : "";
-        return `- ${basename(r.path)} (${Math.round(r.durationSec)}s, 评分 ${c?.score ?? "?"}${colorNote}${audioNote}) ${c?.title ?? ""}${qaNote}${fixNote}`;
+        const audioNote = r.audioEnhancement ? ` · áudio: ${r.audioEnhancement}` : "";
+        return `- ${basename(r.path)} (${Math.round(r.durationSec)}s, nota ${c?.score ?? "?"}${colorNote}${audioNote}) ${c?.title ?? ""}${qaNote}${fixNote}`;
       })
       .join("\n");
     const warned = outcome.exported.filter((r) => r.qa?.status === "warn").length;
     const qaLine =
       warned > 0
-        ? `出片质检:${warned} 条有告警(详见条目与 clips.json 的 qa 字段)`
-        : "出片质检:全部通过(黑屏/长静音/响度/时长/切点/违禁词复核)";
-    return `${ref.note}已导出 ${outcome.exported.length} 条切片到 ${outcome.outDir}\n${list}\n${qaLine}\n附带 clips.json(标题/评分/时间码/回执/质检)与每条封面 JPG。`;
+        ? `Verificação de qualidade: ${warned} com aviso (veja os itens e o campo qa do clips.json)`
+        : "Verificação de qualidade: tudo passou (tela preta / silêncio longo / volume / duração / ponto de corte / palavras de risco)";
+    return `${ref.note}${outcome.exported.length} trecho(s) exportado(s) para ${outcome.outDir}\n${list}\n${qaLine}\nVão junto o clips.json (título / nota / marca de tempo / recibo / verificação) e a capa JPG de cada trecho.`;
   }
 
-  throw new Error(`未实现的工具: ${name}`);
+  throw new Error(`ferramenta não implementada: ${name}`);
 }
 
-// ---- stdio 主循环:一行一条 JSON-RPC ----
+// ---- Laço principal do stdio: uma linha por mensagem JSON-RPC ----
 export function startServer(): void {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const version = (require("../../package.json") as { version: string }).version;
