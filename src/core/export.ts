@@ -419,7 +419,7 @@ export interface ExportRenderOptions {
    * Pro; exige que o nível de LLM aponte para o Atlas e tenha chave (o parâmetro pt
    * controla o idioma do prompt); a falha é silenciosa e nunca derruba a exportação.
    */
-  aiCover?: { tier: CoverTier; baseUrl: string; apiKey: string; zh?: boolean };
+  aiCover?: { tier: CoverTier; baseUrl: string; apiKey: string; pt?: boolean };
   /** Selo de conteúdo por IA: a sinalização explícita "Gerado por IA" no canto superior esquerdo mais a implícita nos metadados do contêiner (conforme as regras de rotulagem). */
   aigcLabel?: boolean;
   /** Pacote de evidências (v0.14): cada clipe copia da origem, sem recodificar, os 3 minutos antes e depois para "evidencias/" — é a guarda da gravação original que as novas regras de revisão de autorização exigem. */
@@ -1782,7 +1782,7 @@ export async function exportClips(
               title: r.title,
               hook: spec?.meta?.hook,
               visualContext: spec?.meta?.visualEvidence?.scene,
-              zh: ac.zh !== false,
+              pt: ac.pt !== false,
               baseUrl: ac.baseUrl,
               apiKey: ac.apiKey,
               outPath,

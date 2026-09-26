@@ -2,56 +2,56 @@ import { describe, it, expect } from "vitest";
 import { planFlashForward, FLASH_LEAD_SEC, FLASH_TAIL_SEC, FLASH_MIN_SEC } from "../coldopen";
 import { missingHookPayoffs } from "../qa";
 
-describe("planFlashForward(爆点闪现)", () => {
+describe("planFlashForward (flash do estouro)", () => {
   const kept = [
     { startSec: 100, endSec: 130 },
     { startSec: 140, endSec: 160 },
   ];
 
-  it("在保留区间内围绕峰值取闪现窗(峰前铺垫+峰后余韵)", () => {
+  it("a janela do flash é tomada em volta do pico, dentro dos intervalos preservados (preparação antes do pico + o que ecoa depois)", () => {
     const plan = planFlashForward([150], kept);
     expect(plan).not.toBeNull();
     expect(plan!.startSec).toBeCloseTo(150 - FLASH_LEAD_SEC, 5);
     expect(plan!.endSec).toBeCloseTo(150 + FLASH_TAIL_SEC, 5);
   });
 
-  it("峰值贴着段边界时窗被夹取,夹到过短则跳过换下一个峰", () => {
-    // 159.9 贴着段尾:窗被夹到 [159.7, 160] = 0.3s,恰好达标
+  it("com o pico encostado na borda do trecho a janela é aparada, e se ficar curta demais o pico é pulado pelo seguinte", () => {
+    // 159,9 encostado no fim do trecho: a janela é aparada para [159,7, 160] = 0,3s, exatamente no limite
     const edge = planFlashForward([159.9], kept);
     expect(edge).not.toBeNull();
     expect(edge!.endSec - edge!.startSec).toBeGreaterThanOrEqual(FLASH_MIN_SEC - 1e-6);
-    // 100.02 贴着段头:窗 [100, 100.52];140.01 贴段头同理——都合法
-    // 峰值不在任何保留区间(135 落在空隙里)→ 跳过它选下一个
+    // 100,02 encostado no começo: janela [100, 100,52]; 140,01 no começo do outro trecho é igual — os dois são válidos
+    // Pico fora de qualquer intervalo preservado (135 cai no vão) → é pulado e o seguinte é escolhido
     const skipGap = planFlashForward([135, 150], kept);
     expect(skipGap!.startSec).toBeCloseTo(150 - FLASH_LEAD_SEC, 5);
   });
 
-  it("无可用峰值返回 null(宁可不做不可做错)", () => {
+  it("sem pico utilizável devolve null (melhor não fazer que fazer errado)", () => {
     expect(planFlashForward([], kept)).toBeNull();
-    expect(planFlashForward([135], kept)).toBeNull(); // 全部落在空隙
+    expect(planFlashForward([135], kept)).toBeNull(); // todos caem no vão
   });
 });
 
-describe("missingHookPayoffs(钩子兑付校验)", () => {
-  it("钩子承诺的数字必须出现在转写里,缺了报出来", () => {
-    const missing = missingHookPayoffs("只要99块,省下3000元", "今天这个只要九十九,能给你省下3000元");
-    expect(missing).toEqual(["99"]); // 3000 在片中;99 被转写成汉字→报缺
+describe("missingHookPayoffs (conferência do que o gancho promete)", () => {
+  it("o número que o gancho promete precisa aparecer na transcrição, e o que falta é reportado", () => {
+    const missing = missingHookPayoffs("só 99 reais, economize 3000", "hoje esse aqui sai por noventa e nove e economiza 3000 pra você");
+    expect(missing).toEqual(["99 reais"]); // o 3000 está no trecho; o 99 foi transcrito por extenso → reportado como faltando
   });
 
-  it("转写里的千分位/空格分隔不影响匹配", () => {
-    expect(missingHookPayoffs("直降1999元", "直接给你降 1,999 元")).toEqual([]);
+  it("separador de milhar e espaço na transcrição não atrapalham a conferência", () => {
+    expect(missingHookPayoffs("desconto direto de 1999", "eu tiro 1.999 direto pra você")).toEqual([]);
   });
 
-  it("单位数不核对(常被转写成汉字,必然误报)", () => {
-    expect(missingHookPayoffs("3个方法", "三个方法教给你")).toEqual([]);
+  it("número de um dígito não é conferido (costuma ser transcrito por extenso, o que geraria erro certo)", () => {
+    expect(missingHookPayoffs("3 métodos", "três métodos pra você")).toEqual([]);
   });
 
-  it("百分比/折扣类承诺按数字核匹配", () => {
-    expect(missingHookPayoffs("打4.9折,便宜30%", "四点九折,便宜30个点")).toEqual(["4.9折"]);
+  it("promessa em porcentagem é conferida pelo núcleo numérico", () => {
+    expect(missingHookPayoffs("49% de desconto, 30% mais barato", "quarenta e nove por cento e 30 pontos mais barato")).toEqual(["49%"]);
   });
 
-  it("无钩子/无转写时不评估", () => {
-    expect(missingHookPayoffs(undefined, "随便说点什么")).toEqual([]);
-    expect(missingHookPayoffs("只要99块", undefined)).toEqual([]);
+  it("sem gancho ou sem transcrição, nada é avaliado", () => {
+    expect(missingHookPayoffs(undefined, "qualquer coisa dita aí")).toEqual([]);
+    expect(missingHookPayoffs("só 99 reais", undefined)).toEqual([]);
   });
 });

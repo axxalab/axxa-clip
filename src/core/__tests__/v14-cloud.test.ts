@@ -1,6 +1,7 @@
 /**
- * v0.14 云端档:Atlas 生成媒体客户端 / AI 封面双档 / AI BGM。
- * fetch 全部打桩——测协议形状与容错,不打真网络。
+ * Edição em nuvem da v0.14: o cliente de geração de mídia da Atlas / a capa por IA em duas edições /
+ * a trilha por IA. Todo fetch é substituído por um dublê — o que se testa é a forma do protocolo e a
+ * tolerância a falha, sem tocar na rede de verdade.
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { atlasMediaBase, generateMedia } from "../atlas-media";
@@ -11,8 +12,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("atlasMediaBase(端点推导)", () => {
-  it("Atlas 域 → …/api/v1/model;其他端点/坏输入 → null", () => {
+describe("atlasMediaBase (dedução do endpoint)", () => {
+  it("domínio da Atlas → …/api/v1/model; outro endpoint ou entrada ruim → null", () => {
     expect(atlasMediaBase("https://api.atlascloud.ai/v1")).toBe("https://api.atlascloud.ai/api/v1/model");
     expect(atlasMediaBase("http://localhost:11434/v1")).toBeNull();
     expect(atlasMediaBase("https://api.openai.com/v1")).toBeNull();
@@ -21,20 +22,20 @@ describe("atlasMediaBase(端点推导)", () => {
   });
 });
 
-describe("coverPrompt / coverRequestBody(封面双档)", () => {
-  it("标题原样进引号,超长截到 16 字;中英文各一版", () => {
-    const zh = coverPrompt("十几块和两块多的纸巾差在哪这是超长标题啊", "实测吸水速度", true);
-    expect(zh).toContain("「十几块和两块多的纸巾差在哪这是超」");
-    expect(zh).toContain("实测吸水速度");
+describe("coverPrompt / coverRequestBody (capa em duas edições)", () => {
+  it("o título entra entre aspas como veio, e o comprido é cortado em 32 unidades; uma versão em português e uma em inglês", () => {
+    const pt = coverPrompt("onde está a diferença entre o de dez e o de três reais, um título enorme", "teste real da velocidade de absorção", true);
+    expect(pt).toContain("«onde está a diferença entre o de»"); // cortado em 32 unidades de largura
+    expect(pt).toContain("teste real da velocidade de absorção");
     const en = coverPrompt("Why cheap tissues fail", undefined, false);
     expect(en).toContain('"Why cheap tissues fail"');
   });
-  it("候选画面复核的真实场景优先于纯文本钩子", () => {
-    const prompt = coverPrompt("标题", "主播说产品很好", true, "主播手持蓝色耳机近景");
-    expect(prompt).toContain("主播手持蓝色耳机近景");
-    expect(prompt).not.toContain("主播说产品很好");
+  it("a cena real da revisão de imagem do candidato tem preferência sobre o gancho só de texto", () => {
+    const prompt = coverPrompt("título", "quem apresenta diz que o produto é bom", true, "close de quem apresenta com o fone azul na mão");
+    expect(prompt).toContain("close de quem apresenta com o fone azul na mão");
+    expect(prompt).not.toContain("quem apresenta diz que o produto é bom");
   });
-  it("走量档 Seedream 用 size 竖版;精品档 Nano Banana 用 aspect_ratio 3:4 jpeg", () => {
+  it("a edição de volume Seedream usa size vertical; a premium Nano Banana usa aspect_ratio 3:4 em jpeg", () => {
     const vol = coverRequestBody("volume", "p");
     expect(vol.model).toBe(COVER_MODELS.volume);
     expect(vol.size).toBe("1728*2304");
@@ -42,13 +43,13 @@ describe("coverPrompt / coverRequestBody(封面双档)", () => {
     expect(pre.model).toBe(COVER_MODELS.premium);
     expect(pre.aspect_ratio).toBe("3:4");
     expect(pre.output_format).toBe("jpeg");
-    // 价格常量:走量必须比精品便宜(档位语义)
+    // A constante de preço: a edição de volume tem de ser mais barata que a premium (é o que as faixas querem dizer)
     expect(COVER_COST_USD.volume).toBeLessThan(COVER_COST_USD.premium);
   });
 });
 
-describe("bgmPrompt(品类风格)", () => {
-  it("永远带纯音乐/循环友好约束;品类映射生效,未知回退通用档", () => {
+describe("bgmPrompt (estilo por categoria)", () => {
+  it("as restrições de música instrumental e de laço estão sempre presentes; o mapa de categoria funciona e a desconhecida volta à faixa genérica", () => {
     for (const g of ["shopping", "knowledge", undefined, "no-such-genre"]) {
       const p = bgmPrompt(g);
       expect(p).toContain("instrumental only");
@@ -61,7 +62,7 @@ describe("bgmPrompt(品类风格)", () => {
   });
 });
 
-/** 依序回放的 fetch 桩:每次调用弹出一个预置响应。 */
+/** Dublê de fetch que responde em sequência: cada chamada tira uma resposta pronta da fila. */
 const stubFetch = (responses: Array<{ status?: number; json?: unknown }>): ReturnType<typeof vi.fn> => {
   const fn = vi.fn(async () => {
     const next = responses.shift() ?? { status: 500, json: {} };
@@ -78,8 +79,8 @@ const stubFetch = (responses: Array<{ status?: number; json?: unknown }>): Retur
 
 const OPTS = { mediaBase: "https://api.atlascloud.ai/api/v1/model", apiKey: "k", timeoutMs: 5_000, pollMs: 1 };
 
-describe("generateMedia(提交-轮询)", () => {
-  it("提交拿 id → 轮询到 completed → 返回产物 URL(兼容 data 包一层的形态)", async () => {
+describe("generateMedia (envio e consulta)", () => {
+  it("envia e recebe o id → consulta até completed → devolve a URL do resultado (aceitando também a forma embrulhada em data)", async () => {
     const fn = stubFetch([
       { json: { code: 200, data: { id: "pred-1" } } },
       { json: { data: { status: "processing", outputs: [] } } },
@@ -87,17 +88,17 @@ describe("generateMedia(提交-轮询)", () => {
     ]);
     const url = await generateMedia("generateImage", { model: "m", prompt: "p" }, OPTS);
     expect(url).toBe("https://cdn.x/img.jpg");
-    // 轮询走 prediction 路径
+    // A consulta passa pelo caminho prediction
     expect(String(fn.mock.calls[1][0])).toContain("/prediction/pred-1");
   });
-  it("平铺形态(文档输出 schema)同样能读;succeeded 也算完成", async () => {
+  it("a forma plana (o schema de saída da documentação) também é lida; succeeded conta como concluído", async () => {
     stubFetch([
       { json: { code: 200, data: { id: "pred-2" } } },
       { json: { status: "succeeded", outputs: ["https://cdn.x/a.mp3"] } },
     ]);
     await expect(generateMedia("generateAudio", { model: "m", prompt: "p" }, OPTS)).resolves.toBe("https://cdn.x/a.mp3");
   });
-  it("prediction 404 时切换 result 路径继续轮询(文档两种写法都覆盖)", async () => {
+  it("com 404 em prediction, a consulta troca para o caminho result e continua (as duas formas da documentação são cobertas)", async () => {
     const fn = stubFetch([
       { json: { code: 200, data: { id: "pred-3" } } },
       { status: 404 },
@@ -106,7 +107,7 @@ describe("generateMedia(提交-轮询)", () => {
     await expect(generateMedia("generateImage", { model: "m", prompt: "p" }, OPTS)).resolves.toBe("https://cdn.x/b.jpg");
     expect(String(fn.mock.calls[2][0])).toContain("/result/pred-3");
   });
-  it("任务 failed / 提交无 id 都抛错(调用方 fail-open)", async () => {
+  it("tarefa em failed e envio sem id lançam erro (quem chama trata em falha aberta)", async () => {
     stubFetch([
       { json: { code: 200, data: { id: "pred-4" } } },
       { json: { data: { status: "failed" } } },

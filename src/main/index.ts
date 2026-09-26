@@ -374,7 +374,7 @@ const diagnosticsConfig = (value: unknown): LlmConfig | null => {
   return { baseUrl: config.baseUrl.trim(), model: config.model.trim(), apiKey: typeof config.apiKey === "string" ? config.apiKey : "" };
 };
 
-async function desktopDiagnostics(llm: LlmConfig | null, zh = true) {
+async function desktopDiagnostics(llm: LlmConfig | null, pt = true) {
   const report = await runDoctor({
     modelsRoot: modelsRoot(),
     cacheDir: transcriptCacheDir(),
@@ -382,7 +382,7 @@ async function desktopDiagnostics(llm: LlmConfig | null, zh = true) {
     evidenceCacheDir: baseEvidenceCacheDir(),
     toolsDir: join(app.getPath("userData"), "tools", "yt-dlp"),
     llm,
-    zh,
+    pt,
   });
   return { checks: report.checks, missingCoreModels: report.missingCoreModels.length, generatedAt: new Date().toISOString() };
 }
@@ -411,7 +411,7 @@ ipcMain.handle("hotclip:diagnostics-prepare-models", async (event, llm: unknown,
     evidenceCacheDir: baseEvidenceCacheDir(),
     toolsDir: join(app.getPath("userData"), "tools", "yt-dlp"),
     llm: config,
-    zh: locale !== "en",
+    pt: locale !== "en",
   });
   const controller = new AbortController();
   diagnosticsRepairAbort = controller;
@@ -1039,14 +1039,14 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
     translations = await optionalExportStep(abortSignal, () => translateSegments(translatable, tr.targetLang, tr.llm, chatComplete, abortSignal));
   }
   // Texto de publicação (opcional): uma chamada de LLM gera título + hashtags + descrição para todos os trechos (falha em aberto).
-  const zh = !(opts.transcript?.language ?? "zh").startsWith("en");
+  const pt = !(opts.transcript?.language ?? "pt").startsWith("en");
   // saveWorthy: o candidato que alcança a densidade de utilidade (v0.14) leva um texto de publicação voltado para salvar/buscar
   const copySources = list.map((c) => ({ id: c.id, title: c.title, hook: c.hook, text: c.text, keywords: c.keywords, saveWorthy: Boolean(c.utility) }));
   let publishCopies: Map<number, import("@core/publish").PublishCopy> | null = null;
   const pub = opts.publishCopy;
   if (pub?.llm?.baseUrl && pub.llm.model) {
     preparing("publish");
-    publishCopies = await optionalExportStep(abortSignal, () => generatePublishCopies(copySources, zh, pub.llm, chatComplete, abortSignal));
+    publishCopies = await optionalExportStep(abortSignal, () => generatePublishCopies(copySources, pt, pub.llm, chatComplete, abortSignal));
   }
   // Várias versões de um trecho (opcional): uma chamada de LLM monta o plano de embalagem diferente para o lote inteiro (falha em aberto —
   // na falha fica só sem variação, e a versão original é exportada como sempre).
@@ -1057,7 +1057,7 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
     variantPlans = await optionalExportStep(abortSignal, () => generateVariantPlans(
       copySources,
       Math.min(Number(varOpt.count), VARIANT_TOTAL_MAX),
-      zh,
+      pt,
       varOpt.llm,
       chatComplete,
       abortSignal
@@ -1159,7 +1159,7 @@ ipcMain.handle("hotclip:export-clips", async (event, filePath: unknown, clips: u
       // Capa por IA em duas edições (v0.14): a Atlas Key da edição de LLM do usuário é repassada, e a camada de exportação decide se o endpoint está disponível
       aiCover:
         opts.aiCover?.llm?.baseUrl && opts.aiCover.llm.apiKey && (opts.aiCover.tier === "volume" || opts.aiCover.tier === "premium")
-          ? { tier: opts.aiCover.tier, baseUrl: opts.aiCover.llm.baseUrl, apiKey: opts.aiCover.llm.apiKey, zh }
+          ? { tier: opts.aiCover.tier, baseUrl: opts.aiCover.llm.baseUrl, apiKey: opts.aiCover.llm.apiKey, pt }
           : undefined,
       // Pacote de publicação por plataforma: id de plataforma desconhecido é simplesmente filtrado (nada de adivinhar), e lista vazia é o mesmo que desligado
       publishPack: Array.isArray(opts.publishPack) ? validPlatformIds(opts.publishPack.filter((p): p is string => typeof p === "string")) : undefined,
