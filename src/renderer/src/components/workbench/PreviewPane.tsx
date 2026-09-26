@@ -1,8 +1,11 @@
 /**
- * 预览区:源画面 16:9 + 竖屏 9:16 中心裁切预览(海报同款发光描边卡)。
- * 视频工具终于能看到视频了——点候选/点时间轴都会把画面 seek 过去。
- * 竖屏卡是第二个 <video> 元素做 CSS 中心裁切,与主画面粗同步
- * (人脸跟随的真实取景在导出层,这里是"竖屏大概长这样"的直觉预览)。
+ * A área de pré-visualização: a imagem de origem em 16:9 + a pré-visualização do recorte vertical 9:16 pelo
+ * centro (no cartão com o contorno brilhante do cartaz).
+ * Uma ferramenta de vídeo finalmente mostra o vídeo — clicar num candidato ou na linha de tempo leva a imagem
+ * até ali.
+ * O cartão vertical é um segundo elemento <video> com recorte central por CSS, em sincronia aproximada com a
+ * imagem principal (o enquadramento real que segue o rosto acontece na camada de exportação, e aqui é a
+ * pré-visualização intuitiva de «o vertical vai ficar mais ou menos assim»).
  */
 import { useEffect, useRef, useState } from "react";
 import { LuPlay, LuPause, LuSkipBack, LuSkipForward } from "react-icons/lu";
@@ -37,7 +40,7 @@ export function PreviewPane({
 }: {
   filePath: string | null;
   durationSec: number;
-  /** 外部请求跳播的时刻(时间轴/候选点击驱动;NaN = 无请求)。 */
+  /** O instante que alguém de fora pediu para saltar (vem de um clique na linha de tempo ou num candidato; NaN = nenhum pedido). */
   seekSec: number;
   onTime: (sec: number) => void;
   onPrevCandidate: () => void;
@@ -51,19 +54,20 @@ export function PreviewPane({
   const cropRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [now, setNow] = useState(0);
-  // [FIX] 区分标识必须编进 pathname,不能放 query。
-  // 之前写作 `${srcBase}?view=main` / `${srcBase}?view=crop`,但 Chromium 判定
-  // "是否同一媒体资源"时忽略 query,且主进程 serveMedia 只取 pathname —— 两个
-  // <video> 实际仍是同一资源,共享同一 media buffer,一路坏两路一起坏,
-  // 且该 URL 本会话内不再可播。现在 view 走 pathname 第 2 段。
+  // [CORREÇÃO] O identificador que distingue as duas views precisa entrar no pathname, e não na query.
+  // Antes era `${srcBase}?view=main` / `${srcBase}?view=crop`, mas o Chromium ignora a query ao decidir «é a
+  // mesma mídia?» e o serveMedia do processo principal só olha o pathname — os dois <video> eram, na prática, o
+  // mesmo recurso, dividiam o mesmo buffer de mídia, um estragava e os dois estragavam juntos, e aquela URL não
+  // tocava mais nesta sessão. Agora a view é o 2º trecho do pathname.
   const src = filePath ? getApi().mediaUrl(filePath, "main") : "";
   const cropSrc = filePath ? getApi().mediaUrl(filePath, "crop") : "";
-  // [FIX] 主画面读流失败时把 MediaError.code 记下来,占位文案如实说明是"读取中断"
-  // 而不是笼统的"此环境无法预览"——后者会让用户以为是环境/格式不支持。
-  // 2 = MEDIA_ERR_NETWORK(流读取中断,协议层),4 = MEDIA_ERR_SRC_NOT_SUPPORTED。
+  // [CORREÇÃO] Quando a leitura do fluxo da imagem principal falha, o MediaError.code é registrado, e o texto do
+  // lugar vazio diz com honestidade que a «leitura foi interrompida» em vez do genérico «não dá para
+  // pré-visualizar neste ambiente» — o genérico faz a pessoa achar que é o ambiente ou o formato que não serve.
+  // 2 = MEDIA_ERR_NETWORK (a leitura do fluxo foi interrompida, na camada de protocolo) e 4 = MEDIA_ERR_SRC_NOT_SUPPORTED.
   const [mainErrCode, setMainErrCode] = useState(0);
 
-  // 外部 seek 请求(时间轴点击/候选聚焦)
+  // O pedido de seek que vem de fora (clique na linha de tempo, foco num candidato)
   useEffect(() => {
     const v = mainRef.current;
     if (!v || !Number.isFinite(seekSec)) return;
@@ -71,7 +75,7 @@ export function PreviewPane({
     v.currentTime = seekSec;
   }, [seekSec]);
 
-  // 竖屏裁切卡与主画面粗同步:漂移超过 0.3s 才校,别抖
+  // O cartão do recorte vertical fica em sincronia aproximada com a imagem principal: só é corrigido quando a deriva passa de 0,3s, para não tremer
   const syncCrop = (): void => {
     const m = mainRef.current;
     const c = cropRef.current;
@@ -113,10 +117,10 @@ export function PreviewPane({
   return (
     <div className="flex shrink-0 flex-col gap-2">
       <div className={`flex gap-2.5 ${compact ? "h-[132px]" : "h-[236px]"}`}>
-        {/* 源画面 */}
+        {/* A imagem de origem */}
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-line/60 bg-black">
-          {/* [FIX] 读流失败时不能只是把 <video> 留在原地(它已经黑屏且不会自愈),
-              要显式换成占位块,并报出 MediaError.code。 */}
+          {/* [CORREÇÃO] Quando a leitura do fluxo falha, não basta deixar o <video> no lugar (ele já está preto e
+              não se cura): é preciso trocá-lo explicitamente por um bloco de espera e mostrar o MediaError.code. */}
           {src && mainErrCode === 0 ? (
             <video
               ref={mainRef}
@@ -153,7 +157,7 @@ export function PreviewPane({
             {t("sourcePreview")}
           </span>
         </div>
-        {/* 竖屏 9:16 中心裁切:发光描边(主视觉海报的切片卡语言) */}
+        {/* Recorte vertical 9:16 pelo centro: o contorno brilhante (a linguagem dos cartões de corte do cartaz principal) */}
         <div className="relative w-[133px] shrink-0 overflow-hidden rounded-xl border-[1.5px] border-ember/60 bg-black shadow-[0_0_22px_-6px_rgba(255,100,40,0.5)]">
           {src ? (
             <video ref={cropRef} src={cropSrc} muted className="h-full w-full object-cover" />
@@ -165,7 +169,7 @@ export function PreviewPane({
           </span>
         </div>
       </div>
-      {/* 走带 */}
+      {/* A fita de tempo */}
       <div className="flex items-center gap-2.5">
         <button
           type="button"

@@ -1,10 +1,14 @@
 /**
- * 会话 store:一次剪辑会话的全部工作状态(素材/逐句稿/候选/检测统计/导出)。
- * 原先这些活在 App.tsx 与 HighlightsView 的 useState 里——回退一步候选就全丢,
- * 重新检测又是一轮 LLM 花费。进 store 后视图随便切,结果一直在。
+ * Store da sessão: todo o estado de trabalho de uma sessão de edição (material / transcrição / candidatos /
+ * estatística da detecção / exportação).
+ * Antes isso morava nos useState de App.tsx e de HighlightsView — um passo para trás e os candidatos se
+ * perdiam todos, e detectar de novo custava outra rodada de LLM. Na store, dá para trocar de vista à vontade
+ * e o resultado continua lá.
  *
- * 可恢复字段由主进程按源文件指纹原子保存;进行中任务和弹层等瞬态不恢复。
- * 出片偏好等长期记忆仍在 render-prefs / llm / asr 各自的 store 里。
+ * Os campos recuperáveis são salvos de forma atômica pelo processo principal, pela impressão do arquivo de
+ * origem; o que é passageiro, como a tarefa em andamento e as janelas, não é recuperado.
+ * As memórias de longo prazo, como as preferências de exportação, continuam cada uma na sua store
+ * (render-prefs, llm, asr).
  */
 import { create } from "zustand";
 import type {
@@ -28,7 +32,7 @@ export interface ProbedFile extends MediaInfo {
   path: string;
 }
 
-/** 检测阶段随结果带回的各路信号统计(展示用)。 */
+/** As estatísticas de cada trilha de sinal que voltam junto com o resultado da detecção (para exibição). */
 export interface DetectStats {
   funnel: FunnelStats | null;
   vision: VisionStats | null;
@@ -52,27 +56,27 @@ export const EMPTY_STATS: DetectStats = {
 interface SessionState {
   file: ProbedFile | null;
   transcript: Transcript | null;
-  /** 托管模式:每一步自动推进(导入卡上的「一键托管」)。 */
+  /** Modo de ponta a ponta: cada passo avança sozinho (o «tudo automático» do cartão de importação). */
   auto: boolean;
-  /** 设置中心(全屏视图,盖在工作台之上;任何时刻可达)。 */
+  /** A central de configurações (uma vista em tela cheia, sobre a bancada; alcançável a qualquer momento). */
   settingsOpen: boolean;
 
   candidates: HighlightCandidate[] | null;
-  /** 勾选出片的候选 id。 */
+  /** Os ids dos candidatos marcados para exportar. */
   selected: Set<number>;
-  /** 右栏正在查看详情的候选 id(与勾选无关)。 */
+  /** O id do candidato cujos detalhes a coluna da direita está mostrando (independente da marcação). */
   focusedId: number | null;
   detecting: boolean;
   detectError: string | null;
   stats: DetectStats;
 
-  /** 检测参数(会话内):改动只标脏,点「重新检测」才生效——不再静默重跑。 */
+  /** Os parâmetros de detecção (dentro da sessão): uma mudança só marca como sujo, e só o clique em «detectar de novo» a aplica — nada de rodar outra vez em silêncio. */
   diarize: boolean;
   referencePath: string | null;
   paramsDirty: boolean;
 
   exporting: { clips: HighlightCandidate[]; options: RenderToggles } | null;
-  /** Human edits only; AI/transcription setters establish a fresh baseline. */
+  /** Só as edições humanas; os setters da IA e da transcrição estabelecem uma nova linha de base. */
   editHistory: SessionEditHistory;
 
   setFile: (file: ProbedFile | null) => void;
@@ -95,9 +99,9 @@ interface SessionState {
   setReferencePath: (p: string | null) => void;
   markParamsDirty: (v: boolean) => void;
   setExporting: (v: { clips: HighlightCandidate[]; options: RenderToggles } | null) => void;
-  /** 从已验证的磁盘检查点恢复稳定字段，并把所有瞬态重置为空闲。 */
+  /** Recupera os campos estáveis de um ponto de verificação já validado no disco e devolve tudo o que é passageiro ao estado ocioso. */
   restore: (checkpoint: SessionCheckpoint) => void;
-  /** 换素材/重开:回到导入态,清空一切会话状态。 */
+  /** Trocar de material ou começar de novo: volta ao estado de importação e limpa todo o estado da sessão. */
   reset: () => void;
 }
 
@@ -283,7 +287,7 @@ function replayHistory(state: SessionState, direction: "undo" | "redo"): Partial
   return { ...applyEditCommand(state, command, direction), editHistory: compactSessionEditHistory({ undo, redo }) };
 }
 
-/** Project the Zustand state onto the stable, JSON-safe persistence contract. */
+/** Projeta o estado do Zustand no contrato de persistência estável e seguro para JSON. */
 export function sessionCheckpointFromState(state: SessionState = useSession.getState()): SessionCheckpoint | null {
   if (!state.file) return null;
   return {
@@ -301,7 +305,7 @@ export function sessionCheckpointFromState(state: SessionState = useSession.getS
   };
 }
 
-/** Build the first stable document for a freshly probed source before it enters the live store. */
+/** Monta o primeiro documento estável de um material recém-sondado, antes de ele entrar na store ativa. */
 export function initialSessionCheckpoint(file: ProbedFile): SessionCheckpoint {
   return {
     file,

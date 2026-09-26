@@ -1,7 +1,8 @@
 /**
- * 工作台:素材常驻的三栏布局。左栏素材/录播监听,中央「预览 + 时间轴 +
- * 候选表/逐句稿」,右栏 Inspector(详情/检测参数),底部出片栏。
- * 三步向导退役——回退不再丢结果,任何环节随时可回。
+ * A bancada: o layout de três colunas em que o material fica sempre presente. Na coluna da esquerda o
+ * material e o vigia de gravações, no centro «a pré-visualização + a linha de tempo + a tabela de candidatos
+ * ou a transcrição», na da direita o Inspector (detalhes e parâmetros de detecção), e embaixo a barra de exportação.
+ * O assistente de três passos foi aposentado — voltar já não perde resultado, e dá para retornar a qualquer etapa.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LuFileVideo, LuAudioLines, LuFolderSearch, LuKeyRound, LuRedo2, LuSparkles, LuTextSelect, LuUndo2 } from "react-icons/lu";
@@ -60,7 +61,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return target.isContentEditable || target.matches("input, textarea, select, button, a, [role='button'], [role='switch'], [contenteditable='true']");
 }
 
-/** 左栏:当前素材卡 + 录播监听状态(常驻,不再"选了文件就消失")。 */
+/** Coluna da esquerda: o cartão do material atual + o estado do vigia de gravações (sempre presente, e não mais «escolheu o arquivo e sumiu»). */
 function LeftRail({ onOpenWatch }: { onOpenWatch: () => void }): React.JSX.Element {
   const t = useT("workbench");
   const { file, stats, transcript } = useSession();
@@ -97,7 +98,7 @@ function LeftRail({ onOpenWatch }: { onOpenWatch: () => void }): React.JSX.Eleme
         )}
       </div>
       <div className="flex-1" />
-      {/* 录播监听常驻入口 */}
+      {/* A entrada sempre presente do vigia de gravações */}
       <button
         type="button"
         onClick={onOpenWatch}
@@ -116,7 +117,7 @@ function LeftRail({ onOpenWatch }: { onOpenWatch: () => void }): React.JSX.Eleme
   );
 }
 
-/** 检测阶段的信号统计行(检测完成后展示在候选页签头)。 */
+/** A linha de estatística dos sinais da etapa de detecção (mostrada no cabeçalho da aba de candidatos quando a detecção termina). */
 function StatsLine(): React.JSX.Element | null {
   const th = useT("highlights");
   const { stats } = useSession();
@@ -195,23 +196,23 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
   const durationSec = transcript?.durationSec || file?.durationSec || 0;
 
   const seek = useCallback((sec: number): void => {
-    // 每次都换一个极小抖动的值,同一时刻连点两次也能触发 effect
+    // Cada vez o valor recebe um tremor mínimo, e assim dois cliques no mesmo instante também disparam o effect
     setSeekSec(sec + Math.random() * 1e-6);
   }, []);
 
-  // 首次自动检测:转写完成 + LLM 就绪 + 还没有候选 → 跑一轮(每份逐句稿只触发一次)
+  // A detecção automática da primeira vez: transcrição pronta + LLM disponível + nenhum candidato ainda → uma rodada é feita (uma vez por transcrição)
   const detectedFor = useRef<unknown>(null);
   useEffect(() => {
     if (!transcript || candidates !== null || detecting || !llmReady) return;
-    // Importing reviewed subtitles first opens the transcript. AI analysis is
-    // an explicit next step; selecting a subtitle file must not spend LLM quota.
+    // Importar uma legenda já revisada abre primeiro a transcrição. A análise da IA é um passo seguinte,
+    // explícito: escolher um arquivo de legenda não pode gastar cota de LLM.
     if (transcript.engine.startsWith("subtitle-") && !auto) return;
     if (detectedFor.current === transcript) return;
     detectedFor.current = transcript;
     void run();
   }, [transcript, candidates, detecting, llmReady, auto, run]);
 
-  // 托管:候选落地即按当前偏好把「建议发」全部出片
+  // Modo de ponta a ponta: assim que os candidatos aparecem, tudo o que é «vale publicar» é exportado conforme as preferências atuais
   const autoExported = useRef(false);
   useEffect(() => {
     if (!auto || autoExported.current || !candidates) return;
@@ -225,7 +226,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, candidates]);
 
-  // 聚焦候选切换:预览跳到它的起点
+  // Trocar o candidato em foco: a pré-visualização salta para o início dele
   const focusCandidate = useCallback(
     (id: number): void => {
       session.setFocusedId(id);
@@ -248,7 +249,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
     [seek]
   );
 
-  // 文稿选段成片:手动候选进同一条候选流
+  // Vídeo a partir da escolha no texto: o candidato manual entra no mesmo fluxo de candidatos
   const addManualClip = useCallback(
     (pieces: ClipPiece[], text: string, title: string): void => {
       const s = useSession.getState();
@@ -318,7 +319,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
     const s = useSession.getState();
     const picked = (s.candidates ?? []).filter((c) => s.selected.has(c.id));
     if (picked.length === 0 || !s.transcript) return;
-    // 审阅反馈回流:本场的采用/否决落本地偏好档(尽力而为,失败不挡导出)
+    // Retorno da revisão: o aceite e o veto desta sessão vão para o arquivo de preferências local (na medida do possível; uma falha não impede a exportação)
     const summarize = (list: HighlightCandidate[]): ReviewedCandidate[] =>
       list.map((c) => ({ title: c.title, hook: c.hook, score: c.score, durationSec: Math.round(clipDurationSec(c)), keywords: c.keywords.slice(0, 5) }));
     void getApi()
@@ -337,10 +338,10 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
       <div className="flex min-h-0 flex-1">
         <LeftRail onOpenWatch={() => setShowWatch(true)} />
 
-        {/* 中央 */}
+        {/* Centro */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3">
           {!transcript ? (
-            // 还没有逐句稿:转写流程(引擎选择/进度/错误)住进中央区
+            // Ainda não há transcrição: o fluxo de transcrição (escolha do motor, progresso, erro) mora na área central
             <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto pt-6">
               <TranscribeView
                 filePath={file.path}
@@ -378,7 +379,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
                 onFocus={focusCandidate}
                 onSeek={seek}
               />}
-              {/* 候选 / 逐句稿 页签 */}
+              {/* Abas de candidatos / transcrição */}
               <div className="flex shrink-0 items-center gap-1.5">
                 {(
                   [
@@ -449,7 +450,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
               {tab === "transcript" ? (
                 <TranscriptPanel transcript={transcript} visualNotes={stats.vision?.notes} onSeek={seek} onPick={(ids) => { setPickInitialIds(ids); setShowPick(true); }} onAudition={(startSec, endSec) => setTransportCommand((previous) => ({ id: (previous?.id ?? 0) + 1, action: "audition", startSec, endSec }))} />
               ) : !llmReady ? (
-                // LLM 未配置:指路设置中心(配置本体已移到那里)
+                // LLM sem configuração: aponta o caminho da central de configurações (a configuração em si foi para lá)
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line/70 p-6 text-center">
                   <LuKeyRound className="h-6 w-6 text-ember" />
                   <p className="max-w-md text-[12.5px] leading-relaxed text-mut">{t("llmNeeded")}</p>
@@ -508,7 +509,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
         <ExportBar defaultOutDir={defaultOutDir} onExport={startExport} onOpenPanel={() => setShowExportPanel(true)} />
       )}
 
-      {/* ---- 导出进行中:中央覆盖层(候选保留在 store,出完直接回来) ---- */}
+      {/* ---- Exportação em andamento: a camada sobre o centro (os candidatos ficam na store, e ao terminar tudo volta) ---- */}
       {exporting && transcript && (
         <div className="absolute inset-0 z-40 flex flex-col items-center overflow-y-auto bg-ink/95 pt-[10vh] backdrop-blur-sm">
           <ExportView
@@ -525,7 +526,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
         </div>
       )}
 
-      {/* ---- 弹窗 ---- */}
+      {/* ---- Janelas ---- */}
       {showExportPanel && (
         <ExportPanel diarize={session.diarize} atlasReady={atlasReady} onClose={() => setShowExportPanel(false)} onOpenBrand={() => setShowBrand(true)} />
       )}
@@ -537,7 +538,7 @@ export function Workbench({ onCloseProject }: { onCloseProject: () => void }): R
         if (!reviewing || !transcript) return null;
         return (
           <ClipReviewModal
-            // 按候选 id 重建:切换候选时切点状态必须重新初始化
+            // Reconstruído pelo id do candidato: ao trocar de candidato, o estado do ponto de corte precisa ser inicializado de novo
             key={reviewing.id}
             clip={reviewing}
             transcript={transcript}

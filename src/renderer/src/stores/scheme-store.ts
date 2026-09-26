@@ -1,17 +1,19 @@
 /**
- * 出片方案:一组出片开关的命名快照。原先 33 个开关每换一类素材都要
- * 逐个点一遍——方案让「带货全家桶」「极简省时」这类组合一键切换;
- * 用户当前组合也能存成自己的方案。应用方案 = 批量写入 render-prefs。
+ * Conjuntos de exportação: um retrato nomeado de um grupo de chaves de exportação. Antes, as 33 chaves
+ * tinham de ser clicadas uma a uma a cada novo tipo de material — o conjunto faz combinações como «kit
+ * completo de vendas» ou «mínimo e rápido» trocarem com um clique; a combinação atual da pessoa também pode
+ * ser salva como um conjunto dela. Aplicar um conjunto = escrever em lote em render-prefs.
  *
- * 快照只覆盖「怎么出片」的开关,不动检测参数(品类/点题在会话侧)与
- * 路径类偏好(outDir/bgmPath 跟素材与机器走,不该被方案覆盖)。
+ * O retrato cobre só as chaves de «como o vídeo sai», e não toca nos parâmetros de detecção (a categoria e a
+ * pauta ficam do lado da sessão) nem nas preferências de caminho (outDir e bgmPath acompanham o material e a
+ * máquina, e não devem ser sobrescritas por um conjunto).
  */
 import { create } from "zustand";
 import { RENDER_PREF_DEFAULTS, type RenderPrefs } from "./render-prefs-store";
 
 const STORAGE_KEY = "hotclip-schemes";
 
-/** 进方案快照的字段(白名单;新增开关默认不进,想进来显式加)。 */
+/** Os campos que entram no retrato do conjunto (uma lista de permissão; uma chave nova não entra por padrão, e quem quiser a acrescenta explicitamente). */
 export const SCHEME_KEYS = [
   "vertical", "alsoLandscape", "trimUi", "titleCard", "autoZoom", "autoEnhance",
   "jumpCut", "keepBreath", "cleanFillers", "cutRetakes", "preciseAlign",
@@ -28,7 +30,7 @@ export type SchemeSnapshot = Pick<RenderPrefs, (typeof SCHEME_KEYS)[number]>;
 export interface Scheme {
   id: string;
   name: string;
-  /** 内置方案不可删除/覆盖。 */
+  /** Um conjunto embutido não pode ser apagado nem sobrescrito. */
   builtin?: boolean;
   prefs: SchemeSnapshot;
 }
@@ -39,12 +41,12 @@ function snap(overrides: Partial<SchemeSnapshot> = {}): SchemeSnapshot {
   return { ...(out as SchemeSnapshot), ...overrides };
 }
 
-/** 内置三档:出厂默认 / 带货矩阵全开 / 只要最快出素材。 */
+/** As três faixas embutidas: o padrão de fábrica / o kit de vendas com tudo ligado / só o mais rápido possível. */
 export const BUILTIN_SCHEMES: Scheme[] = [
-  { id: "default", name: "默认出片", builtin: true, prefs: snap() },
+  { id: "default", name: "Padrão", builtin: true, prefs: snap() },
   {
     id: "selling",
-    name: "带货全家桶",
+    name: "Kit completo de vendas",
     builtin: true,
     prefs: snap({
       publishCopy: true,
@@ -60,7 +62,7 @@ export const BUILTIN_SCHEMES: Scheme[] = [
   },
   {
     id: "minimal",
-    name: "极简省时",
+    name: "Mínimo e rápido",
     builtin: true,
     prefs: snap({
       titleCard: false,
@@ -73,14 +75,14 @@ export const BUILTIN_SCHEMES: Scheme[] = [
   },
 ];
 
-/** 从当前偏好里抠出方案快照。纯函数。 */
+/** Tira do conjunto de preferências atual o retrato do conjunto. Função pura. */
 export function snapshotOf(prefs: RenderPrefs): SchemeSnapshot {
   const out = {} as Record<string, unknown>;
   for (const k of SCHEME_KEYS) out[k] = prefs[k];
   return out as SchemeSnapshot;
 }
 
-/** 当前偏好与某方案是否一致(用于高亮「现在用的是哪个方案」)。纯函数。 */
+/** Se as preferências atuais batem com um conjunto (usado para destacar «qual conjunto está em uso agora»). Função pura. */
 export function matchesScheme(prefs: RenderPrefs, scheme: Scheme): boolean {
   return SCHEME_KEYS.every((k) => JSON.stringify(prefs[k]) === JSON.stringify(scheme.prefs[k]));
 }
@@ -107,12 +109,12 @@ interface SchemeState {
 export const useSchemes = create<SchemeState>((set, get) => ({
   userSchemes: loadUserSchemes(),
   saveCurrent: (name, prefs) => {
-    const scheme: Scheme = { id: `user-${Date.now()}`, name: name.slice(0, 20) || "我的方案", prefs: snapshotOf(prefs) };
-    const userSchemes = [...get().userSchemes, scheme].slice(-8); // 上限 8 个,先进先出
+    const scheme: Scheme = { id: `user-${Date.now()}`, name: name.slice(0, 20) || "meu conjunto", prefs: snapshotOf(prefs) };
+    const userSchemes = [...get().userSchemes, scheme].slice(-8); // teto de 8, o primeiro a entrar é o primeiro a sair
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(userSchemes));
     } catch {
-      /* 持久化尽力而为 */
+      /* a persistência é feita na medida do possível */
     }
     set({ userSchemes });
   },
@@ -121,7 +123,7 @@ export const useSchemes = create<SchemeState>((set, get) => ({
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(userSchemes));
     } catch {
-      /* 持久化尽力而为 */
+      /* a persistência é feita na medida do possível */
     }
     set({ userSchemes });
   },
