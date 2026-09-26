@@ -110,7 +110,7 @@ export class SherpaOfflineEngine implements TranscribeEngine {
 
 
     const sh = loadSherpa();
-    // 模型文件由原生层自己打开(ANSI):Windows 中文路径先转 8.3 短路径(issue #4)
+    // O arquivo do modelo é aberto pela camada nativa (ANSI): no Windows, o caminho com acento vira primeiro o caminho curto 8.3 (issue #4)
     const dir = await toAnsiSafeDir(modelDir(this.modelsRoot, spec.asset));
     const recognizer = new sh.OfflineRecognizer({
       featConfig: { sampleRate: 16000, featureDim: 80 },

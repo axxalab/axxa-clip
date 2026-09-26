@@ -15,7 +15,7 @@ export class FireRedEngine extends SherpaOfflineEngine {
     super(
       {
         id: "fireredasr-local",
-        label: "FireRedASR2 (本地 · 最准 · zh/方言/en)",
+        label: "FireRedASR2 (local · o mais preciso · zh/dialetos/en)",
         asset: FIRERED_MODEL,
         buildModelConfig: (dir) => ({
           fireRedAsrCtc: { model: join(dir, "model.int8.onnx") },

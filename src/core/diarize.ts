@@ -63,7 +63,7 @@ export async function runDiarization(
   options: DiarizeOptions = {}
 ): Promise<SpeakerTurn[]> {
   const { OfflineSpeakerDiarization } = loadSherpa();
-  // 模型路径交给原生层前先转 ANSI 安全形态(Windows 中文路径,issue #4)
+  // Antes de entregar o caminho do modelo à camada nativa, ele vira a forma segura para ANSI (caminho com acento no Windows, issue #4)
   const sd = new OfflineSpeakerDiarization({
     segmentation: {
       pyannote: { model: join(await toAnsiSafeDir(modelDir(modelsRoot, SEGMENTATION_MODEL)), "model.onnx") },

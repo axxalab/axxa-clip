@@ -36,7 +36,7 @@ export interface ReferenceProfile {
 // Faixa de ideogramas unificados CJK. Escrita como escapes Unicode de propósito:
 // o código-fonte deste projeto não carrega nenhum caractere ideográfico, mas a
 // contagem precisa continuar correta para material gravado nesses idiomas.
-const CJK_RE = /[一-鿿]/;
+const CJK_RE = /[\u4e00-\u9fff]/;
 
 /**
  * Decide a unidade de contagem: escritas ideográficas contam caracteres, as
@@ -48,7 +48,7 @@ function usesCharUnits(transcript: Transcript): boolean {
   if (lang.startsWith("zh") || lang.startsWith("yue") || lang.startsWith("ja")) return true;
   if (lang && lang !== "auto") return false;
   const sample = transcript.segments.slice(0, 10).map((s) => s.text).join("");
-  const cjk = (sample.match(/[一-鿿]/g) ?? []).length;
+  const cjk = (sample.match(/[\u4e00-\u9fff]/g) ?? []).length;
   return sample.length > 0 && cjk / sample.length > 0.3;
 }
 

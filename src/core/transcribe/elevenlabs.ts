@@ -47,7 +47,7 @@ export function parseScribeWords(res: ScribeResponse): TranscriptWord[] {
 
 export class ElevenLabsEngine implements TranscribeEngine {
   id = "elevenlabs-cloud";
-  label = "ElevenLabs Scribe (云端 · 90+ 语种)";
+  label = "ElevenLabs Scribe (nuvem · mais de 90 idiomas)";
 
   constructor(
     private apiKey: string,
@@ -60,7 +60,7 @@ export class ElevenLabsEngine implements TranscribeEngine {
 
   async transcribe(filePath: string, options: TranscribeOptions = {}): Promise<Transcript> {
     const { onProgress, signal } = options;
-    if (!this.apiKey) throw new Error("需要 ElevenLabs API Key / ElevenLabs API key required");
+    if (!this.apiKey) throw new Error("é preciso uma API Key da ElevenLabs / ElevenLabs API key required");
 
     // extract compact mono audio — never upload the raw video
     onProgress?.({ fraction: 0, stage: "decoding" });
@@ -88,22 +88,22 @@ export class ElevenLabsEngine implements TranscribeEngine {
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        throw new Error(`无法连接 ElevenLabs / cannot reach ElevenLabs: ${msg}`);
+        throw new Error(`não foi possível conectar à ElevenLabs / cannot reach ElevenLabs: ${msg}`);
       }
       const bodyText = await res.text();
       if (!res.ok) {
-        throw new Error(`ElevenLabs 转写失败 / transcription failed (HTTP ${res.status}): ${bodyText.slice(0, 300)}`);
+        throw new Error(`a transcrição da ElevenLabs falhou / transcription failed (HTTP ${res.status}): ${bodyText.slice(0, 300)}`);
       }
       let data: ScribeResponse;
       try {
         data = JSON.parse(bodyText);
       } catch {
-        throw new Error(`ElevenLabs 返回非 JSON / non-JSON response: ${bodyText.slice(0, 200)}`);
+        throw new Error(`a ElevenLabs devolveu algo que não é JSON / non-JSON response: ${bodyText.slice(0, 200)}`);
       }
 
       onProgress?.({ fraction: 0.9, stage: "finalizing" });
       const words = parseScribeWords(data);
-      if (words.length === 0) throw new Error("云端未返回词级时间戳 / no word timestamps returned");
+      if (words.length === 0) throw new Error("a nuvem não devolveu marca de tempo por palavra / no word timestamps returned");
       return {
         language: (data.language_code ?? "auto").slice(0, 5),
         segments: segmentWords(words),

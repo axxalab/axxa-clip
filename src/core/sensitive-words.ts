@@ -1,6 +1,13 @@
 import type { TranscriptWord } from "../shared/api-types";
 
-export const DEFAULT_SENSITIVE_WORDS = ["他妈的", "妈的", "操你", "傻逼", "草泥马", "fuck", "fucking", "shit", "bitch"];
+/**
+ * O silenciamento de palavrão: a lista padrão do público de língua portuguesa, mais os palavrões em inglês
+ * mais comuns. A pessoa pode editar a lista inteira nas configurações.
+ */
+export const DEFAULT_SENSITIVE_WORDS = [
+  "porra", "caralho", "merda", "foda-se", "puta que pariu", "filho da puta", "cacete", "buceta",
+  "fuck", "fucking", "shit", "bitch",
+];
 
 export interface TimedRange { startSec: number; endSec: number }
 
@@ -20,7 +27,7 @@ function mergeRanges(ranges: TimedRange[]): TimedRange[] {
   return out;
 }
 
-/** Match CJK phrases literally and Latin terms as whole words, then map to word timestamps. */
+/** A expressão em escrita ideográfica combina literalmente e o termo latino combina como palavra inteira; depois tudo é mapeado nas marcas de tempo das palavras. */
 export function findSensitiveRanges(words: TranscriptWord[], terms: string[], paddingSec = 0.06): TimedRange[] {
   let joined = "";
   const owners: number[] = [];
@@ -56,7 +63,7 @@ export function findSensitiveRanges(words: TranscriptWord[], terms: string[], pa
   return mergeRanges(ranges);
 }
 
-/** Convert absolute source ranges onto the final concatenated output timeline. */
+/** Converte os intervalos em tempo absoluto da origem para a linha de tempo final, já concatenada, da saída. */
 export function mapSensitiveRanges(words: TranscriptWord[], terms: string[], segments: TimedRange[]): TimedRange[] {
   const source = findSensitiveRanges(words, terms);
   const mapped: TimedRange[] = [];

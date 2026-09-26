@@ -8,8 +8,8 @@
  */
 import type { TranscriptWord, TranscriptSegment } from "./types";
 
-const HARD_PUNCT = /[。！？.!?…]$/;
-const SOFT_PUNCT = /[，、;；,]$/;
+const HARD_PUNCT = /[.!?\u3002\uff01\uff1f\u2026]$/;
+const SOFT_PUNCT = /[,;\uff0c\u3001\uff1b]$/;
 
 export interface SegmentOptions {
   /** Silence gap (seconds) that forces a split even without punctuation. */
@@ -25,7 +25,7 @@ function isCjkDominant(words: TranscriptWord[]): boolean {
   for (const w of words) {
     for (const ch of w.text) {
       total++;
-      if (/[一-鿿぀-ヿ가-힣]/.test(ch)) cjk++;
+      if (/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(ch)) cjk++;
     }
   }
   return total > 0 && cjk / total > 0.5;

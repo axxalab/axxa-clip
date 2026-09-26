@@ -1,20 +1,24 @@
 /**
- * Filler-word & stutter detection: find the spans a tight human edit would
- * drop — hesitation sounds and immediate word repeats. Deliberately
- * conservative: only unambiguous hesitation tokens make the list ("然后/那个"
- * are usually real words; sentence-final "啊" carries emotion — keep them).
- * Pure functions; the spans feed the jump-cut planner as forced cuts.
+ * Detecção de palavra de preenchimento e de gagueira: acha os trechos que uma edição humana apertada
+ * cortaria — os sons de hesitação e a repetição imediata de uma palavra. Conservador de propósito: só o som
+ * de hesitação inequívoco entra na lista («tipo», «né» e «então» quase sempre são palavras de verdade, e um
+ * «ah» no fim da frase carrega emoção — todos ficam).
+ * Funções puras; os trechos alimentam o planejador do corte seco como cortes forçados.
  */
 import type { TranscriptWord } from "../shared/api-types";
 import type { KeptSegment } from "./gaps";
 
-/** Unambiguous hesitation tokens (standalone words only). */
+/** Os sons de hesitação inequívocos (só quando são a palavra inteira). */
 const FILLER_TOKENS = new Set([
-  "嗯", "呃", "额", "唔", "嗯嗯", "呃呃",
-  "um", "uh", "er", "erm", "hmm", "mmm",
+  // português
+  "ahn", "ahm", "\u00e3h", "h\u00e3", "hum", "humm", "hmm", "\u00e9\u00e9", "\u00e9\u00e9\u00e9", "eh", "ehm",
+  // inglês
+  "um", "uh", "er", "erm", "mmm",
+  // escrita ideográfica (em escapes Unicode, para o código-fonte não carregar ideogramas)
+  "\u55ef", "\u5443", "\u989d", "\u5514", "\u55ef\u55ef", "\u5443\u5443",
 ]);
 
-/** Stutter repeats longer than this are probably deliberate emphasis. */
+/** Uma repetição mais longa que isto provavelmente é ênfase de propósito. */
 const STUTTER_MAX_SEC = 0.8;
 
 export interface FillerHit {
@@ -25,12 +29,12 @@ export interface FillerHit {
   kind: "filler" | "stutter";
 }
 
-/** Strip punctuation the punctuation-restore step may have attached. */
+/** Tira a pontuação que o passo de recuperação de pontuação pode ter colado na palavra. */
 function bareToken(text: string): string {
-  return text.toLowerCase().replace(/[,。,.!?!?、;;::…~~\s]/gu, "");
+  return text.toLowerCase().replace(/[,.!?;:\u3002\uff0c\uff01\uff1f\u3001\uff1b\uff1a\u2026\uff5e~\s]/gu, "");
 }
 
-/** Find filler words and stutter repeats (the FIRST of each repeat pair). */
+/** Acha as palavras de preenchimento e as repetições de gagueira (a PRIMEIRA de cada par repetido). */
 export function findFillerWords(words: TranscriptWord[]): FillerHit[] {
   const hits: FillerHit[] = [];
   for (let i = 0; i < words.length; i++) {
@@ -53,13 +57,13 @@ export function findFillerWords(words: TranscriptWord[]): FillerHit[] {
   return hits;
 }
 
-/** Words minus the flagged indices (captions must not show what was cut). */
+/** As palavras menos os índices marcados (a legenda não pode mostrar o que foi cortado). */
 export function dropFillerWords(words: TranscriptWord[], hits: FillerHit[]): TranscriptWord[] {
   const drop = new Set(hits.map((h) => h.index));
   return words.filter((_, i) => !drop.has(i));
 }
 
-/** Merge overlapping/adjacent hit spans into forced-cut intervals. */
+/** Une os trechos encontrados que se sobrepõem ou se encostam em intervalos de corte forçado. */
 export function fillerCutSpans(hits: FillerHit[], mergeGapSec = 0.1): KeptSegment[] {
   const sorted = [...hits].sort((a, b) => a.startSec - b.startSec);
   const out: KeptSegment[] = [];

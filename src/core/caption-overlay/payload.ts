@@ -63,9 +63,9 @@ export interface OverlayPayload {
   baselineFrac: number;
   /** Base font size in CSS pixels (frame pixels — the window is 1:1). */
   fontSize: number;
-  /** 关键词渐变的起始色(品牌高亮色);缺省火焰橙。 */
+  /** A cor inicial do gradiente da palavra-chave (a cor de destaque da marca); na ausência, o laranja de chama. */
   highlightColor: string;
-  /** 渐变第二停靠色(高亮色向白提亮),模板直接用。 */
+  /** A segunda parada do gradiente (a cor de destaque clareada para o branco), usada direto pelo modelo. */
   highlightColor2: string;
   lines: OverlayLine[];
 }

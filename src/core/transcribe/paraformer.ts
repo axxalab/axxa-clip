@@ -12,7 +12,7 @@ export class ParaformerEngine extends SherpaOfflineEngine {
     super(
       {
         id: "paraformer-local",
-        label: "Paraformer (本地 · 中文更准 · zh/en)",
+        label: "Paraformer (local · mais preciso em mandarim · zh/en)",
         asset: PARAFORMER_MODEL,
         buildModelConfig: (dir) => ({
           paraformer: { model: join(dir, "model.int8.onnx") },

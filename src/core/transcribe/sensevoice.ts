@@ -15,7 +15,7 @@ export class SenseVoiceEngine extends SherpaOfflineEngine {
     super(
       {
         id: "sensevoice-local",
-        label: "SenseVoice (本地免费 · zh/en/ja/ko/yue)",
+        label: "SenseVoice (local e de graça · zh/en/ja/ko/yue)",
         asset: SENSEVOICE_MODEL,
         buildModelConfig: (dir) => ({
           senseVoice: {

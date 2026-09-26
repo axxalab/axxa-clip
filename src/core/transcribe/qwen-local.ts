@@ -93,7 +93,7 @@ export function qwenTranscriptWords(text: string, stamps: unknown, start: number
 
 export class QwenLocalEngine implements TranscribeEngine {
   id = "qwen3-local";
-  label = "Qwen3-ASR (本地服务 · 可选)";
+  label = "Qwen3-ASR (serviço local · opcional)";
   constructor(private url = DEFAULT_QWEN_URL) { localSpeechUrl(url); }
   async isReady(): Promise<boolean> { return qwenHealth(this.url).then(() => true, () => false); }
   async transcribe(filePath: string, options: TranscribeOptions = {}): Promise<Transcript> {
