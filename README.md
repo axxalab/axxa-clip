@@ -8,7 +8,7 @@
 
 **Uma alternativa gratuita e local ao Opus Clip — sem créditos, sem marca d'água, sem envio para a nuvem**
 
-**Português (BR)** | [English](README.en.md) | [Site](https://xixihhhh.github.io/hotclip/en.html) | [Download](https://github.com/xixihhhh/hotclip/releases/latest) | [Perguntas frequentes](#perguntas-frequentes) | [Problemas](https://github.com/xixihhhh/hotclip/issues)
+**Português (BR)** | [English](README.en.md) | [Site](https://xixihhhh.github.io/hotclip/) | [Download](https://github.com/xixihhhh/hotclip/releases/latest) | [Perguntas frequentes](#perguntas-frequentes) | [Problemas](https://github.com/xixihhhh/hotclip/issues)
 
 <p>
   <a href="https://github.com/xixihhhh/hotclip/releases/latest"><img src="https://img.shields.io/github/v/release/xixihhhh/hotclip?label=vers%C3%A3o&color=ff5722" alt="Versão mais recente"></a>
