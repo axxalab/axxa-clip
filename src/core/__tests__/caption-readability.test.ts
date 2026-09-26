@@ -8,8 +8,8 @@ describe("language-aware caption display", () => {
   it("uses graphemes and script-specific reading defaults", () => {
     expect(captionReadableChars("cafe\u0301")).toBe(4);
     expect(captionReadingCps("\u4f60\u597d")).toBe(9);
-    expect(captionReadingCps("こんにちは")).toBe(7);
-    expect(captionReadingCps("안녕")).toBe(12);
+    expect(captionReadingCps("\u3053\u3093\u306b\u3061\u306f")).toBe(7);
+    expect(captionReadingCps("\uc548\ub155")).toBe(12);
     expect(captionReadingCps("hello")).toBe(20);
   });
   it("extends short display only into available space; original word timings stay unchanged", () => {
